@@ -486,7 +486,17 @@ git commit -m "feat: add row-level security policies"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: types `Side`, `Slot`, `Court`, `MatchFormat`, `ScoringRules`, `GameStartOverride`, `MatchConfig`, `RallyInput`, `RallyState`, `GameState`, `Warning`, `WarningCode`, `DerivedMatch`; functions `isGameOver(a, b, rules)`, `wouldEndGame(score, side, rules)`, `gamesNeeded(rules)`, `partnerSlot(slot)`, `sideOfSlot(slot)`, `singlesSlot(side)`, `otherSide(side)`; constant `DEFAULT_RULES`.
+- Produces: types `Side`, `Slot`, `Court`, `MatchFormat`, `ScoringRules`, `GameStartOverride`, `MatchConfig`, `RallyInput`, `RallyState`, `GameState`, `Warning`, `WarningCode`, `DerivedMatch`; functions `isGameOver(a, b, rules)`, `wouldEndGame(score, side, rules)`, `scoreOf(score, side)`, `addPoint(score, side)`, `gamesNeeded(rules)`, `partnerSlot(slot)`, `sideOfSlot(slot)`, `singlesSlot(side)`, `otherSide(side)`; constant `DEFAULT_RULES`.
+
+**Two adjustments made during execution, already reflected in the committed code:**
+
+1. `typescript` is pinned to `^5.9`. `vue-tsc` 3.x cannot run against the
+   TypeScript 7 native port, which no longer exports `./lib/tsc`.
+2. Nuxt 4 enables `noUncheckedIndexedAccess`, so indexing a tuple by a computed
+   value (`score[side - 1]`) widens to `number | undefined`. `scoreOf()` and
+   `addPoint()` exist so no scoring code indexes by arithmetic; `derive.ts` uses
+   them throughout, and increments `gamesWon` through an explicit
+   `if (winner === 1)` branch rather than `gamesWon[winner - 1] += 1`.
 
 - [ ] **Step 1: Write the types**
 
@@ -1004,14 +1014,26 @@ console.log('warnings:', marathon.warnings.map(w => w.code).join(', ') || 'none'
 
 - [ ] **Step 4: Run the sanity script and read the output**
 
-Run: `node scripts/derive-sanity.ts`
+Run: `pnpm exec jiti scripts/derive-sanity.ts`
 
-Expected, and check each line by hand:
-- **21-0 sweep:** final `[21, 0]`, winner side `1`. Serving slot alternates `121212…` — the same *side* keeps serving, and its two players swap courts on every won rally. Service court alternates `rlrlrl…` — even score serves right, odd serves left.
-- **Alternating:** serving slot reads `1313…`. Service passes on every rally and nobody rotates, so each side keeps serving from its right-court player at score 0, then its left at 1, and so on.
-- **Singles marathon:** the game reaches the 30-point cap and stops there rather than running on.
+Not `node`: Node's native ESM demands explicit file extensions, which the rest of
+the codebase does not use. `jiti` ships with Nuxt, so this needs no new dependency.
 
-If serving slots do not alternate in the sweep, the rotation swap is on the wrong branch — it must fire only when the winner *is* the serving side.
+The script prints each expected value beside the actual one. All six must match:
+
+- **21-0 sweep:** game score `[21, 0]`; match winner `null` — 21-0 is *one game*
+  of a best-of-3, so the match is not yet decided. Serving slot is
+  `111111111111111111111`: when the serving side never loses a rally, BWF rules
+  keep **the same player serving every point**, and it is the *court* that
+  alternates — `rlrlrlrlrlrlrlrlrlrlr`.
+- **Alternating:** serving slot `11423142314231423142`. Service passes every
+  rally so nobody rotates; each side alternates partners purely by its own
+  score parity.
+- **Singles marathon:** games `30-29, 1-0` — the first game stops at the cap
+  rather than running on — with warning `final_game_incomplete`.
+
+If the sweep's serving slot alternates between two players, the rotation swap is
+on the wrong branch: it must fire only when the winner *is* the serving side.
 
 - [ ] **Step 5: Commit**
 
