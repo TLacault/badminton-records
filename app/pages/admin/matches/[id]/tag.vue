@@ -1,0 +1,229 @@
+<script setup lang="ts">
+import type { Database } from '~/types/database.types'
+import type { MatchConfig, RallyInput, Side, Slot } from '~~/shared/badminton'
+
+definePageMeta({ middleware: 'admin', layout: 'admin' })
+
+const route = useRoute()
+const matchId = route.params.id as string
+const client = useSupabaseClient<Database>()
+
+const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
+  const [match, participants, rallies, gameStarts] = await Promise.all([
+    client.from('matches').select('*').eq('id', matchId).maybeSingle(),
+    client.from('match_players')
+      .select('slot, player_id, players(first_name, last_name)')
+      .eq('match_id', matchId),
+    client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
+    client.from('match_game_starts').select('*').eq('match_id', matchId),
+  ])
+  return {
+    match: match.data,
+    participants: participants.data ?? [],
+    rallies: rallies.data ?? [],
+    gameStarts: gameStarts.data ?? [],
+  }
+})
+
+const match = computed(() => bundle.value?.match ?? null)
+
+const names = computed<Record<number, string>>(() => {
+  const out: Record<number, string> = {}
+  for (const p of bundle.value?.participants ?? []) {
+    const player = p.players as { first_name: string, last_name: string } | null
+    out[p.slot] = player ? `${player.first_name} ${player.last_name}` : `Slot ${p.slot}`
+  }
+  return out
+})
+
+const slotToPlayerId = computed<Record<number, string>>(() => {
+  const out: Record<number, string> = {}
+  for (const p of bundle.value?.participants ?? []) out[p.slot] = p.player_id
+  return out
+})
+
+const config = computed<MatchConfig>(() => ({
+  format: (match.value?.format ?? 'doubles') as MatchConfig['format'],
+  rules: {
+    bestOf: match.value?.best_of ?? 3,
+    pointsToWin: match.value?.points_to_win ?? 21,
+    winBy: match.value?.win_by ?? 2,
+    pointsCap: match.value?.points_cap ?? 30,
+  },
+  initialServerSide: (match.value?.initial_server_side ?? null) as Side | null,
+  side1RightCourtSlot: (match.value?.side1_right_court_slot ?? null) as Slot | null,
+  side2RightCourtSlot: (match.value?.side2_right_court_slot ?? null) as Slot | null,
+  gameStarts: (bundle.value?.gameStarts ?? []).map(g => ({
+    gameNumber: g.game_number,
+    serverSlot: g.server_slot as Slot | null,
+    side1RightCourtSlot: g.side1_right_court_slot as Slot | null,
+    side2RightCourtSlot: g.side2_right_court_slot as Slot | null,
+  })),
+}))
+
+const initialRallies: RallyInput[] = (bundle.value?.rallies ?? []).map(r => ({
+  idx: r.idx,
+  winnerSide: r.winner_side as Side | null,
+  isLet: r.is_let,
+  isHighlight: r.is_highlight,
+  scoredByPlayerId: r.scored_by_player_id,
+  endedAtSeconds: Number(r.ended_at_seconds),
+}))
+
+const session = useTaggingSession(matchId, config, initialRallies)
+
+const stage = ref<{
+  getTime: () => number
+  toggle: () => void
+  seekBy: (d: number) => void
+  seekTo: (s: number) => void
+} | null>(null)
+
+function onKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+
+  // Undo/redo first: the only bindings that use a modifier.
+  if (event.ctrlKey || event.metaKey) {
+    const key = event.key.toLowerCase()
+    if (key === 'z') {
+      event.preventDefault()
+      session.undo()
+    }
+    else if (key === 'y') {
+      event.preventDefault()
+      session.redo()
+    }
+    return
+  }
+
+  const time = stage.value?.getTime() ?? 0
+
+  // Digits match on event.code: on AZERTY the unshifted digit row produces
+  // & é " ' rather than 1 2 3 4.
+  if (event.code.startsWith('Digit')) {
+    const slot = Number(event.code.slice(5))
+    if (slot >= 1 && slot <= 4) {
+      event.preventDefault()
+      session.setScorerOnLast(slotToPlayerId.value[slot] ?? null)
+    }
+    return
+  }
+
+  // Letters match on event.key: event.code reports physical position, so the
+  // AZERTY A key would report KeyQ.
+  switch (event.key.toLowerCase()) {
+    case 'a':
+      event.preventDefault()
+      session.addRally(1, time)
+      break
+    case 'z':
+      event.preventDefault()
+      session.addRally(2, time)
+      break
+    case 'r':
+      event.preventDefault()
+      session.addLet(time)
+      break
+    case 'p':
+      event.preventDefault()
+      session.toggleHighlightOnLast()
+      break
+    case ' ':
+      event.preventDefault()
+      stage.value?.toggle()
+      break
+    case 'arrowleft':
+      event.preventDefault()
+      stage.value?.seekBy(-5)
+      break
+    case 'arrowright':
+      event.preventDefault()
+      stage.value?.seekBy(5)
+      break
+  }
+}
+
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (session.dirty.value) event.preventDefault()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('beforeunload', beforeUnload)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('beforeunload', beforeUnload)
+})
+
+onBeforeRouteLeave(() => {
+  if (!session.dirty.value) return true
+  return confirm('You have unsaved tagging changes. Leave anyway?')
+})
+
+const saveLabel = computed(() => {
+  if (session.saveState.value === 'saving') return 'Saving…'
+  if (session.saveState.value === 'error') return `Save failed: ${session.saveError.value}`
+  return session.dirty.value ? 'Unsaved' : 'Saved'
+})
+</script>
+
+<template>
+  <div v-if="match">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-bold">
+        {{ match.title }}
+      </h1>
+      <div class="flex items-center gap-3 text-sm">
+        <span
+          data-testid="save-state"
+          class="text-slate-400"
+          :class="{ 'text-amber-400': session.saveState.value === 'error' }"
+        >{{ saveLabel }}</span>
+        <button
+          data-testid="undo"
+          class="rounded bg-slate-800 px-3 py-1 disabled:opacity-40"
+          :disabled="!session.canUndo.value"
+          @click="session.undo()"
+        >
+          Undo
+        </button>
+        <button
+          data-testid="redo"
+          class="rounded bg-slate-800 px-3 py-1 disabled:opacity-40"
+          :disabled="!session.canRedo.value"
+          @click="session.redo()"
+        >
+          Redo
+        </button>
+        <button data-testid="save-now" class="rounded bg-emerald-600 px-3 py-1" @click="session.saveNow()">
+          Save now
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4 grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div>
+        <PlayerYouTubeStage ref="stage" :video-id="match.youtube_video_id" />
+        <TaggingScoreBoard class="mt-4" :derived="session.derived.value" :names="names" />
+        <TaggingKeyHelp class="mt-4" />
+      </div>
+      <TaggingPointList
+        :rallies="session.rallies.value"
+        :derived="session.derived.value"
+        :names="names"
+        :slot-to-player-id="slotToPlayerId"
+        @seek="(s: number) => stage?.seekTo(s)"
+        @flip="session.flipWinner"
+        @toggle-let="session.toggleLet"
+        @toggle-highlight="session.toggleHighlight"
+        @set-scorer="session.setScorer"
+        @delete="session.deleteRally"
+      />
+    </div>
+  </div>
+  <p v-else class="text-slate-400">
+    Match not found.
+  </p>
+</template>
