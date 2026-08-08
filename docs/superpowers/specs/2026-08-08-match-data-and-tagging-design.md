@@ -320,9 +320,13 @@ engine framework-free while available everywhere.
 
 **Auth.** Supabase Auth, email + password. The two admin accounts are created by hand and promoted
 via SQL; there is no self-serve path to admin. Nuxt middleware guards `/admin/**` so users get a
-redirect rather than a page of failed queries, but RLS is the actual enforcement. `supabase.redirect`
-in `nuxt.config.ts` is re-enabled once `/login` exists — it was disabled during scaffolding precisely
-because it did not.
+redirect rather than a page of failed queries, but RLS is the actual enforcement.
+
+`supabase.redirect` in `nuxt.config.ts` **stays disabled**. The module's redirect protects every
+route by default and expects public ones to be enumerated in `exclude`, which inverts the policy we
+want: here the site is public and only `/admin/**` is restricted. An exclude list would also have to
+grow with every page sub-project D adds. A single `admin` route middleware states the rule once, in
+the place it applies.
 
 **Schema management.** Versioned migration files in `supabase/migrations/`, applied to the hosted
 Supabase project with the CLI. `database.types.ts` is generated from the live schema, never
