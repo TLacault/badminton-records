@@ -2,7 +2,9 @@
 import type { Database } from '~/types/database.types'
 import type { MatchConfig, RallyInput, Side, Slot } from '~~/shared/badminton'
 
-definePageMeta({ middleware: 'admin', layout: 'admin' })
+// `wide` drops the admin layout's max-width: tagging wants every pixel it can
+// get for the point list.
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true })
 
 const route = useRoute()
 const matchId = route.params.id as string
@@ -203,7 +205,12 @@ const saveLabel = computed(() => {
       </div>
     </div>
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-[2fr_1fr]">
+    <!--
+      The point list gets a generous fixed column and the video takes what is
+      left, rather than the reverse: the video is already height-capped, so
+      extra width past that cap would only pad it.
+    -->
+    <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
       <div>
         <PlayerYouTubeStage ref="stage" :video-id="match.youtube_video_id" />
         <TaggingScoreBoard class="mt-4" :derived="session.derived.value" :names="names" />

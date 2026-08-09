@@ -1,21 +1,33 @@
+<script setup lang="ts">
+import { Check, Minus, Star, X } from '@lucide/vue'
+</script>
+
 <template>
   <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs text-slate-400">
     <dt class="font-mono text-slate-200">
       A
     </dt>
-    <dd>point for us</dd>
+    <dd class="flex items-center gap-1.5">
+      <Check :size="12" class="text-emerald-400" /> point for us
+    </dd>
     <dt class="font-mono text-slate-200">
       Z
     </dt>
-    <dd>point for them</dd>
+    <dd class="flex items-center gap-1.5">
+      <X :size="12" class="text-red-400" /> point for them
+    </dd>
     <dt class="font-mono text-slate-200">
       R
     </dt>
-    <dd>let (rally replayed)</dd>
+    <dd class="flex items-center gap-1.5">
+      <Minus :size="12" class="text-slate-600" /> let (rally replayed)
+    </dd>
     <dt class="font-mono text-slate-200">
       P
     </dt>
-    <dd>highlight last point</dd>
+    <dd class="flex items-center gap-1.5">
+      <Star :size="12" class="text-amber-400" /> highlight last point
+    </dd>
     <dt class="font-mono text-slate-200">
       &amp; é " '
     </dt>

@@ -38,7 +38,12 @@ watch(() => props.rallies.length, async () => {
       <span class="font-semibold">Points</span>
       <span data-testid="pl-count" class="text-slate-500">{{ rallies.length }}</span>
     </div>
-    <ul ref="list" data-testid="pl-rows" class="max-h-[70vh] overflow-y-auto px-3">
+    <!--
+      Fills the viewport minus the chrome above it (nav, page padding, title
+      row, panel header) so the list scrolls internally and the page itself
+      never does.
+    -->
+    <ul ref="list" data-testid="pl-rows" class="max-h-[calc(100vh-12rem)] overflow-y-auto px-3">
       <TaggingPointRow
         v-for="rally in rallies"
         :key="rally.idx"

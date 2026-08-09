@@ -16,14 +16,28 @@ function formatTime(seconds: number) {
 
 <template>
   <div>
-    <div class="relative aspect-video w-full overflow-hidden rounded bg-black">
+    <!--
+      Capped by height, not width: in the full-width tagging layout an
+      unconstrained 16:9 box on a wide screen grows tall enough to push the
+      point list off-screen. Bounding the width to 60vh worth of height keeps
+      the aspect ratio intact instead of letterboxing.
+    -->
+    <div class="relative mx-auto aspect-video w-full max-w-[calc(60vh*16/9)] overflow-hidden rounded bg-black">
       <div ref="host" class="h-full w-full" />
       <!--
         This overlay is the whole reason keyboard tagging works. A focused
-        YouTube iframe swallows every keystroke, so we cover it and absorb all
-        pointer events; the iframe can then never take focus.
+        YouTube iframe swallows every keystroke, so we cover it and take every
+        pointer event ourselves; the iframe can then never take focus.
+
+        It handles the click rather than discarding it: a div has no tabindex,
+        so clicking here leaves focus on <body> and the window-level keydown
+        handler keeps firing.
       -->
-      <div data-testid="focus-shield" class="absolute inset-0 cursor-default" @click.prevent />
+      <div
+        data-testid="focus-shield"
+        class="absolute inset-0 cursor-pointer"
+        @click="api.toggle()"
+      />
       <p v-if="!videoId" class="absolute inset-0 grid place-items-center text-slate-500">
         No YouTube video ID set for this match.
       </p>

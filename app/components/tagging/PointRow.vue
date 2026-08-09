@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RallyInput, RallyState } from '~~/shared/badminton'
+import { Check, Minus, RotateCcw, Star, Trash2, X } from '@lucide/vue'
 
 defineProps<{
   rally: RallyInput
@@ -45,12 +46,15 @@ function formatTime(seconds: number) {
       {{ rally.isLet ? 'let' : `${state?.scoreAfter[0]}-${state?.scoreAfter[1]}` }}
     </button>
 
+    <!-- Framed as win/loss for us, not as a neutral side indicator. -->
     <span
       data-testid="row-winner"
-      class="w-4 shrink-0 text-center"
-      :class="rally.winnerSide === 1 ? 'text-emerald-400' : rally.winnerSide === 2 ? 'text-sky-400' : 'text-slate-600'"
+      class="flex w-4 shrink-0 justify-center"
+      :title="rally.isLet ? 'Let' : rally.winnerSide === 1 ? 'Point won' : 'Point lost'"
     >
-      {{ rally.isLet ? '·' : rally.winnerSide === 1 ? 'A' : 'Z' }}
+      <Minus v-if="rally.isLet" :size="14" class="text-slate-600" />
+      <Check v-else-if="rally.winnerSide === 1" :size="14" class="text-emerald-400" />
+      <X v-else :size="14" class="text-red-400" />
     </span>
 
     <span data-testid="row-server" class="min-w-0 flex-1 truncate text-slate-500">
@@ -78,14 +82,14 @@ function formatTime(seconds: number) {
       title="Toggle highlight"
       @click="emit('toggle-highlight', rally.idx)"
     >
-      ★
+      <Star :size="14" :fill="rally.isHighlight ? 'currentColor' : 'none'" />
     </button>
     <button
       class="shrink-0 text-slate-700 hover:text-slate-400"
       title="Toggle let"
       @click="emit('toggle-let', rally.idx)"
     >
-      ↺
+      <RotateCcw :size="14" />
     </button>
     <button
       data-testid="row-delete"
@@ -93,7 +97,7 @@ function formatTime(seconds: number) {
       title="Delete rally"
       @click="emit('delete', rally.idx)"
     >
-      ✕
+      <Trash2 :size="14" />
     </button>
   </li>
 </template>

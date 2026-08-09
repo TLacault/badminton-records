@@ -17,6 +17,7 @@
     "db:types:linked": "supabase gen types typescript --linked > app/types/database.types.ts"
   },
   "dependencies": {
+    "@lucide/vue": "^1.30.0",
     "@nuxtjs/supabase": "2.0.9",
     "@tailwindcss/vite": "^4.3.3",
     "nuxt": "^4.5.2",

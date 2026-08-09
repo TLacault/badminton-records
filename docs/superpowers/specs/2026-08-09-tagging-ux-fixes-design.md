@@ -36,7 +36,7 @@ research spike before it can be specified honestly.
 | Focus shield | **Kept**, now handles the click instead of discarding it | It is what stops the iframe swallowing tagging keystrokes |
 | Full-width opt-in | Page meta `wide: true`, read by the admin layout | Only `tag.vue` needs it; other admin pages stay readable |
 | Video sizing when wide | Capped by **height** (~60vh), not width | `aspect-video` at `2fr` of a 2560px screen is 956px tall and pushes the point list off-screen |
-| Icon source | `lucide-vue-next` | User asked for Lucide; direct Vue components, no Nuxt module config, no runtime deps |
+| Icon source | `@lucide/vue` | User asked for Lucide. `lucide-vue-next` is deprecated in favour of this package; direct Vue components, no Nuxt module config, no runtime deps |
 | Winner column framing | Win/loss (green check / red cross) | Replaces side-neutral emerald/sky; user asked for "win & loose" |
 | Guest nav | Keep "UST Badminton" as brand, add "Videos" as nav item | Losing the site name from the guest header is a regression |
 | Tests | **Deferred**, consistent with the 2026-08-08 spec | Straight implementation; tests in a later pass |
@@ -77,10 +77,14 @@ The width constraint lives in the layout, not the page — `admin.vue:30` wraps 
 
 The tag page grid rebalances so the video cannot grow unboundedly tall:
 
-- The `aspect-video` stage box gets a max height of ~60vh and centres within its column.
-- The points column takes the width that frees up.
-- `PointList`'s `max-h-[70vh]` (line 41) is matched to the video column height so the whole tagging
-  view fits one screen.
+- The `aspect-video` stage box is bounded by `max-w-[calc(60vh*16/9)]` and centred in its column.
+  Bounding the *width* to 60vh worth of height keeps the 16:9 ratio intact; a bare `max-h` would
+  hold the box full-width and letterbox the video inside it.
+- The grid becomes `lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]` — the point list gets the
+  generous fixed column and the video takes what is left, since width past its cap is only padding.
+- `PointList`'s `max-h-[70vh]` (line 41) becomes `max-h-[calc(100vh-12rem)]`, subtracting the
+  chrome above it (nav, page padding, title row, panel header) so the list scrolls internally and
+  the page itself never does.
 
 Net effect: point rows are wider (the server name at `PointRow.vue:56` stops truncating) and more
 rows are visible at once — the stated goal.
@@ -93,7 +97,7 @@ rows are visible at once — the stated goal.
 Add the dependency:
 
 ```
-pnpm add lucide-vue-next
+pnpm add @lucide/vue
 ```
 
 In `PointRow.vue`, the winner column (line 53) currently renders the literal letters `A` / `Z`
@@ -124,7 +128,8 @@ gains the matching icon beside each entry so the help and the table agree.
 
 Both headers link to a video/match list under a label that does not say so.
 
-- `admin.vue:16`: `Admin` → `Videos`.
+- `admin.vue:16`: `Admin` → `Videos`. The header's inner width follows the same `wide` flag as
+  `<main>`, so the nav lines up with the content on the tagging page.
 - `default.vue:5`: the brand keeps reading `UST Badminton` and continues to link to `/`; a `Videos`
   nav item is added beside it. The site name is not removed.
 
