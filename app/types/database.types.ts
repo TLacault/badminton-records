@@ -109,36 +109,50 @@ export type Database = {
           created_by: string | null
           format: string
           id: string
+          imported_at: string | null
           initial_server_side: number | null
           played_on: string | null
           points_cap: number
           points_to_win: number
           side1_right_court_slot: number | null
           side2_right_court_slot: number | null
-          status: string
+          tagging_status: string
           title: string
           updated_at: string
           venue: string | null
+          visibility: string
           win_by: number
+          youtube_channel_id: string | null
+          youtube_duration_seconds: number | null
+          youtube_published_at: string | null
+          youtube_thumbnail_url: string | null
+          youtube_title: string | null
           youtube_video_id: string | null
         }
         Insert: {
           best_of?: number
           created_at?: string
           created_by?: string | null
-          format: string
+          format?: string
           id?: string
+          imported_at?: string | null
           initial_server_side?: number | null
           played_on?: string | null
           points_cap?: number
           points_to_win?: number
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
-          status?: string
+          tagging_status?: string
           title: string
           updated_at?: string
           venue?: string | null
+          visibility?: string
           win_by?: number
+          youtube_channel_id?: string | null
+          youtube_duration_seconds?: number | null
+          youtube_published_at?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_title?: string | null
           youtube_video_id?: string | null
         }
         Update: {
@@ -147,17 +161,24 @@ export type Database = {
           created_by?: string | null
           format?: string
           id?: string
+          imported_at?: string | null
           initial_server_side?: number | null
           played_on?: string | null
           points_cap?: number
           points_to_win?: number
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
-          status?: string
+          tagging_status?: string
           title?: string
           updated_at?: string
           venue?: string | null
+          visibility?: string
           win_by?: number
+          youtube_channel_id?: string | null
+          youtube_duration_seconds?: number | null
+          youtube_published_at?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_title?: string | null
           youtube_video_id?: string | null
         }
         Relationships: [

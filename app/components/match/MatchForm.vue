@@ -18,7 +18,10 @@ const form = reactive({
   venue: '',
   format: 'doubles' as MatchFormat,
   youtube_video_id: '',
-  status: 'draft' as 'draft' | 'published',
+  visibility: 'private' as 'private' | 'public',
+  // Normally set by the tagger as work progresses; exposed here so a mistake
+  // can be corrected by hand.
+  tagging_status: 'untagged' as 'untagged' | 'in_progress' | 'tagged',
   best_of: 3,
   points_to_win: 21,
   win_by: 2,
@@ -104,12 +107,23 @@ const fieldClass = 'mt-1 w-full rounded border border-slate-700 bg-slate-900 px-
           Doubles
         </option>
       </select>
-      <select v-model="form.status" data-testid="m-status" :class="inputClass">
-        <option value="draft">
-          Draft
+      <select v-model="form.visibility" data-testid="m-visibility" :class="inputClass">
+        <option value="private">
+          Private
         </option>
-        <option value="published">
-          Published
+        <option value="public">
+          Public
+        </option>
+      </select>
+      <select v-model="form.tagging_status" data-testid="m-tagging-status" :class="inputClass">
+        <option value="untagged">
+          Untagged
+        </option>
+        <option value="in_progress">
+          Tagging in progress
+        </option>
+        <option value="tagged">
+          Tagged
         </option>
       </select>
     </div>

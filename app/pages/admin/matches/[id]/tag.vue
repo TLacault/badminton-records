@@ -74,6 +74,29 @@ const initialRallies: RallyInput[] = (bundle.value?.rallies ?? []).map(r => ({
 
 const session = useTaggingSession(matchId, config, initialRallies)
 
+/**
+ * Tagging progress is derived from the rally log, never tracked by hand: the
+ * match is `tagged` once the scoring engine says it is complete.
+ */
+const taggingStatus = computed<'untagged' | 'in_progress' | 'tagged'>(() => {
+  if (session.derived.value.complete) return 'tagged'
+  return session.rallies.value.length ? 'in_progress' : 'untagged'
+})
+
+async function persistTaggingStatus(next: string) {
+  await client.from('matches').update({ tagging_status: next }).eq('id', matchId)
+  if (bundle.value?.match) bundle.value.match.tagging_status = next
+}
+
+// Reconcile once on open — the 0004 backfill guessed, and this is where the
+// guess gets corrected — then follow every change for the rest of the session.
+onMounted(() => {
+  if (match.value && match.value.tagging_status !== taggingStatus.value) {
+    persistTaggingStatus(taggingStatus.value)
+  }
+})
+watch(taggingStatus, next => persistTaggingStatus(next))
+
 const stage = ref<{
   getTime: () => number
   toggle: () => void
@@ -174,9 +197,15 @@ const saveLabel = computed(() => {
 <template>
   <div v-if="match">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">
-        {{ match.title }}
-      </h1>
+      <div class="flex min-w-0 items-center gap-3">
+        <h1 class="truncate text-xl font-bold">
+          {{ match.title }}
+        </h1>
+        <VideoStatusBadge
+          :tagging-status="taggingStatus"
+          :visibility="match.visibility"
+        />
+      </div>
       <div class="flex items-center gap-3 text-sm">
         <span
           data-testid="save-state"
