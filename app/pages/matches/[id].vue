@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
-import type { MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
+import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import { Trophy } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 
@@ -9,18 +9,20 @@ const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
 
 const { data: bundle } = await useAsyncData(`match-${matchId}`, async () => {
-  const [match, participants, rallies, gameStarts] = await Promise.all([
+  const [match, participants, rallies, gameStarts, breaks] = await Promise.all([
     client.from('matches').select('*').eq('id', matchId).maybeSingle(),
     client.from('match_players')
       .select('slot, players(first_name, last_name)').eq('match_id', matchId),
     client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
     client.from('match_game_starts').select('*').eq('match_id', matchId),
+    client.from('match_breaks').select('*').eq('match_id', matchId).order('idx'),
   ])
   return {
     match: match.data,
     participants: participants.data ?? [],
     rallies: rallies.data ?? [],
     gameStarts: gameStarts.data ?? [],
+    breaks: breaks.data ?? [],
   }
 })
 
@@ -71,13 +73,31 @@ const derived = computed(() => {
   })))
 })
 
+const breaks = computed<BreakInput[]>(() =>
+  (bundle.value?.breaks ?? []).map(b => ({
+    idx: b.idx,
+    startsAtSeconds: Number(b.starts_at_seconds),
+    endsAtSeconds: b.ends_at_seconds === null ? null : Number(b.ends_at_seconds),
+  })),
+)
+
 // defineExpose wraps its object in proxyRefs, so these read as plain values
 // here while staying reactive.
 const stage = ref<{
   currentTime: number
   duration: number
   seekTo: (s: number) => void
+  play: () => void
 } | null>(null)
+
+/**
+ * Timeline clicks resume playback. Jumping to a point and then having to press
+ * play is a wasted step — you clicked because you want to watch it.
+ */
+function seekAndPlay(seconds: number) {
+  stage.value?.seekTo(seconds)
+  stage.value?.play()
+}
 
 const currentTime = computed(() => stage.value?.currentTime ?? 0)
 const duration = computed(() => stage.value?.duration ?? 0)
@@ -117,7 +137,8 @@ const highlightCount = computed(
         :derived="derived"
         :duration="duration"
         :current-time="currentTime"
-        @seek="(s) => stage?.seekTo(s)"
+        :breaks="breaks"
+        @seek="seekAndPlay"
       />
     </div>
 
@@ -125,6 +146,7 @@ const highlightCount = computed(
       class="mt-5"
       :derived="derived"
       :current-time="currentTime"
+      :breaks="breaks"
       @seek="(s) => stage?.seekTo(s)"
     />
 

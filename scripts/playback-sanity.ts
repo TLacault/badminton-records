@@ -1,7 +1,7 @@
-import type { MatchConfig, RallyInput, Side } from '../shared/badminton/types.ts'
+import type { BreakInput, MatchConfig, RallyInput, Side } from '../shared/badminton/types.ts'
 import { deriveMatch } from '../shared/badminton/derive.ts'
 import { insertPositionFor } from '../shared/badminton/log.ts'
-import { playbackAt, rallyAtTime } from '../shared/badminton/playback.ts'
+import { playbackAt, rallyAtTime, resumeTimeAt } from '../shared/badminton/playback.ts'
 import { DEFAULT_RULES } from '../shared/badminton/rules.ts'
 import { parseClock } from '../app/utils/format.ts'
 
@@ -175,3 +175,24 @@ const after = deriveMatch(config, retimed)
 console.log('  score           :', after.games[0]?.score, '     expect [ 2, 2 ] (same points, new order)')
 console.log('  contiguous      :', after.rallyStates.every((s, i) =>
   i === 0 || s.startsAtSeconds === after.rallyStates[i - 1]!.endsAtSeconds), '          expect true')
+
+// ---------------------------------------------------------------------------
+// Skipping dead time. Rallies are contiguous and anchored at 0, so a rally's
+// start routinely sits inside a break.
+const breaks: BreakInput[] = [
+  { idx: 0, startsAtSeconds: 0, endsAtSeconds: 40 },    // warm-up before point 1
+  { idx: 1, startsAtSeconds: 370, endsAtSeconds: 430 }, // interval between games
+]
+
+const g2 = derived.rallyStates.find(s => s.gameNumber === 2)!
+console.log('\n--- seeks resume past a break ---')
+console.log('  point 1 starts  :', derived.rallyStates[0]!.startsAtSeconds, '(inside warm-up)')
+console.log('  -> resumes at   :', resumeTimeAt(breaks, derived.rallyStates[0]!.startsAtSeconds), '            expect 40')
+console.log('  game 2 starts   :', g2.startsAtSeconds, '(inside the interval)')
+console.log('  -> resumes at   :', resumeTimeAt(breaks, g2.startsAtSeconds), '           expect 430')
+console.log('  mid-play (200)  :', resumeTimeAt(breaks, 200), '           expect 200 (untouched)')
+console.log('  exact break end :', resumeTimeAt(breaks, 40), '            expect 40 (half-open, already resumed)')
+console.log('  open break      :', resumeTimeAt(
+  [{ idx: 0, startsAtSeconds: 0, endsAtSeconds: null }], 12,
+), '            expect 12 (no resume point yet)')
+console.log('  no breaks       :', resumeTimeAt([], 123), '           expect 123')

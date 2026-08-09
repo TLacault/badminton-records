@@ -112,9 +112,16 @@ const stage = ref<{
   toggle: () => void
   seekBy: (d: number) => void
   seekTo: (s: number) => void
+  play: () => void
   currentTime: number
   duration: number
 } | null>(null)
+
+/** Timeline clicks resume playback: you clicked because you want to watch it. */
+function seekAndPlay(seconds: number) {
+  stage.value?.seekTo(seconds)
+  stage.value?.play()
+}
 
 const currentTime = computed(() => stage.value?.currentTime ?? 0)
 const duration = computed(() => stage.value?.duration ?? 0)
@@ -274,7 +281,7 @@ const saveLabel = computed(() => {
           :duration="duration"
           :current-time="currentTime"
           :breaks="session.breaks.value"
-          @seek="(s: number) => stage?.seekTo(s)"
+          @seek="seekAndPlay"
         />
         <p
           v-if="session.openBreak.value"
@@ -288,6 +295,7 @@ const saveLabel = computed(() => {
           class="mt-4"
           :derived="session.derived.value"
           :current-time="currentTime"
+          :breaks="session.breaks.value"
           @seek="(s: number) => stage?.seekTo(s)"
         />
         <TaggingScoreBoard class="mt-4" :derived="session.derived.value" :names="names" />

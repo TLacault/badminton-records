@@ -1,4 +1,4 @@
-import type { DerivedMatch, RallyState, Side, Slot } from './types'
+import type { BreakInput, DerivedMatch, RallyState, Side, Slot } from './types'
 
 export interface PlaybackState {
   /** The rally being played at this instant, or null before the first one. */
@@ -34,6 +34,34 @@ export function rallyAtTime(derived: DerivedMatch | null, t: number): RallyState
     if (t >= s.startsAtSeconds && t < s.endsAtSeconds) return s
   }
   return null
+}
+
+/** The break spanning `t`, or null. Half-open [start, end), like rallies. */
+export function breakAtTime(
+  breaks: readonly BreakInput[],
+  t: number,
+): BreakInput | null {
+  for (const b of breaks) {
+    if (t >= b.startsAtSeconds && (b.endsAtSeconds === null || t < b.endsAtSeconds)) {
+      return b
+    }
+  }
+  return null
+}
+
+/**
+ * Where play actually resumes for a seek aimed at `t`.
+ *
+ * Rallies are contiguous and anchored at 0, so a rally's start can sit inside
+ * dead time — the first point of a match "starts" at 0 even though the players
+ * are still warming up, and the first point after a game break "starts" the
+ * instant the previous game ended. Landing there means watching the pause.
+ *
+ * An open break has no resume point, so `t` is returned unchanged.
+ */
+export function resumeTimeAt(breaks: readonly BreakInput[], t: number): number {
+  const during = breakAtTime(breaks, t)
+  return during?.endsAtSeconds ?? t
 }
 
 /**

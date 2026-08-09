@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BreakInput, DerivedMatch } from '~~/shared/badminton'
-import { rallyAtTime } from '~~/shared/badminton'
+import { rallyAtTime, resumeTimeAt } from '~~/shared/badminton'
 
 const props = withDefaults(
   defineProps<{
@@ -90,6 +90,10 @@ const track = ref<HTMLElement | null>(null)
  * Clicking inside a point jumps to where that point STARTS, not to the exact
  * spot clicked — landing mid-rally is never what you want. Clicks outside any
  * tagged rally fall back to the raw position.
+ *
+ * The target is then pushed past any break covering it, so clicking the first
+ * point of a match or of a game lands on play resuming rather than on dead
+ * time.
  */
 function seekFromPointer(event: MouseEvent) {
   const rect = track.value?.getBoundingClientRect()
@@ -97,7 +101,7 @@ function seekFromPointer(event: MouseEvent) {
   const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
   const time = ratio * total.value
   const hit = rallyAtTime(props.derived, time)
-  emit('seek', hit ? hit.startsAtSeconds : time)
+  emit('seek', resumeTimeAt(props.breaks, hit ? hit.startsAtSeconds : time))
 }
 </script>
 

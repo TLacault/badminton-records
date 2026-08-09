@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import type { DerivedMatch } from '~~/shared/badminton'
+import type { BreakInput, DerivedMatch } from '~~/shared/badminton'
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Star } from '@lucide/vue'
+import { resumeTimeAt } from '~~/shared/badminton'
 
-const props = defineProps<{
-  derived: DerivedMatch | null
-  currentTime: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    derived: DerivedMatch | null
+    currentTime: number
+    breaks?: BreakInput[]
+  }>(),
+  { breaks: () => [] },
+)
 
 const emit = defineEmits<{ seek: [seconds: number] }>()
 
@@ -76,7 +81,9 @@ const activeMarker = computed(() => {
 
 function jumpTo(index: number) {
   const marker = markers.value[index]
-  if (marker) emit('seek', marker.time)
+  // Past any break covering the target: a game's first rally "starts" the
+  // instant the previous game ended, which is the start of the interval.
+  if (marker) emit('seek', resumeTimeAt(props.breaks, marker.time))
 }
 function previous() {
   jumpTo(Math.max(0, activeMarker.value - 1))
