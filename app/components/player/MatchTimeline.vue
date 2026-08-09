@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DerivedMatch } from '~~/shared/badminton'
+import { rallyAtTime } from '~~/shared/badminton'
 
 const props = defineProps<{
   derived: DerivedMatch | null
@@ -67,11 +68,18 @@ const gameMarks = computed(() =>
 
 const track = ref<HTMLElement | null>(null)
 
+/**
+ * Clicking inside a point jumps to where that point STARTS, not to the exact
+ * spot clicked — landing mid-rally is never what you want. Clicks outside any
+ * tagged rally fall back to the raw position.
+ */
 function seekFromPointer(event: MouseEvent) {
   const rect = track.value?.getBoundingClientRect()
   if (!rect || !rect.width) return
-  const ratio = (event.clientX - rect.left) / rect.width
-  emit('seek', Math.min(1, Math.max(0, ratio)) * total.value)
+  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
+  const time = ratio * total.value
+  const hit = rallyAtTime(props.derived, time)
+  emit('seek', hit ? hit.startsAtSeconds : time)
 }
 </script>
 

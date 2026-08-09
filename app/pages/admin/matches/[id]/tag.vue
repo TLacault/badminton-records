@@ -97,12 +97,19 @@ onMounted(() => {
 })
 watch(taggingStatus, next => persistTaggingStatus(next))
 
+// defineExpose wraps its object in proxyRefs, so currentTime/duration read as
+// plain values here while staying reactive.
 const stage = ref<{
   getTime: () => number
   toggle: () => void
   seekBy: (d: number) => void
   seekTo: (s: number) => void
+  currentTime: number
+  duration: number
 } | null>(null)
+
+const currentTime = computed(() => stage.value?.currentTime ?? 0)
+const duration = computed(() => stage.value?.duration ?? 0)
 
 function onKeydown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
@@ -241,7 +248,24 @@ const saveLabel = computed(() => {
     -->
     <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
       <div>
-        <PlayerYouTubeStage ref="stage" :video-id="match.youtube_video_id" />
+        <PlayerYouTubeStage
+          ref="stage"
+          :video-id="match.youtube_video_id"
+          restore-focus
+        />
+        <PlayerMatchTimeline
+          class="mt-3"
+          :derived="session.derived.value"
+          :duration="duration"
+          :current-time="currentTime"
+          @seek="(s: number) => stage?.seekTo(s)"
+        />
+        <PlayerMarkerNavigator
+          class="mt-4"
+          :derived="session.derived.value"
+          :current-time="currentTime"
+          @seek="(s: number) => stage?.seekTo(s)"
+        />
         <TaggingScoreBoard class="mt-4" :derived="session.derived.value" :names="names" />
         <TaggingKeyHelp class="mt-4" />
       </div>

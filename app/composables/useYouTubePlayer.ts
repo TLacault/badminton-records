@@ -22,6 +22,14 @@ function loadIframeApi(): Promise<void> {
 export function useYouTubePlayer(
   host: Ref<HTMLElement | null>,
   videoId: Ref<string | null>,
+  options: {
+    /**
+     * Pull keyboard focus back out of the iframe after any click on it.
+     * The tagging tool needs this: its A/Z/R/P bindings live on `window`, and
+     * a focused iframe would swallow every keystroke until you clicked away.
+     */
+    restoreFocus?: boolean
+  } = {},
 ) {
   const player = shallowRef<YT.Player | null>(null)
   const ready = ref(false)
@@ -44,12 +52,18 @@ export function useYouTubePlayer(
     player.value = new window.YT.Player(host.value, {
       videoId: videoId.value,
       playerVars: {
-        // controls:0 + disablekb:1 because all playback is driven from our own
-        // UI; the overlay stops the iframe from ever taking keyboard focus.
-        controls: 0,
+        // Native controls, for the settings menu (quality / playback speed).
+        // disablekb:1 still applies: YouTube must not act on keystrokes, since
+        // the same keys drive tagging.
+        //
+        // The branding cannot be turned off from here. modestbranding was
+        // deprecated in 2023 and is ignored; the title bar, share/watch-later,
+        // "Plus de vidéos" and the logo are part of the embed and unreachable
+        // from this origin. rel:0 at least keeps end-cards to this channel.
+        controls: 1,
         disablekb: 1,
-        modestbranding: 1,
         rel: 0,
+        iv_load_policy: 3,
         playsinline: 1,
       },
       events: {
@@ -65,9 +79,30 @@ export function useYouTubePlayer(
     })
   }
 
-  onMounted(mount)
+  /**
+   * Clicking anywhere in the iframe — including a native control — moves focus
+   * into it, and the page stops receiving keydown. There is no click event to
+   * listen for across origins, but the window blurring while the iframe becomes
+   * activeElement is a reliable proxy. The blur runs on a macrotask so the
+   * click it followed has already been handled inside the player.
+   */
+  function onWindowBlur() {
+    setTimeout(() => {
+      const active = document.activeElement
+      if (active instanceof HTMLIFrameElement) {
+        active.blur()
+        window.focus()
+      }
+    }, 0)
+  }
+
+  onMounted(() => {
+    mount()
+    if (options.restoreFocus) window.addEventListener('blur', onWindowBlur)
+  })
   onBeforeUnmount(() => {
     cancelAnimationFrame(frame)
+    if (options.restoreFocus) window.removeEventListener('blur', onWindowBlur)
     player.value?.destroy()
     player.value = null
   })

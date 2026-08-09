@@ -1,6 +1,6 @@
 import type { MatchConfig, RallyInput, Side } from '../shared/badminton/types.ts'
 import { deriveMatch } from '../shared/badminton/derive.ts'
-import { playbackAt } from '../shared/badminton/playback.ts'
+import { playbackAt, rallyAtTime } from '../shared/badminton/playback.ts'
 import { DEFAULT_RULES } from '../shared/badminton/rules.ts'
 
 /**
@@ -102,3 +102,14 @@ const t4 = playbackAt(derived, 900)
 console.log('\n--- past the end of the match ---')
 console.log('  score           :', t4.score, '   expect [ 21, 18 ] (final game)')
 console.log('  gamesWon        :', t4.gamesWon, '     expect [ 2, 0 ]')
+
+// Timeline snapping: a click anywhere inside a point seeks to its start.
+const r5 = derived.rallyStates[5]!
+const inside = r5.startsAtSeconds + (r5.endsAtSeconds - r5.startsAtSeconds) * 0.7
+console.log('\n--- timeline click snaps to the point start ---')
+console.log('  rally 5 spans   :', r5.startsAtSeconds, '->', r5.endsAtSeconds)
+console.log('  click at        :', inside)
+console.log('  snaps to        :', rallyAtTime(derived, inside)?.startsAtSeconds, '            expect', r5.startsAtSeconds)
+console.log('  on exact start  :', rallyAtTime(derived, r5.startsAtSeconds)?.idx, '             expect 5 (half-open: start belongs to this rally)')
+console.log('  on exact end    :', rallyAtTime(derived, r5.endsAtSeconds)?.idx, '             expect 6 (end belongs to the NEXT rally)')
+console.log('  past last rally :', rallyAtTime(derived, 900), '          expect null (falls back to raw position)')

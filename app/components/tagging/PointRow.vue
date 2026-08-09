@@ -63,7 +63,7 @@ function formatTime(seconds: number) {
     </span>
 
     <select
-      class="w-20 shrink-0 rounded border border-slate-800 bg-slate-900 px-1 py-0.5 text-slate-300"
+      class="w-44 shrink-0 rounded border border-slate-800 bg-slate-900 px-1 py-0.5 text-slate-300"
       :value="rally.scoredByPlayerId ?? ''"
       @change="emit('set-scorer', rally.idx, ($event.target as HTMLSelectElement).value || null)"
     >

@@ -21,6 +21,22 @@ const EMPTY: PlaybackState = {
 }
 
 /**
+ * The rally spanning `t`, or null if `t` falls outside every rally.
+ *
+ * Half-open [start, end): a timestamp exactly on a boundary belongs to the
+ * rally that is starting, not the one that just ended. Used to snap timeline
+ * clicks to the start of the point clicked, since landing mid-rally is never
+ * what the user wants.
+ */
+export function rallyAtTime(derived: DerivedMatch | null, t: number): RallyState | null {
+  if (!derived) return null
+  for (const s of derived.rallyStates) {
+    if (t >= s.startsAtSeconds && t < s.endsAtSeconds) return s
+  }
+  return null
+}
+
+/**
  * Resolves the match state at a point in the video.
  *
  * Rallies are contiguous — each starts where the last ended — so a timestamp
