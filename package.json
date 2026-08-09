@@ -1,5 +1,5 @@
 {
-  "name": "ust-blog-badminton",
+  "name": "badminton-records",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@10.29.3",

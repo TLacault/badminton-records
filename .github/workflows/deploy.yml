@@ -32,7 +32,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # Resolves where the site will actually live: `/ust-blog-badminton/` for
+      # Resolves where the site will actually live: `/badminton-records/` for
       # a project site, `/` once a custom domain is attached. Nuxt reads the
       # result from NUXT_APP_BASE_URL below, so neither case needs a code edit.
       - name: Configure Pages
