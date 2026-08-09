@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
+import type { FfbadPlayer } from '~~/server/utils/ffbad'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -66,6 +67,25 @@ async function remove(id: string) {
   await refresh()
 }
 
+/**
+ * Fills the form from an FFBaD licensee. It does not save — the admin still
+ * reviews and submits, so a bad match is caught before it reaches the roster.
+ */
+function fillFromFfbad(p: FfbadPlayer) {
+  editingId.value = null
+  form.value = {
+    ...blank(),
+    first_name: p.firstName,
+    last_name: p.lastName,
+    club: p.club ?? '',
+    birth_year: p.birthYear,
+    rank_singles: p.rankSingles ?? '',
+    rank_doubles: p.rankDoubles ?? '',
+    rank_mixed: p.rankMixed ?? '',
+    ffbad_license: p.licence,
+  }
+}
+
 /** Age is derived, never stored: a stored age silently rots. */
 function age(birthYear: number | null) {
   return birthYear ? new Date().getFullYear() - birthYear : '—'
@@ -79,7 +99,9 @@ const inputClass = 'rounded border border-slate-700 bg-slate-900 px-3 py-2'
     Players
   </h1>
 
-  <form class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4" @submit.prevent="save">
+  <PlayerFfbadSearch class="mt-6 max-w-xl" @select="fillFromFfbad" />
+
+  <form class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4" @submit.prevent="save">
     <input v-model="form.first_name" data-testid="p-first" required placeholder="First name" :class="inputClass">
     <input v-model="form.last_name" data-testid="p-last" required placeholder="Last name" :class="inputClass">
     <input v-model="form.club" data-testid="p-club" placeholder="Club" :class="inputClass">

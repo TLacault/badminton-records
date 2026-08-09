@@ -40,6 +40,32 @@ controls whether guests can see it, and `tagging_status` (`untagged` |
 `in_progress` | `tagged`) tracks tagging progress and is set automatically by
 the tagging tool.
 
+## FFBaD player lookup
+
+The roster form (`/admin/players`) has a surname search that fills every field
+from the federation's records — licence, club, birth year and the three
+rankings. It goes through the **official** FFBaD web services
+(<https://apitest.ffbad.org/>), not a scraper.
+
+Credentials are issued by the federation and must be requested from them:
+
+```
+FFBAD_LOGIN=...
+FFBAD_PASSWORD=...
+FFBAD_API_URL=https://apitest.ffbad.org/rest/   # optional; this is the default
+```
+
+Without them `/api/ffbad/search` returns 503 and the form stays fully usable by
+hand. The credentials never reach the browser — the search goes through a
+server route because FFBaD authenticates with a login and password.
+
+The field names inside the API's `Retour` payload are undocumented and could
+not be observed without credentials, so `normalisePlayer` in
+`server/utils/ffbad.ts` matches against several plausible spellings. If a field
+comes back empty once you have access, call
+`/api/ffbad/search?q=<name>&debug=1` to see the raw payload and correct the
+candidate lists — they are all in that one function.
+
 ## Setup
 
 Make sure to install dependencies:
