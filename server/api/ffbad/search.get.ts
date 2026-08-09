@@ -1,5 +1,4 @@
-import type { Database } from '~/types/database.types'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { requireAdmin } from '../../utils/auth'
 import { FfbadError, searchByName } from '../../utils/ffbad'
 
 /**
@@ -13,17 +12,7 @@ import { FfbadError, searchByName } from '../../utils/ffbad'
  *   which is how you correct the field mapping in server/utils/ffbad.ts.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) {
-    throw createError({ statusCode: 401, statusMessage: 'Sign in required' })
-  }
-
-  const client = await serverSupabaseClient<Database>(event)
-  const { data: profile } = await client
-    .from('profiles').select('role').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Admin role required' })
-  }
+  await requireAdmin(event)
 
   const query = getQuery(event)
   const term = String(query.q ?? '').trim()

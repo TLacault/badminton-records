@@ -51,9 +51,10 @@ async function save() {
   busy.value = true
   error.value = null
 
-  // The profiles FK needs a real id; during SSR the user ref carries claims,
-  // but this only ever runs from a click, so `id` is populated.
-  const payload = { ...form, created_by: user.value?.id ?? null }
+  // useSupabaseUser() holds JWT claims, not a User: the id is `sub`, and `.id`
+  // is undefined. JwtPayload's index signature means `.id` type-checks anyway,
+  // so this silently wrote null before.
+  const payload = { ...form, created_by: user.value?.sub ?? null }
   if (!payload.played_on) payload.played_on = null
 
   const { data: saved, error: dbError } = props.matchId

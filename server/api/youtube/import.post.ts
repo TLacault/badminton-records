@@ -1,5 +1,4 @@
-import type { Database } from '~/types/database.types'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { requireAdmin } from '../../utils/auth'
 import {
   attachDurations,
   listPlaylistVideos,
@@ -15,19 +14,7 @@ import {
  * on `youtube_video_id` is the backstop.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) {
-    throw createError({ statusCode: 401, statusMessage: 'Sign in required' })
-  }
-
-  const client = await serverSupabaseClient<Database>(event)
-
-  // RLS lets a user read only their own profile, so this is the caller's role.
-  const { data: profile } = await client
-    .from('profiles').select('role').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Admin role required' })
-  }
+  const { client, userId } = await requireAdmin(event)
 
   const { youtubeApiKey, youtubeChannelHandle } = useRuntimeConfig(event)
   if (!youtubeApiKey) {
@@ -78,7 +65,7 @@ export default defineEventHandler(async (event) => {
         // publishes deliberately.
         visibility: 'private',
         tagging_status: 'untagged',
-        created_by: user.id,
+        created_by: userId,
       })),
     )
     if (error) {

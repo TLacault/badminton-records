@@ -1,0 +1,1 @@
+delete from public.matches where id = '55555555-5555-5555-5555-555555555555';
