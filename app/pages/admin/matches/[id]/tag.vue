@@ -303,6 +303,7 @@ const saveLabel = computed(() => {
         @toggle-let="session.toggleLet"
         @toggle-highlight="session.toggleHighlight"
         @set-scorer="session.setScorer"
+        @set-timestamp="session.setTimestamp"
         @delete="session.deleteRally"
       />
     </div>

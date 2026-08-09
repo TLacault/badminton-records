@@ -14,6 +14,7 @@ const emit = defineEmits<{
   'toggle-let': [idx: number]
   'toggle-highlight': [idx: number]
   'set-scorer': [idx: number, playerId: string | null]
+  'set-timestamp': [idx: number, seconds: number]
   delete: [idx: number]
 }>()
 
@@ -77,6 +78,7 @@ onBeforeUnmount(() => {
         @toggle-let="(i: number) => emit('toggle-let', i)"
         @toggle-highlight="(i: number) => emit('toggle-highlight', i)"
         @set-scorer="(i: number, p: string | null) => emit('set-scorer', i, p)"
+        @set-timestamp="(i: number, sec: number) => emit('set-timestamp', i, sec)"
         @delete="(i: number) => emit('delete', i)"
       />
     </ul>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RallyInput, RallyState } from '~~/shared/badminton'
-import { Check, Minus, RotateCcw, Star, Trash2, X } from '@lucide/vue'
+import { Check, CornerDownRight, Minus, RotateCcw, Star, Trash2, X } from '@lucide/vue'
 
 withDefaults(
   defineProps<{
@@ -20,12 +20,28 @@ const emit = defineEmits<{
   'toggle-let': [idx: number]
   'toggle-highlight': [idx: number]
   'set-scorer': [idx: number, playerId: string | null]
+  'set-timestamp': [idx: number, seconds: number]
   delete: [idx: number]
 }>()
 
 function formatTime(seconds: number) {
   const s = Math.max(0, Math.floor(seconds))
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+
+/**
+ * Commit a hand-typed timecode. Unreadable input is reverted rather than
+ * written: a NaN here would corrupt the ordering the score depends on.
+ */
+function commitTime(event: Event, rally: RallyInput) {
+  const input = event.target as HTMLInputElement
+  const seconds = parseClock(input.value)
+  if (seconds === null) {
+    input.value = formatTime(rally.endedAtSeconds)
+    return
+  }
+  if (seconds !== rally.endedAtSeconds) emit('set-timestamp', rally.idx, seconds)
+  input.value = formatTime(seconds)
 }
 </script>
 
@@ -36,12 +52,26 @@ function formatTime(seconds: number) {
     :data-rally-idx="rally.idx"
   >
     <button
-      class="w-11 shrink-0 text-left font-mono text-slate-500 hover:text-slate-200"
-      :title="`Seek to ${formatTime(state?.startsAtSeconds ?? 0)}`"
+      class="shrink-0 text-slate-600 hover:text-slate-200"
+      :title="`Jump to ${formatTime(state?.startsAtSeconds ?? 0)}`"
       @click="emit('seek', state?.startsAtSeconds ?? 0)"
     >
-      {{ formatTime(state?.startsAtSeconds ?? 0) }}
+      <CornerDownRight :size="12" />
     </button>
+
+    <!--
+      The END of the rally, which is what is stored and what the admin
+      corrects. The seek button above jumps to where the point starts.
+    -->
+    <input
+      data-testid="row-time"
+      :value="formatTime(rally.endedAtSeconds)"
+      class="w-12 shrink-0 rounded bg-transparent px-1 text-left font-mono text-slate-500 hover:bg-slate-800 focus:bg-slate-800 focus:text-slate-100 focus:outline-none"
+      title="Point ends at — edit to retime (mm:ss)"
+      @focus="($event.target as HTMLInputElement).select()"
+      @keydown.enter="($event.target as HTMLInputElement).blur()"
+      @blur="commitTime($event, rally)"
+    >
 
     <span class="w-5 shrink-0 text-slate-600">G{{ state?.gameNumber ?? '?' }}</span>
 

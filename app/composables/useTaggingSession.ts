@@ -26,7 +26,20 @@ export function useTaggingSession(
   const client = useSupabaseClient<Database>()
 
   const rallies = ref<RallyInput[]>(initial.map(r => ({ ...r })))
-  const breaks = ref<BreakInput[]>(initialBreaks.map(b => ({ ...b })))
+
+  /**
+   * Every match opens in dead time — warm-up, knock-up, camera already
+   * rolling — so an untouched match starts with a break already open at 0 and
+   * the admin's first `M` closes it as the first rally begins.
+   *
+   * Only when there is nothing at all: seeding this onto a match that already
+   * has rallies would drape an unclosed break over work already done.
+   */
+  const breaks = ref<BreakInput[]>(
+    initialBreaks.length === 0 && initial.length === 0
+      ? [{ idx: 0, startsAtSeconds: 0, endsAtSeconds: null }]
+      : initialBreaks.map(b => ({ ...b })),
+  )
   const undoStack = ref<Snapshot[]>([])
   const redoStack = ref<Snapshot[]>([])
   /**
@@ -228,11 +241,17 @@ export function useTaggingSession(
     })
   }
 
+  /**
+   * Retime a point. Re-sorts afterwards: the log must stay in video order or
+   * every score after the edit is derived from the wrong sequence. The sort is
+   * stable, so points sharing a timestamp keep their relative order.
+   */
   function setTimestamp(idx: number, seconds: number) {
     const r = rallies.value[idx]
     if (!r) return
     mutate(() => {
       r.endedAtSeconds = Math.max(0, seconds)
+      rallies.value.sort((a, b) => a.endedAtSeconds - b.endedAtSeconds)
     })
   }
 

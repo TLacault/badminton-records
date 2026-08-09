@@ -8,6 +8,27 @@ export function formatDuration(seconds: number | null): string {
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 }
 
+/**
+ * Parses a hand-typed timecode back to seconds. Accepts `mm:ss`, `h:mm:ss`, or
+ * a bare number of seconds. Returns null for anything it cannot read, so the
+ * caller can leave the existing value alone rather than write a NaN.
+ */
+export function parseClock(value: string): number | null {
+  const text = value.trim()
+  if (!text) return null
+
+  const parts = text.split(':')
+  if (parts.length > 3) return null
+
+  let seconds = 0
+  for (const part of parts) {
+    // Reject "1:2x" rather than silently reading it as 1:2.
+    if (!/^\d+(?:\.\d+)?$/.test(part.trim())) return null
+    seconds = seconds * 60 + Number(part)
+  }
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null
+}
+
 /** Date only, in the user's locale. Falsy input becomes an em dash. */
 export function formatDate(value: string | null): string {
   if (!value) return '—'

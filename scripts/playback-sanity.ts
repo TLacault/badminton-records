@@ -3,6 +3,7 @@ import { deriveMatch } from '../shared/badminton/derive.ts'
 import { insertPositionFor } from '../shared/badminton/log.ts'
 import { playbackAt, rallyAtTime } from '../shared/badminton/playback.ts'
 import { DEFAULT_RULES } from '../shared/badminton/rules.ts'
+import { parseClock } from '../app/utils/format.ts'
 
 /**
  * Eyeball check for the overlay's "what is true at time t" resolution
@@ -150,3 +151,27 @@ console.log('\n--- score after patching the miscount ---')
 console.log('  rallies         :', patched.length, '             expect 5')
 console.log('  ordered by time :', patched.map(r => r.endedAtSeconds).join(','), ' expect 10,20,30,35,40')
 console.log('  score           :', fixed.games[0]?.score, '     expect [ 3, 2 ]')
+
+// ---------------------------------------------------------------------------
+// Hand-edited timecodes.
+console.log('\n--- parsing a typed timecode ---')
+for (const [input, expected] of [
+  ['1:30', '90'], ['00:45', '45'], ['1:02:03', '3723'], ['90', '90'],
+  ['', 'null'], ['abc', 'null'], ['1:2x', 'null'], ['-5', 'null'],
+] as const) {
+  console.log(`  ${JSON.stringify(input).padEnd(10)}->`, String(parseClock(input)).padEnd(6), 'expect', expected)
+}
+
+// Retiming a point to before an earlier one must re-sort, or the score after
+// the edit is derived from the wrong sequence.
+const retimed = shortLog.map(r => ({ ...r }))
+retimed[3]!.endedAtSeconds = 15 // the 4th point (side 2) actually happened at 15s
+retimed.sort((a, b) => a.endedAtSeconds - b.endedAtSeconds)
+retimed.forEach((r, i) => { r.idx = i })
+console.log('\n--- retiming a point reorders the log ---')
+console.log('  times           :', retimed.map(r => r.endedAtSeconds).join(','), '  expect 10,15,20,30')
+console.log('  winners         :', retimed.map(r => r.winnerSide).join(','), '    expect 1,2,2,1')
+const after = deriveMatch(config, retimed)
+console.log('  score           :', after.games[0]?.score, '     expect [ 2, 2 ] (same points, new order)')
+console.log('  contiguous      :', after.rallyStates.every((s, i) =>
+  i === 0 || s.startsAtSeconds === after.rallyStates[i - 1]!.endsAtSeconds), '          expect true')
