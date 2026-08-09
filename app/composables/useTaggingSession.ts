@@ -1,24 +1,40 @@
 import type { Database } from '~/types/database.types'
-import type { MatchConfig, RallyInput, Side } from '~~/shared/badminton'
-import { deriveMatch } from '~~/shared/badminton'
+import type { BreakInput, MatchConfig, RallyInput, Side } from '~~/shared/badminton'
+import { deriveMatch, insertPositionFor } from '~~/shared/badminton'
 
 const UNDO_LIMIT = 100
 const SAVE_DEBOUNCE_MS = 1500
 
-function clone(rallies: RallyInput[]): RallyInput[] {
-  return rallies.map(r => ({ ...r }))
+interface Snapshot {
+  rallies: RallyInput[]
+  breaks: BreakInput[]
+}
+
+function clone(rallies: RallyInput[], breaks: BreakInput[]): Snapshot {
+  return {
+    rallies: rallies.map(r => ({ ...r })),
+    breaks: breaks.map(b => ({ ...b })),
+  }
 }
 
 export function useTaggingSession(
   matchId: string,
   config: Ref<MatchConfig>,
   initial: RallyInput[],
+  initialBreaks: BreakInput[] = [],
 ) {
   const client = useSupabaseClient<Database>()
 
-  const rallies = ref<RallyInput[]>(clone(initial))
-  const undoStack = ref<RallyInput[][]>([])
-  const redoStack = ref<RallyInput[][]>([])
+  const rallies = ref<RallyInput[]>(initial.map(r => ({ ...r })))
+  const breaks = ref<BreakInput[]>(initialBreaks.map(b => ({ ...b })))
+  const undoStack = ref<Snapshot[]>([])
+  const redoStack = ref<Snapshot[]>([])
+  /**
+   * The rally most recently logged. `P` and the scorer numkeys act on it, and
+   * it is not always the last element: a point inserted to patch a miscount
+   * lands mid-log.
+   */
+  const lastTouchedIdx = ref<number | null>(null)
   const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveError = ref<string | null>(null)
   const dirty = ref(false)
@@ -58,6 +74,26 @@ export function useTaggingSession(
       saveError.value = error.message
       return
     }
+
+    // Breaks live outside the rally RPC. Replaced wholesale, like the rally
+    // log: there are only a handful, and diffing would buy nothing.
+    await client.from('match_breaks').delete().eq('match_id', matchId)
+    if (breaks.value.length) {
+      const { error: breakError } = await client.from('match_breaks').insert(
+        breaks.value.map(b => ({
+          match_id: matchId,
+          idx: b.idx,
+          starts_at_seconds: b.startsAtSeconds,
+          ends_at_seconds: b.endsAtSeconds,
+        })),
+      )
+      if (breakError) {
+        saveState.value = 'error'
+        saveError.value = breakError.message
+        return
+      }
+    }
+
     saveState.value = 'saved'
     saveError.value = null
     dirty.value = false
@@ -65,20 +101,24 @@ export function useTaggingSession(
 
   /** Snapshot for undo, apply the mutation, renumber, then queue a save. */
   function mutate(fn: () => void) {
-    undoStack.value.push(clone(rallies.value))
+    undoStack.value.push(clone(rallies.value, breaks.value))
     if (undoStack.value.length > UNDO_LIMIT) undoStack.value.shift()
     redoStack.value = []
     fn()
     rallies.value.forEach((r, i) => {
       r.idx = i
     })
+    breaks.value.forEach((b, i) => {
+      b.idx = i
+    })
     scheduleSave()
   }
 
   function addRally(winnerSide: Side, endedAtSeconds: number) {
+    const at = insertPositionFor(rallies.value, endedAtSeconds)
     mutate(() => {
-      rallies.value.push({
-        idx: rallies.value.length,
+      rallies.value.splice(at, 0, {
+        idx: at,
         winnerSide,
         isLet: false,
         isHighlight: false,
@@ -86,12 +126,14 @@ export function useTaggingSession(
         endedAtSeconds,
       })
     })
+    lastTouchedIdx.value = at
   }
 
   function addLet(endedAtSeconds: number) {
+    const at = insertPositionFor(rallies.value, endedAtSeconds)
     mutate(() => {
-      rallies.value.push({
-        idx: rallies.value.length,
+      rallies.value.splice(at, 0, {
+        idx: at,
         winnerSide: null,
         isLet: true,
         isHighlight: false,
@@ -99,23 +141,61 @@ export function useTaggingSession(
         endedAtSeconds,
       })
     })
+    lastTouchedIdx.value = at
+  }
+
+  /** The rally `P` and the scorer numkeys apply to. */
+  function lastTouched() {
+    if (lastTouchedIdx.value !== null) {
+      const hit = rallies.value[lastTouchedIdx.value]
+      if (hit) return hit
+    }
+    return rallies.value.at(-1)
   }
 
   function toggleHighlightOnLast() {
-    const last = rallies.value.at(-1)
-    if (!last) return
+    const target = lastTouched()
+    if (!target) return
     mutate(() => {
-      last.isHighlight = !last.isHighlight
+      target.isHighlight = !target.isHighlight
     })
   }
 
   function setScorerOnLast(playerId: string | null) {
-    const last = rallies.value.at(-1)
-    if (!last) return
+    const target = lastTouched()
+    if (!target) return
     mutate(() => {
-      last.scoredByPlayerId = playerId
+      target.scoredByPlayerId = playerId
     })
   }
+
+  /**
+   * `M` opens a break; the next `M` closes it. Only one can be open at a time,
+   * so the keypress is unambiguous whatever the state.
+   */
+  function toggleBreak(atSeconds: number) {
+    const open = breaks.value.find(b => b.endsAtSeconds === null)
+    mutate(() => {
+      if (open) open.endsAtSeconds = Math.max(open.startsAtSeconds, atSeconds)
+      else {
+        breaks.value.push({
+          idx: breaks.value.length,
+          startsAtSeconds: atSeconds,
+          endsAtSeconds: null,
+        })
+      }
+    })
+  }
+
+  function deleteBreak(idx: number) {
+    mutate(() => {
+      breaks.value.splice(idx, 1)
+    })
+  }
+
+  const openBreak = computed(() =>
+    breaks.value.find(b => b.endsAtSeconds === null) ?? null,
+  )
 
   function flipWinner(idx: number) {
     const r = rallies.value[idx]
@@ -186,16 +266,18 @@ export function useTaggingSession(
   function undo() {
     const previous = undoStack.value.pop()
     if (!previous) return
-    redoStack.value.push(clone(rallies.value))
-    rallies.value = previous
+    redoStack.value.push(clone(rallies.value, breaks.value))
+    rallies.value = previous.rallies
+    breaks.value = previous.breaks
     scheduleSave()
   }
 
   function redo() {
     const next = redoStack.value.pop()
     if (!next) return
-    undoStack.value.push(clone(rallies.value))
-    rallies.value = next
+    undoStack.value.push(clone(rallies.value, breaks.value))
+    rallies.value = next.rallies
+    breaks.value = next.breaks
     scheduleSave()
   }
 
@@ -205,6 +287,8 @@ export function useTaggingSession(
 
   return {
     rallies,
+    breaks,
+    openBreak,
     derived,
     saveState,
     saveError,
@@ -222,6 +306,8 @@ export function useTaggingSession(
     setScorer,
     deleteRally,
     insertBefore,
+    toggleBreak,
+    deleteBreak,
     undo,
     redo,
     saveNow,

@@ -1,5 +1,6 @@
 import type { MatchConfig, RallyInput, Side } from '../shared/badminton/types.ts'
 import { deriveMatch } from '../shared/badminton/derive.ts'
+import { insertPositionFor } from '../shared/badminton/log.ts'
 import { playbackAt, rallyAtTime } from '../shared/badminton/playback.ts'
 import { DEFAULT_RULES } from '../shared/badminton/rules.ts'
 
@@ -113,3 +114,39 @@ console.log('  snaps to        :', rallyAtTime(derived, inside)?.startsAtSeconds
 console.log('  on exact start  :', rallyAtTime(derived, r5.startsAtSeconds)?.idx, '             expect 5 (half-open: start belongs to this rally)')
 console.log('  on exact end    :', rallyAtTime(derived, r5.endsAtSeconds)?.idx, '             expect 6 (end belongs to the NEXT rally)')
 console.log('  past last rally :', rallyAtTime(derived, 900), '          expect null (falls back to raw position)')
+
+// ---------------------------------------------------------------------------
+// Correcting a miscount: seek back to the missed point, press A/Z, and it must
+// land where it happened rather than at the end of the log.
+const shortLog: RallyInput[] = [1, 2, 1, 2].map((w, i) => ({
+  idx: i,
+  winnerSide: w as Side,
+  isLet: false,
+  isHighlight: false,
+  scoredByPlayerId: null,
+  endedAtSeconds: (i + 1) * 10, // ends at 10, 20, 30, 40
+}))
+
+console.log('\n--- where a new point slots in ---')
+console.log('  ends at 35      :', insertPositionFor(shortLog, 35), '             expect 3 (between 30 and 40)')
+console.log('  ends at 5       :', insertPositionFor(shortLog, 5), '             expect 0 (before everything)')
+console.log('  ends at 99      :', insertPositionFor(shortLog, 99), '             expect 4 (append)')
+console.log('  tie at 20       :', insertPositionFor(shortLog, 20), '             expect 2 (after the existing 20)')
+
+// A point for side 1 was missed at 35s. Before: 2-2. After: 3-2, and the
+// later rally must renumber rather than be overwritten.
+const patched = [...shortLog]
+patched.splice(insertPositionFor(shortLog, 35), 0, {
+  idx: 0,
+  winnerSide: 1,
+  isLet: false,
+  isHighlight: false,
+  scoredByPlayerId: null,
+  endedAtSeconds: 35,
+})
+patched.forEach((r, i) => { r.idx = i })
+const fixed = deriveMatch(config, patched)
+console.log('\n--- score after patching the miscount ---')
+console.log('  rallies         :', patched.length, '             expect 5')
+console.log('  ordered by time :', patched.map(r => r.endedAtSeconds).join(','), ' expect 10,20,30,35,40')
+console.log('  score           :', fixed.games[0]?.score, '     expect [ 3, 2 ]')

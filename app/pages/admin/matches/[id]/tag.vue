@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
-import type { MatchConfig, RallyInput, Side, Slot } from '~~/shared/badminton'
+import type { BreakInput, MatchConfig, RallyInput, Side, Slot } from '~~/shared/badminton'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
 // get for the point list.
@@ -11,19 +11,21 @@ const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
 
 const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
-  const [match, participants, rallies, gameStarts] = await Promise.all([
+  const [match, participants, rallies, gameStarts, breaks] = await Promise.all([
     client.from('matches').select('*').eq('id', matchId).maybeSingle(),
     client.from('match_players')
       .select('slot, player_id, players(first_name, last_name)')
       .eq('match_id', matchId),
     client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
     client.from('match_game_starts').select('*').eq('match_id', matchId),
+    client.from('match_breaks').select('*').eq('match_id', matchId).order('idx'),
   ])
   return {
     match: match.data,
     participants: participants.data ?? [],
     rallies: rallies.data ?? [],
     gameStarts: gameStarts.data ?? [],
+    breaks: breaks.data ?? [],
   }
 })
 
@@ -72,7 +74,13 @@ const initialRallies: RallyInput[] = (bundle.value?.rallies ?? []).map(r => ({
   endedAtSeconds: Number(r.ended_at_seconds),
 }))
 
-const session = useTaggingSession(matchId, config, initialRallies)
+const initialBreaks: BreakInput[] = (bundle.value?.breaks ?? []).map(b => ({
+  idx: b.idx,
+  startsAtSeconds: Number(b.starts_at_seconds),
+  endsAtSeconds: b.ends_at_seconds === null ? null : Number(b.ends_at_seconds),
+}))
+
+const session = useTaggingSession(matchId, config, initialRallies, initialBreaks)
 
 /**
  * Tagging progress is derived from the rally log, never tracked by hand: the
@@ -132,12 +140,15 @@ function onKeydown(event: KeyboardEvent) {
   const time = stage.value?.getTime() ?? 0
 
   // Digits match on event.code: on AZERTY the unshifted digit row produces
-  // & é " ' rather than 1 2 3 4.
-  if (event.code.startsWith('Digit')) {
-    const slot = Number(event.code.slice(5))
-    if (slot >= 1 && slot <= 4) {
+  // & é " ' rather than 1 2 3 4. Numpad1-4 report their own codes and are
+  // accepted alongside, so either hand works.
+  const digit = event.code.startsWith('Digit')
+    ? Number(event.code.slice(5))
+    : event.code.startsWith('Numpad') ? Number(event.code.slice(6)) : Number.NaN
+  if (!Number.isNaN(digit)) {
+    if (digit >= 1 && digit <= 4) {
       event.preventDefault()
-      session.setScorerOnLast(slotToPlayerId.value[slot] ?? null)
+      session.setScorerOnLast(slotToPlayerId.value[digit] ?? null)
     }
     return
   }
@@ -160,6 +171,10 @@ function onKeydown(event: KeyboardEvent) {
     case 'p':
       event.preventDefault()
       session.toggleHighlightOnLast()
+      break
+    case 'm':
+      event.preventDefault()
+      session.toggleBreak(time)
       break
     case ' ':
       event.preventDefault()
@@ -258,8 +273,17 @@ const saveLabel = computed(() => {
           :derived="session.derived.value"
           :duration="duration"
           :current-time="currentTime"
+          :breaks="session.breaks.value"
           @seek="(s: number) => stage?.seekTo(s)"
         />
+        <p
+          v-if="session.openBreak.value"
+          data-testid="break-open"
+          class="mt-2 rounded bg-amber-950 px-2 py-1 text-xs text-amber-300"
+        >
+          Break running since {{ Math.floor(session.openBreak.value.startsAtSeconds / 60) }}m —
+          press <span class="font-mono font-semibold">M</span> again to end it.
+        </p>
         <PlayerMarkerNavigator
           class="mt-4"
           :derived="session.derived.value"

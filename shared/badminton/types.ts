@@ -38,6 +38,17 @@ export interface RallyInput {
   endedAtSeconds: number
 }
 
+/**
+ * Dead time — between games, or any stoppage. Not a scoring event, so it stays
+ * out of the rally log and out of the derivation entirely.
+ */
+export interface BreakInput {
+  idx: number
+  startsAtSeconds: number
+  /** null while the break is still open, waiting for its closing keypress. */
+  endsAtSeconds: number | null
+}
+
 export type WarningCode =
   | 'missing_initial_server'
   | 'rallies_after_match_complete'

@@ -2,12 +2,17 @@
 import type { RallyInput, RallyState } from '~~/shared/badminton'
 import { Check, Minus, RotateCcw, Star, Trash2, X } from '@lucide/vue'
 
-defineProps<{
-  rally: RallyInput
-  state: RallyState | null
-  names: Record<number, string>
-  slotToPlayerId: Record<number, string>
-}>()
+withDefaults(
+  defineProps<{
+    rally: RallyInput
+    state: RallyState | null
+    names: Record<number, string>
+    slotToPlayerId: Record<number, string>
+    /** Briefly highlights a row that was just logged. */
+    flash?: boolean
+  }>(),
+  { flash: false },
+)
 
 const emit = defineEmits<{
   seek: [seconds: number]
@@ -25,7 +30,11 @@ function formatTime(seconds: number) {
 </script>
 
 <template>
-  <li class="flex items-center gap-2 border-b border-slate-800 py-1.5 text-xs" :data-rally-idx="rally.idx">
+  <li
+    class="flex items-center gap-2 border-b border-slate-800 py-1.5 text-xs"
+    :class="flash ? 'point-flash' : ''"
+    :data-rally-idx="rally.idx"
+  >
     <button
       class="w-11 shrink-0 text-left font-mono text-slate-500 hover:text-slate-200"
       :title="`Seek to ${formatTime(state?.startsAtSeconds ?? 0)}`"

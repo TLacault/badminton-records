@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+/*
+  Confirmation that a keypress registered. Tagging is a heads-down, eyes-on-the
+  video job — the admin needs to know the point landed without looking away to
+  read the list.
+*/
+@keyframes point-flash {
+  0%   { background-color: color-mix(in oklab, var(--color-emerald-500) 35%, transparent); }
+  100% { background-color: transparent; }
+}
+
+.point-flash {
+  animation: point-flash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .point-flash {
+    animation: none;
+  }
+}

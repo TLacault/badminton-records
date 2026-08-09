@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DerivedMatch } from '~~/shared/badminton'
-import { ChevronLeft, ChevronRight, Star } from '@lucide/vue'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Star } from '@lucide/vue'
 
 const props = defineProps<{
   derived: DerivedMatch | null
@@ -18,7 +18,18 @@ const modes: Array<{ id: Mode, label: string }> = [
   { id: 'highlights', label: 'Highlights' },
 ]
 
-interface Marker { key: string, label: string, sub: string, time: number }
+type Tone = 'win' | 'loss' | 'let' | 'neutral'
+interface Marker { key: string, label: string, sub: string, time: number, tone: Tone }
+
+/** Same colour language as the timeline: green we won it, red they did. */
+const TONE_CLASS: Record<Tone, string> = {
+  win: 'border-emerald-800 bg-emerald-950/60 text-emerald-200 hover:border-emerald-600',
+  loss: 'border-rose-900 bg-rose-950/50 text-rose-200 hover:border-rose-700',
+  let: 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600',
+  neutral: 'border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-100',
+}
+
+const open = ref(true)
 
 function formatClock(seconds: number) {
   const s = Math.max(0, Math.floor(seconds))
@@ -38,6 +49,7 @@ const markers = computed<Marker[]>(() => {
           label: `Game ${g.number}`,
           sub: `${g.score[0]}–${g.score[1]}`,
           time: first?.startsAtSeconds ?? 0,
+          tone: (g.winnerSide === 1 ? 'win' : g.winnerSide === 2 ? 'loss' : 'neutral') as Tone,
         }
       })
   }
@@ -47,6 +59,9 @@ const markers = computed<Marker[]>(() => {
     label: `${s.scoreAfter[0]}–${s.scoreAfter[1]}`,
     sub: formatClock(s.startsAtSeconds),
     time: s.startsAtSeconds,
+    tone: (s.isLet
+      ? 'let'
+      : s.scoreAfter[0] > s.scoreBefore[0] ? 'win' : 'loss') as Tone,
   }))
 })
 
@@ -111,30 +126,43 @@ function next() {
       </div>
 
       <span class="text-sm text-slate-500">{{ markers.length }} {{ mode }}</span>
+
+      <button
+        data-testid="marker-collapse"
+        type="button"
+        class="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-400 hover:text-slate-100"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
+        <component :is="open ? ChevronUp : ChevronDown" :size="14" />
+        {{ open ? 'Hide' : 'Show' }}
+      </button>
     </div>
 
-    <ul
-      v-if="markers.length"
-      data-testid="marker-list"
-      class="mt-3 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto"
-    >
-      <li v-for="(m, i) in markers" :key="m.key">
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded border px-2 py-1 text-xs tabular-nums"
-          :class="i === activeMarker
-            ? 'border-emerald-500 bg-emerald-950 text-emerald-200'
-            : 'border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-100'"
-          @click="jumpTo(i)"
-        >
-          <Star v-if="mode === 'highlights'" :size="11" class="fill-amber-400 text-amber-400" />
-          <span class="font-medium">{{ m.label }}</span>
-          <span class="text-slate-500">{{ m.sub }}</span>
-        </button>
-      </li>
-    </ul>
-    <p v-else class="mt-3 text-sm text-slate-500">
-      No {{ mode }} tagged for this match yet.
-    </p>
+    <template v-if="open">
+      <ul
+        v-if="markers.length"
+        data-testid="marker-list"
+        class="mt-3 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto"
+      >
+        <li v-for="(m, i) in markers" :key="m.key">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded border px-2 py-1 text-xs tabular-nums"
+            :class="i === activeMarker
+              ? 'border-emerald-400 bg-emerald-900 font-semibold text-emerald-100'
+              : TONE_CLASS[m.tone]"
+            @click="jumpTo(i)"
+          >
+            <Star v-if="mode === 'highlights'" :size="11" class="fill-amber-400 text-amber-400" />
+            <span class="font-medium">{{ m.label }}</span>
+            <span class="opacity-70">{{ m.sub }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-else class="mt-3 text-sm text-slate-500">
+        No {{ mode }} tagged for this match yet.
+      </p>
+    </template>
   </div>
 </template>

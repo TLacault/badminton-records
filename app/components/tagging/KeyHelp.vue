@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Minus, Star, X } from '@lucide/vue'
+import { Check, Minus, Pause, Star, X } from '@lucide/vue'
 </script>
 
 <template>
@@ -29,7 +29,13 @@ import { Check, Minus, Star, X } from '@lucide/vue'
       <Star :size="12" class="text-amber-400" /> highlight last point
     </dd>
     <dt class="font-mono text-slate-200">
-      &amp; é " '
+      M
+    </dt>
+    <dd class="flex items-center gap-1.5">
+      <Pause :size="12" class="text-slate-400" /> start / end a break
+    </dd>
+    <dt class="font-mono text-slate-200">
+      &amp; é " ' <span class="text-slate-500">or</span> num 1–4
     </dt>
     <dd>scorer = slot 1–4</dd>
     <dt class="font-mono text-slate-200">

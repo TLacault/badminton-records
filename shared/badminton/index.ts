@@ -1,4 +1,5 @@
 export * from './derive'
+export * from './log'
 export * from './playback'
 export * from './rules'
 export * from './types'

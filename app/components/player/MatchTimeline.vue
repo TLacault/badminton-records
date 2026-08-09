@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { DerivedMatch } from '~~/shared/badminton'
+import type { BreakInput, DerivedMatch } from '~~/shared/badminton'
 import { rallyAtTime } from '~~/shared/badminton'
 
-const props = defineProps<{
-  derived: DerivedMatch | null
-  /** Video length. Falls back to the last rally end before the player reports. */
-  duration: number
-  currentTime: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    derived: DerivedMatch | null
+    /** Video length. Falls back to the last rally end before the player reports. */
+    duration: number
+    currentTime: number
+    breaks?: BreakInput[]
+  }>(),
+  { breaks: () => [] },
+)
 
 const emit = defineEmits<{ seek: [seconds: number] }>()
 
@@ -56,6 +60,20 @@ const highlightBands = computed(() => {
   return bands
 })
 
+/**
+ * Dead time, drawn over the rally lane. Rallies are contiguous, so the rally
+ * following a break still spans it; painting the break on top is what makes
+ * the gap visible. An unclosed break runs to the end of the video.
+ */
+const breakBands = computed(() =>
+  props.breaks.map(b => ({
+    idx: b.idx,
+    left: pct(b.startsAtSeconds),
+    width: pct((b.endsAtSeconds ?? total.value) - b.startsAtSeconds),
+    open: b.endsAtSeconds === null,
+  })),
+)
+
 /** Start of every game after the first. */
 const gameMarks = computed(() =>
   (props.derived?.games ?? [])
@@ -90,13 +108,28 @@ function seekFromPointer(event: MouseEvent) {
     class="relative h-9 w-full cursor-pointer overflow-hidden rounded bg-slate-900"
     @click="seekFromPointer"
   >
+    <!--
+      border-r in the track colour separates consecutive points: a run of five
+      won in a row would otherwise read as one long block. box-sizing keeps the
+      border inside the segment, so positions stay exact.
+    -->
     <div
       v-for="s in segments"
       :key="s.idx"
-      class="absolute bottom-0 top-2 opacity-80 hover:opacity-100"
+      class="absolute bottom-0 top-2 border-r border-slate-900 opacity-80 hover:opacity-100"
       :class="s.class"
       :style="{ left: s.left, width: s.width }"
       :title="s.title"
+    />
+
+    <div
+      v-for="b in breakBands"
+      :key="`b${b.idx}`"
+      data-testid="timeline-break"
+      class="absolute bottom-0 top-2 border-x border-slate-500 bg-slate-800"
+      :class="b.open ? 'opacity-60' : ''"
+      :style="{ left: b.left, width: b.width }"
+      :title="b.open ? 'Break (still open)' : 'Break'"
     />
 
     <!-- Highlights ride in their own lane above the points so they stay

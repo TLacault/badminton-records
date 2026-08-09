@@ -34,6 +34,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      match_breaks: {
+        Row: {
+          ends_at_seconds: number | null
+          idx: number
+          match_id: string
+          starts_at_seconds: number
+        }
+        Insert: {
+          ends_at_seconds?: number | null
+          idx: number
+          match_id: string
+          starts_at_seconds: number
+        }
+        Update: {
+          ends_at_seconds?: number | null
+          idx?: number
+          match_id?: string
+          starts_at_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_breaks_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_game_starts: {
         Row: {
           game_number: number
