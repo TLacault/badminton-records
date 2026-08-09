@@ -100,12 +100,28 @@ export async function callFfbad<T = unknown>(
   fn: string,
   param: Record<string, unknown>,
 ): Promise<FfbadEnvelope<T>> {
-  const envelope = await $fetch<FfbadEnvelope<T>>(options.baseUrl, {
+  // responseType 'text' and a manual parse, deliberately: the API answers with
+  // `Content-Type: text/html` and a leading newline, so $fetch's content-type
+  // sniffing hands back a raw string. Letting it do that silently turns every
+  // response — success or failure — into "Statut undefined" and hides the real
+  // message.
+  const raw = await $fetch<string>(options.baseUrl, {
+    responseType: 'text',
     query: {
       AuthJson: JSON.stringify({ Login: options.login, Password: options.password }),
       QueryJson: JSON.stringify({ Function: fn, Param: param }),
     },
   })
+
+  let envelope: FfbadEnvelope<T>
+  try {
+    envelope = JSON.parse(raw.trim())
+  }
+  catch {
+    throw new FfbadError(
+      `FFBaD returned a non-JSON response: ${raw.trim().slice(0, 200)}`,
+    )
+  }
 
   // The API answers 200 with Statut 'KO' rather than an HTTP error status, so
   // failures have to be read out of the body.
