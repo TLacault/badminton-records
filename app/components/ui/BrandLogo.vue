@@ -23,9 +23,7 @@ withDefaults(
       recolouring the file would fork the asset per theme.
     -->
     <img
-      :src="
-        variant === 'lockup' ? '/brand/logo-mark.png' : '/brand/logo-mark.png'
-      "
+      :src="assetUrl('/brand/logo-mark.png')"
       :alt="`${site.club.name} logo`"
       :class="[size, 'w-auto shrink-0 invert dark:invert-0']"
       :width="variant === 'lockup' ? 477 : 443"

@@ -25,7 +25,7 @@ const rankChips = computed(() =>
             aria-hidden="true"
           />
           <img
-            :src="player.portrait"
+            :src="assetUrl(player.portrait)"
             :alt="`${player.name} playing for ${site.club.name}`"
             width="900"
             height="900"

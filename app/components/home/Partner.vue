@@ -59,7 +59,7 @@ const rankChips = computed(() =>
             <div class="flex items-center gap-4">
               <img
                 v-if="partner.portrait"
-                :src="partner.portrait"
+                :src="assetUrl(partner.portrait)"
                 :alt="partner.name"
                 width="200"
                 height="200"

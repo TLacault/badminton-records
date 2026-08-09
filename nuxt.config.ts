@@ -1,5 +1,12 @@
 import tailwindcss from '@tailwindcss/vite'
 
+// Set by the Pages workflow to `/<repo>/` for a project site, `/` for a user
+// site or custom domain. `app.head` is plain data that Vite never rewrites,
+// so its URLs have to be joined by hand. Mirrors app/utils/asset.ts, which
+// does the same for `:src` bindings at runtime.
+const baseURL = process.env.NUXT_APP_BASE_URL || '/'
+const withBase = (path: string) => `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -19,8 +26,8 @@ export default defineNuxtConfig({
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600;700&display=swap',
         },
-        { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96.png' },
-        { rel: 'apple-touch-icon', href: '/favicon-96.png' },
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: withBase('/favicon-96.png') },
+        { rel: 'apple-touch-icon', href: withBase('/favicon-96.png') },
       ],
       meta: [
         { name: 'theme-color', content: '#08070a', media: '(prefers-color-scheme: dark)' },
@@ -61,6 +68,14 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+  },
+  nitro: {
+    prerender: {
+      // /admin needs a signed-in admin session, which a build does not have:
+      // every route under it would render the login redirect and freeze that
+      // into HTML. It stays client-rendered, reached through the SPA fallback.
+      ignore: ['/admin'],
+    },
   },
   supabase: {
     // Route protection is handled by app/middleware/admin.ts, which guards
