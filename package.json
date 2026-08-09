@@ -2,6 +2,7 @@
   "name": "ust-blog-badminton",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.29.3",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
