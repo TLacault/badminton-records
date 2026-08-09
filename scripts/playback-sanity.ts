@@ -7,8 +7,8 @@ import { parseClock } from '../app/utils/format.ts'
 
 /**
  * Eyeball check for the overlay's "what is true at time t" resolution
- * (not a test). Mirrors supabase/seed.sql exactly: game 1 alternates to 15-15
- * then side 1 runs out to 21-15; game 2 alternates to 18-18 then 21-18.
+ * (not a test). Mirrors supabase/seed.sql exactly: set 1 alternates to 15-15
+ * then side 1 runs out to 21-15; set 2 alternates to 18-18 then 21-18.
  *
  *   pnpm exec jiti scripts/playback-sanity.ts
  */
@@ -51,7 +51,7 @@ const config: MatchConfig = {
   initialServerSide: 1,
   side1RightCourtSlot: 1,
   side2RightCourtSlot: 3,
-  gameStarts: [],
+  setStarts: [],
 }
 
 const rallies = seededLog()
@@ -59,9 +59,9 @@ const derived = deriveMatch(config, rallies)
 
 console.log('--- seeded match shape ---')
 console.log('  rallies         :', rallies.length, '            expect 75')
-console.log('  game 1          :', derived.games[0]?.score, '   expect [ 21, 15 ]')
-console.log('  game 2          :', derived.games[1]?.score, '   expect [ 21, 18 ]')
-console.log('  games won       :', derived.gamesWon, '    expect [ 2, 0 ]')
+console.log('  set 1          :', derived.sets[0]?.score, '   expect [ 21, 15 ]')
+console.log('  set 2          :', derived.sets[1]?.score, '   expect [ 21, 18 ]')
+console.log('  sets won       :', derived.setsWon, '    expect [ 2, 0 ]')
 console.log('  complete        :', derived.complete, '          expect true')
 console.log('  winner side     :', derived.matchWinnerSide, '             expect 1')
 console.log('  last rally ends :', derived.rallyStates.at(-1)?.endsAtSeconds, '           expect 570')
@@ -82,28 +82,28 @@ console.log('\n--- mid-rally shows the score BEFORE the point ---')
 console.log('  t=' + midFirst.toFixed(0) + '   score    :', t1.score, '     expect [ 0, 0 ] (rally 0 in play)')
 console.log('  t=' + midFirst.toFixed(0) + '   rallyIdx :', t1.rally?.idx, '             expect 0')
 
-// Rally 29 ends game-1 scoring at 15-15; check a mid-game reading.
+// Rally 29 ends set-1 scoring at 15-15; check a mid-set reading.
 const r29 = derived.rallyStates[29]!
 const t2 = playbackAt(derived, r29.startsAtSeconds + 1)
-console.log('\n--- mid game 1 ---')
+console.log('\n--- mid set 1 ---')
 console.log('  rally 29 before :', t2.score, '   expect [ 15, 14 ]')
-console.log('  game number     :', t2.gameNumber, '             expect 1')
-console.log('  games won       :', t2.gamesWon, '     expect [ 0, 0 ]')
+console.log('  set number     :', t2.setNumber, '             expect 1')
+console.log('  sets won       :', t2.setsWon, '     expect [ 0, 0 ]')
 
-// First rally of game 2: the previous game is now on the board.
-const g2First = derived.rallyStates.find(s => s.gameNumber === 2)!
+// First rally of set 2: the previous set is now on the board.
+const g2First = derived.rallyStates.find(s => s.setNumber === 2)!
 const t3 = playbackAt(derived, g2First.startsAtSeconds + 1)
-console.log('\n--- first rally of game 2 ---')
+console.log('\n--- first rally of set 2 ---')
 console.log('  rallyIdx        :', t3.rally?.idx, '            expect', g2First.idx)
-console.log('  score           :', t3.score, '     expect [ 0, 0 ] (fresh game)')
-console.log('  gamesWon        :', t3.gamesWon, '     expect [ 1, 0 ]')
-console.log('  gameNumber      :', t3.gameNumber, '             expect 2')
+console.log('  score           :', t3.score, '     expect [ 0, 0 ] (fresh set)')
+console.log('  setsWon        :', t3.setsWon, '     expect [ 1, 0 ]')
+console.log('  setNumber      :', t3.setNumber, '             expect 2')
 
 // Past the final rally the board must show the finished score, not scoreBefore.
 const t4 = playbackAt(derived, 900)
 console.log('\n--- past the end of the match ---')
-console.log('  score           :', t4.score, '   expect [ 21, 18 ] (final game)')
-console.log('  gamesWon        :', t4.gamesWon, '     expect [ 2, 0 ]')
+console.log('  score           :', t4.score, '   expect [ 21, 18 ] (final set)')
+console.log('  setsWon        :', t4.setsWon, '     expect [ 2, 0 ]')
 
 // Timeline snapping: a click anywhere inside a point seeks to its start.
 const r5 = derived.rallyStates[5]!
@@ -150,7 +150,7 @@ const fixed = deriveMatch(config, patched)
 console.log('\n--- score after patching the miscount ---')
 console.log('  rallies         :', patched.length, '             expect 5')
 console.log('  ordered by time :', patched.map(r => r.endedAtSeconds).join(','), ' expect 10,20,30,35,40')
-console.log('  score           :', fixed.games[0]?.score, '     expect [ 3, 2 ]')
+console.log('  score           :', fixed.sets[0]?.score, '     expect [ 3, 2 ]')
 
 // ---------------------------------------------------------------------------
 // Hand-edited timecodes.
@@ -172,7 +172,7 @@ console.log('\n--- retiming a point reorders the log ---')
 console.log('  times           :', retimed.map(r => r.endedAtSeconds).join(','), '  expect 10,15,20,30')
 console.log('  winners         :', retimed.map(r => r.winnerSide).join(','), '    expect 1,2,2,1')
 const after = deriveMatch(config, retimed)
-console.log('  score           :', after.games[0]?.score, '     expect [ 2, 2 ] (same points, new order)')
+console.log('  score           :', after.sets[0]?.score, '     expect [ 2, 2 ] (same points, new order)')
 console.log('  contiguous      :', after.rallyStates.every((s, i) =>
   i === 0 || s.startsAtSeconds === after.rallyStates[i - 1]!.endsAtSeconds), '          expect true')
 
@@ -181,14 +181,14 @@ console.log('  contiguous      :', after.rallyStates.every((s, i) =>
 // start routinely sits inside a break.
 const breaks: BreakInput[] = [
   { idx: 0, startsAtSeconds: 0, endsAtSeconds: 40 },    // warm-up before point 1
-  { idx: 1, startsAtSeconds: 370, endsAtSeconds: 430 }, // interval between games
+  { idx: 1, startsAtSeconds: 370, endsAtSeconds: 430 }, // interval between sets
 ]
 
-const g2 = derived.rallyStates.find(s => s.gameNumber === 2)!
+const g2 = derived.rallyStates.find(s => s.setNumber === 2)!
 console.log('\n--- seeks resume past a break ---')
 console.log('  point 1 starts  :', derived.rallyStates[0]!.startsAtSeconds, '(inside warm-up)')
 console.log('  -> resumes at   :', resumeTimeAt(breaks, derived.rallyStates[0]!.startsAtSeconds), '            expect 40')
-console.log('  game 2 starts   :', g2.startsAtSeconds, '(inside the interval)')
+console.log('  set 2 starts   :', g2.startsAtSeconds, '(inside the interval)')
 console.log('  -> resumes at   :', resumeTimeAt(breaks, g2.startsAtSeconds), '           expect 430')
 console.log('  mid-play (200)  :', resumeTimeAt(breaks, 200), '           expect 200 (untouched)')
 console.log('  exact break end :', resumeTimeAt(breaks, 40), '            expect 40 (half-open, already resumed)')

@@ -35,3 +35,26 @@ export function formatDate(value: string | null): string {
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString()
 }
+
+/*
+ * The public pages pin a locale instead of following the visitor's, because
+ * these strings are server-rendered: `toLocaleDateString()` with no locale
+ * resolves to the *server's* default, and the browser then re-renders a
+ * different string on hydration. A fixed locale keeps both sides identical.
+ */
+const LONG = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+const SHORT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** `2026-08-09` → `Sun 9 Aug 2026`. */
+export function formatDateLong(value: string | null): string {
+  if (!value) return 'Undated'
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? 'Undated' : LONG.format(d)
+}
+
+/** `2026-08-09` → `9 Aug 2026`. */
+export function formatDateShort(value: string | null): string {
+  if (!value) return 'Undated'
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? 'Undated' : SHORT.format(d)
+}

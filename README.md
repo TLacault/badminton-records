@@ -1,6 +1,200 @@
-# Nuxt Minimal Starter
+# U.S. Talence Badminton
 
 Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+
+## Landing page copy
+
+**Every hand-written word on the public site lives in `app/config/site.ts`.** The
+bio, the equipment list, the partner section and the section blurbs are all
+plain data there — edit that one file and the landing page follows, no markup
+involved. Anything still reading `TODO` is a placeholder waiting for a real
+value. Deleting an entry from `gear` or `career` removes its card; the layouts
+flow from the array length.
+
+## Design system
+
+Tokens live at the top of `app/assets/css/main.css`.
+
+The palette is deliberately **bichromatic**: the club's crimson against a
+neutral ink/paper axis, and nothing else. Two variables carry the brand:
+
+- `--ui-brand` is `#ba0925` exactly as issued, and is only used as a *fill*
+  under white text, where it clears 4.5:1.
+- `--ui-accent` is what red looks like as *text* or as a glow. Unchanged in
+  light mode; lifted to `#f5233f` on the near-black background, where `#ba0925`
+  itself only reaches 3:1.
+
+Light and dark are two blocks of `--ui-*` variables (`:root` and `.dark`),
+mapped into Tailwind through `@theme inline` so utilities like `bg-panel` follow
+the live variable. Components use the semantic name (`text-ink-muted`,
+`border-line`, `bg-accent-soft`) and never a raw hex, so neither theme can drift
+out of sync with the other.
+
+Reusable effects are Tailwind utilities in the same file: `glass`, `glow`,
+`slash`, `btn`/`btn-primary`/`btn-ghost`, `field`, `label`, `eyebrow`.
+
+Rally colour is part of the same two-colour language: `bg-us` is crimson,
+`bg-them` is ink. The match page prints a written legend under the timeline,
+because colour is never allowed to be the only carrier of meaning.
+
+The theme is chosen by an inline script in `nuxt.config.ts` that runs before
+first paint (so a dark-mode reload never flashes white); `useTheme()` syncs to
+that class on mount and owns the toggle afterwards.
+
+### Brand assets
+
+`public/brand/` is generated from the club artwork:
+
+- `logo-lockup.png` — the full emblem with its set text. Only legible above
+  ~140px tall; used in the footer, the sign-in page and nowhere small.
+- `logo-mark.png` — the emblem's crown alone, for the header and the favicon.
+- `court.jpg`, `portrait.jpg` — photography, duotoned in CSS rather than baked.
+
+Both logo files are white line art with an alpha channel, inverted in CSS for
+light mode so the official shape is never recoloured or redrawn.
+
+### Motion
+
+Scroll reveals (`<UiReveal>`) render hidden and are unhidden by an
+IntersectionObserver. Two escape hatches keep that safe: `prefers-reduced-motion`
+unhides in CSS, and a `<noscript>` rule unhides when JS never arrives.
+`prefers-reduced-motion` is honoured with a blanket rule rather than
+per-animation opt-outs, so an animation added later cannot silently escape it.
+
+## Naming
+
+`matches.title` is a YouTube upload name — `JEUX LIBRE - THOMAS X BLUD #1 -
+WIN` — and it is not shown anywhere: not on the match page, not on a card, not
+in the admin library, not in the browser tab. Every one of those builds the
+fixture from the roster instead (`utils/matchSummary.ts`), which means renaming
+a player corrects the whole site at once. The stored title is the fallback for
+a match with nobody assigned yet, and nothing else.
+
+Side labels come in two lengths: full names for a heading, first names for
+anywhere the label sits beside a number — `Tim & Adrien`, never `Us`.
+
+## The match page
+
+Under it, tags carry weight rather than hue, because the palette is two
+colours: the match type is a crimson outline, date/format/venue/length are ink
+outlines, and the result is the single filled crimson chip.
+
+**Results are spoilers.** The result chip and the whole match-details panel
+stay hidden behind one click, remembered per match in localStorage
+(`useResultReveal`). Only a *finished* match hides anything — there is nothing
+to give away in a half-tagged one. The timeline is deliberately exempt: it is
+the navigation control, and blurring it would make the page unusable.
+
+Match types are a table (`match_types`), not an enum, edited at
+`/admin/match-types`. `matches.player_info_fields` picks, per match, which
+personal details (club, ranks, age, licence) print beside each player — a
+tournament sheet wants ranks, a Tuesday evening does not.
+
+Below the details panel, three more matches to watch: same session first,
+since an evening is watched as an evening, then the newest of everything else.
+
+### Sets, not games
+
+The BWF rulebook says game; the club says set. The code now says set
+everywhere — `setNumber`, `derived.sets`, `match_set_starts.set_number` — so
+the schema, the engine and the screen use one word. Migration `0007` carries
+the rename, along with the house rules the form now defaults to: sets to 15,
+capped at 21.
+
+### Scoreboard
+
+`<PlayerScoreBoard>` lives on the video and nowhere else. A board beside the
+rally it describes is a second thing to look at; the point of an overlay is
+that you never look away from the court.
+
+It grows a column per set as the match goes, and shows no sets-won total — the
+columns are the tally. Scores come from playback, never from the log, so a set
+that has not started yet is not printed: its final score would spoil the rally
+on screen.
+
+Compact (Us / Opponents) or expanded (all four names, each behind its club
+acronym) is a viewer toggle remembered across matches. The acronym is derived,
+not stored — initials for a multi-word club, first three letters otherwise.
+
+Legibility over moving video comes from the `legible` utility — a text shadow
+hugging the glyphs — rather than from a dark box, which would hide the rally
+the board is describing.
+
+### Fullscreen
+
+`useFullscreen` fullscreens the *stage wrapper*, not the iframe. YouTube's own
+button fullscreens the iframe alone, which leaves our overlay behind on the
+page; the `fullscreenchange` handler catches that and hands fullscreen to the
+wrapper instead, so the board survives. The stage's own button skips the
+handoff and its one frame of flicker.
+
+It sits bottom-centre, above YouTube's control bar: the corners belong to the
+embed — settings and fullscreen on the right, channel chrome on the left — and
+covering any of those is worse than sharing the middle with the seek bar.
+
+It fades a second after the pointer stops. "Stops" is approximate on purpose: a
+cross-origin iframe swallows every pointer event inside it, so once the cursor
+is over the video the parent page cannot see it move. Entering and leaving the
+stage are observable, and playback state fills the rest — a paused player keeps
+the button, a playing one hides it.
+
+## Admin
+
+Nothing in the admin has a save button any more. The match form writes itself
+half a second after you stop typing (`m-autosave` reports the write); the
+tagger writes 400ms after the last keypress. Only a match that does not exist
+yet keeps a button, because there is no row to write to until it is created.
+
+A new match opens with our half of the court already filled in — `HOME_PAIR` in
+`utils/players.ts`, matched by name against the roster so the seed survives a
+database reset — plus Talence, 15 points and a cap of 21.
+
+The tagger's **Reset** clears the rally log, the breaks, the set starts, the
+roster and every scoring rule, then re-seeds the home pair. It keeps only what
+the YouTube import supplied — title, date, video id, thumbnail, duration —
+because re-importing will not bring those back for a video already known. It
+reloads the page afterwards rather than refetching: the tagging session still
+holds the old log in memory, and its next autosave would write it all back.
+
+The video library filters and sorts through `<VideoFilterBar>`, shared with the
+public wall so "longest" cannot come to mean two things. Search covers players,
+clubs, types and venues; the dropdowns narrow by result, format, type, tagging
+status and whether anything was highlighted. Rows are decorated once — the
+scoring engine runs per match, which is not something to redo on every
+keystroke — and filtered over that. The public page falls back from
+session-grouping to a flat list once you search, since grouping is exactly what
+a search asks you to break.
+
+Native controls follow the OS, not the page, so `color-scheme` is inherited
+onto every `select` and date input and the option rows are painted from the
+palette; a dropdown never opens a white sheet over a dark page.
+
+## Tagging keyboard
+
+Every binding is editable and lives in localStorage
+(`ust-tagging-keybinds-v1`, overrides only, so keys added later still arrive
+with a default). The cheat sheet under the video is the editor, two columns of
+them: click a key, press another, done. `+` gives an action a second key;
+hovering a key when there are several offers to remove it. Rebinding onto a
+taken key takes it off the other action and says so.
+
+A binding records *how* it wants to be matched, decided when it is captured.
+`key` for letters — on AZERTY the A key reports `code: 'KeyQ'`, so matching on
+code would put "point for us" under Q. `code` for keys that produce nothing
+printable and for the digit row, which on AZERTY produces & é " ' rather than
+1 2 3 4. That is also why the scorer digits ship with two bindings each: the
+number row and the numpad.
+
+## Tests
+
+```bash
+pnpm test        # vitest
+```
+
+`shared/badminton` is pure and framework-free, which is the point: the scoring
+engine and the statistics derived from it are testable without a browser,
+a component or a database. `stats.test.ts` covers the summaries behind the
+match-details panel.
 
 ## Local database and admin access
 

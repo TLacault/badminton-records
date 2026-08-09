@@ -10,8 +10,8 @@ export interface ScoringRules {
   pointsCap: number
 }
 
-export interface GameStartOverride {
-  gameNumber: number
+export interface SetStartOverride {
+  setNumber: number
   serverSlot: Slot | null
   side1RightCourtSlot: Slot | null
   side2RightCourtSlot: Slot | null
@@ -25,7 +25,7 @@ export interface MatchConfig {
   side1RightCourtSlot: Slot | null
   /** doubles only: which of slots 3|4 starts in the right service court */
   side2RightCourtSlot: Slot | null
-  gameStarts: GameStartOverride[]
+  setStarts: SetStartOverride[]
 }
 
 export interface RallyInput {
@@ -39,7 +39,7 @@ export interface RallyInput {
 }
 
 /**
- * Dead time — between games, or any stoppage. Not a scoring event, so it stays
+ * Dead time — between sets, or any stoppage. Not a scoring event, so it stays
  * out of the rally log and out of the derivation entirely.
  */
 export interface BreakInput {
@@ -52,21 +52,22 @@ export interface BreakInput {
 export type WarningCode =
   | 'missing_initial_server'
   | 'rallies_after_match_complete'
-  | 'final_game_incomplete'
-  | 'ambiguous_game_start'
+  | 'final_set_incomplete'
+  | 'ambiguous_set_start'
 
 export interface Warning {
   code: WarningCode
   message: string
   rallyIdx?: number
-  gameNumber?: number
+  setNumber?: number
 }
 
 export interface RallyState {
   idx: number
-  gameNumber: number
+  setNumber: number
   scoreBefore: [number, number]
   scoreAfter: [number, number]
+  /** Who served this rally — not who serves the next one. */
   servingSide: Side
   servingSlot: Slot
   receivingSlot: Slot
@@ -74,16 +75,16 @@ export interface RallyState {
   /** previous rally's end; points are contiguous */
   startsAtSeconds: number
   endsAtSeconds: number
-  isGamePoint: boolean
+  isSetPoint: boolean
   isMatchPoint: boolean
-  endedGame: boolean
+  endedSet: boolean
   endedMatch: boolean
   isLet: boolean
   isHighlight: boolean
   scoredByPlayerId: string | null
 }
 
-export interface GameState {
+export interface SetState {
   number: number
   score: [number, number]
   winnerSide: Side | null
@@ -94,8 +95,8 @@ export interface GameState {
 
 export interface DerivedMatch {
   rallyStates: RallyState[]
-  games: GameState[]
-  gamesWon: [number, number]
+  sets: SetState[]
+  setsWon: [number, number]
   matchWinnerSide: Side | null
   complete: boolean
   warnings: Warning[]

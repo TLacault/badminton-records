@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { MatchFormat, Slot } from '~~/shared/badminton'
+import { CircleDashed, User } from '@lucide/vue'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -28,28 +29,37 @@ const labels: Record<number, string> = {
   4: 'Slot 4 (\') — opponents',
 }
 
-function set(slot: number, value: string) {
-  emit('select', slot, value || null)
+/** The roster, plus an explicit empty choice so a slot can be cleared. */
+const options = computed(() => [
+  { value: null as string | null, label: 'No player', icon: CircleDashed },
+  ...props.players.map(p => ({
+    value: p.id as string | null,
+    label: `${p.first_name} ${p.last_name}`,
+    hint: p.club ?? undefined,
+    icon: User,
+  })),
+])
+
+function set(slot: number, value: string | null) {
+  emit('select', slot, value)
 }
 </script>
 
 <template>
-  <div class="grid gap-3 md:grid-cols-2">
-    <label v-for="slot in slots" :key="slot" class="block">
-      <span class="text-sm text-slate-400">{{ labels[slot] }}</span>
-      <select
+  <div class="grid gap-4 md:grid-cols-2">
+    <div v-for="slot in slots" :key="slot">
+      <span
+        class="label"
+        :class="slot <= 2 ? 'text-accent' : ''"
+      >{{ labels[slot] }}</span>
+      <UiSelect
         :data-testid="`slot-${slot}`"
-        :value="modelValue[slot] ?? ''"
-        class="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2"
-        @change="set(slot, ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">
-          —
-        </option>
-        <option v-for="p in players" :key="p.id" :value="p.id">
-          {{ p.first_name }} {{ p.last_name }}
-        </option>
-      </select>
-    </label>
+        class="mt-2"
+        :label="labels[slot]"
+        :model-value="modelValue[slot] ?? null"
+        :options="options"
+        @update:model-value="value => set(slot, value)"
+      />
+    </div>
   </div>
 </template>

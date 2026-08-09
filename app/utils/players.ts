@@ -1,0 +1,92 @@
+/**
+ * The personal details a match page may print beside a player's name.
+ *
+ * Which of them appear is a per-match choice (`matches.player_info_fields`):
+ * an interclub tie wants ranks and licences on the sheet, a Tuesday evening
+ * wants a first name. The vocabulary lives here so the admin checkboxes and
+ * the public table can never drift apart.
+ */
+
+/**
+ * Our half of the court. Matched by name against the roster rather than by a
+ * hardcoded id, so the seed survives a database reset — and so that adding the
+ * pair to a new match is one lookup rather than two dropdowns, every time.
+ */
+export const HOME_PAIR = [
+  { first_name: 'Tim', last_name: 'Lacault' },
+  { first_name: 'Adrien', last_name: 'Chapour' },
+]
+
+/** Player ids for slots 1 and 2, for whichever of the pair the roster holds. */
+export function homePairSlots(
+  roster: { id: string, first_name: string, last_name: string }[],
+): Record<number, string> {
+  const out: Record<number, string> = {}
+  HOME_PAIR.forEach((wanted, index) => {
+    const found = roster.find(
+      p => p.first_name === wanted.first_name && p.last_name === wanted.last_name,
+    )
+    if (found) out[index + 1] = found.id
+  })
+  return out
+}
+
+export interface PlayerInfoSource {
+  club?: string | null
+  birth_year?: number | null
+  rank_singles?: string | null
+  rank_doubles?: string | null
+  rank_mixed?: string | null
+  ffbad_license?: string | null
+}
+
+export interface PlayerInfoField {
+  id: string
+  label: string
+  read: (player: PlayerInfoSource) => string | null
+}
+
+export const PLAYER_INFO_FIELDS: PlayerInfoField[] = [
+  { id: 'club', label: 'Club', read: p => p.club || null },
+  { id: 'rank_singles', label: 'Singles rank', read: p => p.rank_singles || null },
+  { id: 'rank_doubles', label: 'Doubles rank', read: p => p.rank_doubles || null },
+  { id: 'rank_mixed', label: 'Mixed rank', read: p => p.rank_mixed || null },
+  {
+    id: 'age',
+    label: 'Age',
+    // Year arithmetic only: the roster stores a birth year, so a real age
+    // would be a guess either side of a birthday.
+    read: p => (p.birth_year ? `${new Date().getFullYear() - p.birth_year}` : null),
+  },
+  { id: 'licence', label: 'Licence', read: p => p.ffbad_license || null },
+]
+
+/**
+ * `U.S. Talence` → `UST`, `Bordeaux` → `BOR`.
+ *
+ * The roster stores a club as free text and has no acronym column, so one is
+ * built: initials when the name is several words, the first three letters when
+ * it is one. Short entries like `UST` are already the acronym and survive
+ * unchanged.
+ */
+export function clubTag(club: string | null | undefined): string | null {
+  if (!club) return null
+  const words = club.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  if (!words.length) return null
+  const acronym = words.length > 1
+    ? words.slice(0, 3).map(w => w[0]).join('')
+    : words[0]!.slice(0, 3)
+  return acronym.toUpperCase()
+}
+
+/** The selected details this player actually has a value for. */
+export function playerInfoChips(
+  player: PlayerInfoSource | null | undefined,
+  fields: readonly string[],
+): { id: string, label: string, value: string }[] {
+  if (!player) return []
+  return PLAYER_INFO_FIELDS
+    .filter(field => fields.includes(field.id))
+    .map(field => ({ id: field.id, label: field.label, value: field.read(player) ?? '' }))
+    .filter(chip => chip.value !== '')
+}

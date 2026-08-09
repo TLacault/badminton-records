@@ -68,43 +68,58 @@ function ranks(p: FfbadPlayer) {
 
 <template>
   <div class="relative">
-    <div class="flex items-center gap-2 rounded border border-slate-700 bg-slate-900 px-3 py-2">
-      <component :is="busy ? Loader : Search" :size="15" :class="busy ? 'animate-spin text-slate-400' : 'text-slate-500'" />
+    <label for="ffbad-search" class="label">Find a licensee</label>
+    <div class="field mt-2 flex items-center gap-2.5 py-0">
+      <component
+        :is="busy ? Loader : Search"
+        :size="16"
+        class="shrink-0"
+        :class="busy ? 'animate-spin text-accent' : 'text-ink-subtle'"
+        aria-hidden="true"
+      />
       <input
+        id="ffbad-search"
         v-model="term"
         data-testid="ffbad-search"
+        type="search"
+        autocomplete="off"
         placeholder="Search FFBaD by surname…"
-        class="w-full bg-transparent outline-none placeholder:text-slate-500"
+        class="min-h-11 w-full bg-transparent outline-none placeholder:text-ink-subtle"
+        aria-describedby="ffbad-help"
         @focus="open = true"
       >
     </div>
 
-    <p v-if="error" data-testid="ffbad-error" class="mt-1 text-xs text-amber-400">
+    <p id="ffbad-help" class="mt-1.5 text-xs text-ink-subtle">
+      Fills the form from the federation's records — it does not save anything.
+    </p>
+
+    <p v-if="error" data-testid="ffbad-error" role="alert" class="mt-1.5 text-xs text-accent">
       {{ error }}
     </p>
 
     <ul
       v-if="open && results.length"
       data-testid="ffbad-results"
-      class="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded border border-slate-700 bg-slate-900 shadow-xl"
+      class="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-line bg-panel-solid p-1 shadow-[var(--ui-shadow)]"
     >
       <li v-for="p in results" :key="p.licence">
         <button
           type="button"
-          class="flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm hover:bg-slate-800"
+          class="flex w-full items-baseline gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
           @click="choose(p)"
         >
           <span class="font-medium">{{ p.lastName }} {{ p.firstName }}</span>
-          <span class="text-xs text-slate-400">{{ ranks(p) }}</span>
-          <span v-if="age(p.birthYear)" class="text-xs text-slate-500">{{ age(p.birthYear) }}</span>
-          <span class="ml-auto shrink-0 font-mono text-xs text-slate-600">{{ p.licence }}</span>
+          <span class="text-xs tabular-nums text-ink-muted">{{ ranks(p) }}</span>
+          <span v-if="age(p.birthYear)" class="text-xs tabular-nums text-ink-subtle">{{ age(p.birthYear) }}</span>
+          <span class="ml-auto shrink-0 font-mono text-xs tabular-nums text-ink-subtle">{{ p.licence }}</span>
         </button>
       </li>
     </ul>
 
     <p
       v-else-if="open && term.trim().length >= 2 && !busy && !error"
-      class="mt-1 text-xs text-slate-500"
+      class="mt-1.5 text-xs text-ink-subtle"
     >
       No licensee found.
     </p>

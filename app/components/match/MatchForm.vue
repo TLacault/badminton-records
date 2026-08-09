@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { MatchFormat } from '~~/shared/badminton'
+import {
+  Check,
+  CircleCheck,
+  CircleDashed,
+  Eye,
+  EyeOff,
+  Loader,
+  Save,
+  Tags,
+  TriangleAlert,
+  User,
+  Users,
+} from '@lucide/vue'
+import { PLAYER_INFO_FIELDS } from '~/utils/players'
 
 const props = defineProps<{ matchId: string | null }>()
 
@@ -12,10 +26,19 @@ const { data: players } = await useAsyncData('picker-players', async () => {
   return data ?? []
 })
 
+const { data: matchTypes } = await useAsyncData('form-match-types', async () => {
+  const { data } = await client.from('match_types').select('id, label').order('sort_order')
+  return data ?? []
+})
+
 const form = reactive({
   title: '',
   played_on: null as string | null,
-  venue: '',
+  // Nearly every match is filmed in the same hall.
+  venue: 'Talence',
+  match_type_id: null as string | null,
+  /** Which personal details the public player table prints. */
+  player_info_fields: [] as string[],
   format: 'doubles' as MatchFormat,
   youtube_video_id: '',
   visibility: 'private' as 'private' | 'public',
@@ -23,9 +46,12 @@ const form = reactive({
   // can be corrected by hand.
   tagging_status: 'untagged' as 'untagged' | 'in_progress' | 'tagged',
   best_of: 3,
-  points_to_win: 21,
+  // House rules: sets to 15, capped at 21. Matches recorded under the old
+  // 21/30 keep their own numbers — these are only the numbers a new one starts
+  // with, and they match the column defaults so an imported video agrees.
+  points_to_win: 15,
   win_by: 2,
-  points_cap: 30,
+  points_cap: 21,
   initial_server_side: 1 as 1 | 2,
   side1_right_court_slot: 1 as 1 | 2,
   side2_right_court_slot: 3 as 3 | 4,
@@ -46,6 +72,17 @@ if (props.matchId) {
     .from('match_players').select('slot, player_id').eq('match_id', props.matchId)
   for (const row of mp ?? []) slotMap[row.slot] = row.player_id
 }
+else {
+  // A new match starts with our half of the court already filled in.
+  Object.assign(slotMap, homePairSlots(players.value ?? []))
+}
+
+/**
+ * Autosave state for an existing match. A new one has no row to write to, so
+ * it keeps the explicit button until it is created.
+ */
+const autosaves = computed(() => Boolean(props.matchId))
+const saveState = ref<'clean' | 'pending' | 'saving' | 'saved' | 'error'>('clean')
 
 async function save() {
   busy.value = true
@@ -89,105 +126,293 @@ async function save() {
   await navigateTo(`/admin/matches/${saved.id}`)
 }
 
-const inputClass = 'rounded border border-slate-700 bg-slate-900 px-3 py-2'
-const fieldClass = 'mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100'
+/**
+ * Writes the current form to the row it came from. Short debounce rather than
+ * none: typing a title would otherwise be one request per keystroke.
+ */
+const SAVE_DEBOUNCE_MS = 500
+let timer: ReturnType<typeof setTimeout> | null = null
+
+async function autosave() {
+  if (!props.matchId) return
+  saveState.value = 'saving'
+  error.value = null
+
+  const payload = { ...form }
+  if (!payload.played_on) payload.played_on = null
+
+  const { error: dbError } = await client
+    .from('matches').update(payload).eq('id', props.matchId)
+
+  if (dbError) {
+    saveState.value = 'error'
+    error.value = dbError.message
+    return
+  }
+
+  // Participants are replaced wholesale — at most four rows, and the delete
+  // plus insert has to be one thought, or a half-written roster is possible.
+  await client.from('match_players').delete().eq('match_id', props.matchId)
+  const rows = Object.entries(slotMap)
+    .filter(([, playerId]) => Boolean(playerId))
+    .map(([slot, playerId]) => ({
+      match_id: props.matchId as string,
+      slot: Number(slot),
+      player_id: playerId as string,
+    }))
+  if (rows.length) {
+    const { error: mpError } = await client.from('match_players').insert(rows)
+    if (mpError) {
+      saveState.value = 'error'
+      error.value = mpError.message
+      return
+    }
+  }
+
+  saveState.value = 'saved'
+}
+
+function scheduleAutosave() {
+  if (!autosaves.value) return
+  saveState.value = 'pending'
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(autosave, SAVE_DEBOUNCE_MS)
+}
+
+// Both are `reactive`, so watching them directly is already deep; the spread
+// that was here rebuilt two objects on every tick for nothing.
+watch([form, slotMap], scheduleAutosave)
+
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer)
+})
+
+const saveLabel = computed(() => {
+  switch (saveState.value) {
+    case 'pending': return 'Saving…'
+    case 'saving': return 'Saving…'
+    case 'saved': return 'Saved'
+    case 'error': return 'Save failed'
+    default: return 'Up to date'
+  }
+})
+
+const formatOptions = [
+  { value: 'doubles' as MatchFormat, label: 'Doubles', icon: Users },
+  { value: 'singles' as MatchFormat, label: 'Singles', icon: User },
+]
+
+const typeOptions = computed(() => [
+  { value: null as string | null, label: 'No type', icon: CircleDashed },
+  ...(matchTypes.value ?? []).map(t => ({ value: t.id as string | null, label: t.label, icon: Tags })),
+])
+
+const visibilityOptions = [
+  { value: 'private' as const, label: 'Private', icon: EyeOff },
+  { value: 'public' as const, label: 'Public', icon: Eye },
+]
+
+const taggingOptions = [
+  { value: 'untagged' as const, label: 'Untagged', icon: CircleDashed },
+  { value: 'in_progress' as const, label: 'Tagging in progress', icon: Loader },
+  { value: 'tagged' as const, label: 'Tagged', icon: CircleCheck },
+]
+
+const serverOptions = [
+  { value: 1 as 1 | 2, label: 'Our side', icon: Users },
+  { value: 2 as 1 | 2, label: 'Their side', icon: Users },
+]
+
+const rightCourt1 = [
+  { value: 1 as 1 | 2, label: 'Slot 1', icon: User },
+  { value: 2 as 1 | 2, label: 'Slot 2', icon: User },
+]
+const rightCourt2 = [
+  { value: 3 as 3 | 4, label: 'Slot 3', icon: User },
+  { value: 4 as 3 | 4, label: 'Slot 4', icon: User },
+]
+
+const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
 </script>
 
 <template>
-  <form class="space-y-6" @submit.prevent="save">
-    <div class="grid gap-3 md:grid-cols-2">
-      <input v-model="form.title" data-testid="m-title" required placeholder="Title" :class="inputClass">
-      <input v-model="form.played_on" data-testid="m-date" type="date" :class="inputClass">
-      <input v-model="form.venue" placeholder="Venue" :class="inputClass">
-      <input v-model="form.youtube_video_id" data-testid="m-video" placeholder="YouTube video ID (e.g. dQw4w9WgXcQ)" :class="inputClass">
-      <select v-model="form.format" data-testid="m-format" :class="inputClass">
-        <option value="singles">
-          Singles
-        </option>
-        <option value="doubles">
-          Doubles
-        </option>
-      </select>
-      <select v-model="form.visibility" data-testid="m-visibility" :class="inputClass">
-        <option value="private">
-          Private
-        </option>
-        <option value="public">
-          Public
-        </option>
-      </select>
-      <select v-model="form.tagging_status" data-testid="m-tagging-status" :class="inputClass">
-        <option value="untagged">
-          Untagged
-        </option>
-        <option value="in_progress">
-          Tagging in progress
-        </option>
-        <option value="tagged">
-          Tagged
-        </option>
-      </select>
-    </div>
+  <form class="space-y-5" @submit.prevent="save">
+    <fieldset :class="FIELDSET">
+      <legend class="label px-1">
+        Match
+      </legend>
+      <div class="grid gap-4 md:grid-cols-2">
+        <label class="block md:col-span-2">
+          <span class="label">Title <span class="text-accent">*</span></span>
+          <input v-model="form.title" data-testid="m-title" required placeholder="Doubles vs BC Bordeaux" class="field mt-2">
+        </label>
+        <label class="block">
+          <span class="label">Played on</span>
+          <input v-model="form.played_on" data-testid="m-date" type="date" class="field mt-2 tabular-nums">
+        </label>
+        <label class="block">
+          <span class="label">Venue</span>
+          <input v-model="form.venue" placeholder="Talence" class="field mt-2">
+        </label>
+        <label class="block md:col-span-2">
+          <span class="label">YouTube video ID</span>
+          <input
+            v-model="form.youtube_video_id"
+            data-testid="m-video"
+            placeholder="dQw4w9WgXcQ"
+            class="field mt-2 font-mono"
+            aria-describedby="m-video-help"
+          >
+          <span id="m-video-help" class="mt-1.5 block text-xs text-ink-subtle">
+            The id only — the part after <code>v=</code>, not the whole URL.
+          </span>
+        </label>
+        <div>
+          <span class="label">Format</span>
+          <UiSelect v-model="form.format" data-testid="m-format" class="mt-2" label="Format" :options="formatOptions" />
+        </div>
+        <div>
+          <span class="label">Type</span>
+          <UiSelect v-model="form.match_type_id" data-testid="m-type" class="mt-2" label="Match type" :options="typeOptions" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">
+            Printed above the video.
+            <NuxtLink to="/admin/match-types" class="text-accent hover:underline">Edit the list</NuxtLink>.
+          </span>
+        </div>
+        <div>
+          <span class="label">Visibility</span>
+          <UiSelect v-model="form.visibility" data-testid="m-visibility" class="mt-2" label="Visibility" :options="visibilityOptions" />
+        </div>
+        <div class="md:col-span-2">
+          <span class="label">Tagging status</span>
+          <UiSelect v-model="form.tagging_status" data-testid="m-tagging-status" class="mt-2" label="Tagging status" :options="taggingOptions" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">
+            Set automatically by the tagger. Change it here only to fix a mistake.
+          </span>
+        </div>
+      </div>
+    </fieldset>
 
-    <fieldset>
-      <legend class="text-sm font-semibold text-slate-300">
+    <fieldset :class="FIELDSET">
+      <legend class="label px-1">
         Players
       </legend>
       <MatchPlayerPicker
-        class="mt-2"
         :model-value="slotMap"
         :format="form.format"
         :players="players ?? []"
         @select="(slot, playerId) => { slotMap[slot] = playerId }"
       />
-    </fieldset>
 
-    <fieldset>
-      <legend class="text-sm font-semibold text-slate-300">
-        Scoring
-      </legend>
-      <div class="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <label class="text-sm text-slate-400">Best of
-          <input v-model.number="form.best_of" type="number" :class="fieldClass"></label>
-        <label class="text-sm text-slate-400">Points to win
-          <input v-model.number="form.points_to_win" type="number" :class="fieldClass"></label>
-        <label class="text-sm text-slate-400">Win by
-          <input v-model.number="form.win_by" type="number" :class="fieldClass"></label>
-        <label class="text-sm text-slate-400">Cap
-          <input v-model.number="form.points_cap" type="number" :class="fieldClass"></label>
+      <!-- Per match, not per site: a tournament sheet wants ranks and licences
+           where a Tuesday evening wants a first name and nothing else. -->
+      <div class="mt-5 border-t border-line pt-4">
+        <p class="label">
+          Show beside each player
+        </p>
+        <div class="mt-2.5 flex flex-wrap gap-x-5 gap-y-2">
+          <label
+            v-for="field in PLAYER_INFO_FIELDS"
+            :key="field.id"
+            class="inline-flex items-center gap-2 text-sm text-ink-muted"
+          >
+            <input
+              v-model="form.player_info_fields"
+              type="checkbox"
+              :value="field.id"
+              :data-testid="`m-info-${field.id}`"
+              class="size-4 accent-[var(--ui-brand)]"
+            >
+            {{ field.label }}
+          </label>
+        </div>
+        <p class="mt-2 text-xs text-ink-subtle">
+          Anything a player has no value for is simply left out.
+        </p>
       </div>
     </fieldset>
 
-    <fieldset>
-      <legend class="text-sm font-semibold text-slate-300">
+    <fieldset :class="FIELDSET">
+      <legend class="label px-1">
+        Scoring
+      </legend>
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <label class="block">
+          <span class="label">Best of</span>
+          <input v-model.number="form.best_of" type="number" inputmode="numeric" class="field mt-2 tabular-nums">
+        </label>
+        <label class="block">
+          <span class="label">Points to win</span>
+          <input v-model.number="form.points_to_win" type="number" inputmode="numeric" class="field mt-2 tabular-nums">
+        </label>
+        <label class="block">
+          <span class="label">Win by</span>
+          <input v-model.number="form.win_by" type="number" inputmode="numeric" class="field mt-2 tabular-nums">
+        </label>
+        <label class="block">
+          <span class="label">Cap</span>
+          <input v-model.number="form.points_cap" type="number" inputmode="numeric" class="field mt-2 tabular-nums">
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset :class="FIELDSET">
+      <legend class="label px-1">
         Opening serve
       </legend>
-      <div class="mt-2 grid gap-3 md:grid-cols-3">
-        <label class="text-sm text-slate-400">First server side
-          <select v-model.number="form.initial_server_side" data-testid="m-server" :class="fieldClass">
-            <option :value="1">Side 1 (us)</option>
-            <option :value="2">Side 2 (them)</option>
-          </select></label>
+      <div class="grid gap-4 md:grid-cols-3">
+        <div>
+          <span class="label">First server side</span>
+          <UiSelect v-model="form.initial_server_side" data-testid="m-server" class="mt-2" label="First server side" :options="serverOptions" />
+        </div>
         <template v-if="form.format === 'doubles'">
-          <label class="text-sm text-slate-400">Our right-court player
-            <select v-model.number="form.side1_right_court_slot" data-testid="m-right1" :class="fieldClass">
-              <option :value="1">Slot 1</option>
-              <option :value="2">Slot 2</option>
-            </select></label>
-          <label class="text-sm text-slate-400">Their right-court player
-            <select v-model.number="form.side2_right_court_slot" data-testid="m-right2" :class="fieldClass">
-              <option :value="3">Slot 3</option>
-              <option :value="4">Slot 4</option>
-            </select></label>
+          <div>
+            <span class="label">Our right-court player</span>
+            <UiSelect v-model="form.side1_right_court_slot" data-testid="m-right1" class="mt-2" label="Our right-court player" :options="rightCourt1" />
+          </div>
+          <div>
+            <span class="label">Their right-court player</span>
+            <UiSelect v-model="form.side2_right_court_slot" data-testid="m-right2" class="mt-2" label="Their right-court player" :options="rightCourt2" />
+          </div>
         </template>
       </div>
     </fieldset>
 
-    <p v-if="error" data-testid="m-error" class="text-sm text-red-400">
+    <p
+      v-if="error"
+      data-testid="m-error"
+      role="alert"
+      class="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-3 text-sm text-accent"
+    >
+      <TriangleAlert :size="16" class="mt-px shrink-0" aria-hidden="true" />
       {{ error }}
     </p>
-    <button type="submit" data-testid="m-save" :disabled="busy" class="rounded bg-emerald-600 px-4 py-2 font-medium disabled:opacity-50">
-      {{ busy ? 'Saving…' : 'Save match' }}
-    </button>
+
+    <!--
+      An existing match writes itself as you edit it, so there is nothing to
+      press — only a line saying whether the write landed. A match that does
+      not exist yet has no row to write to, so it keeps the button.
+    -->
+    <div class="sticky bottom-0 -mx-1 rounded-t-2xl border-t border-line bg-bg/80 px-1 py-4 backdrop-blur-xl">
+      <p
+        v-if="autosaves"
+        data-testid="m-autosave"
+        role="status"
+        class="inline-flex items-center gap-2 text-sm"
+        :class="saveState === 'error' ? 'text-accent' : 'text-ink-subtle'"
+      >
+        <component
+          :is="saveState === 'error' ? TriangleAlert : saveState === 'saved' || saveState === 'clean' ? Check : Loader"
+          :size="15"
+          :class="saveState === 'pending' || saveState === 'saving' ? 'animate-spin' : ''"
+          aria-hidden="true"
+        />
+        {{ saveLabel }}
+      </p>
+      <button v-else type="submit" data-testid="m-save" :disabled="busy" class="btn btn-primary">
+        <component :is="busy ? Loader : Save" :size="16" :class="busy ? 'animate-spin' : ''" aria-hidden="true" />
+        {{ busy ? 'Saving…' : 'Create match' }}
+      </button>
+    </div>
   </form>
 </template>

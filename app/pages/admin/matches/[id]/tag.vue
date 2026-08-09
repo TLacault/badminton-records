@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
-import type { BreakInput, MatchConfig, RallyInput, Side, Slot } from '~~/shared/badminton'
+import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
+import type { PlayerInfoSource } from '~/utils/players'
+import { Pencil, RotateCcw } from '@lucide/vue'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
 // get for the point list.
@@ -11,30 +13,32 @@ const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
 
 const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
-  const [match, participants, rallies, gameStarts, breaks] = await Promise.all([
+  const [match, participants, rallies, setStarts, breaks] = await Promise.all([
     client.from('matches').select('*').eq('id', matchId).maybeSingle(),
     client.from('match_players')
-      .select('slot, player_id, players(first_name, last_name)')
+      .select('slot, player_id, players(*)')
       .eq('match_id', matchId),
     client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
-    client.from('match_game_starts').select('*').eq('match_id', matchId),
+    client.from('match_set_starts').select('*').eq('match_id', matchId),
     client.from('match_breaks').select('*').eq('match_id', matchId).order('idx'),
   ])
   return {
     match: match.data,
     participants: participants.data ?? [],
     rallies: rallies.data ?? [],
-    gameStarts: gameStarts.data ?? [],
+    setStarts: setStarts.data ?? [],
     breaks: breaks.data ?? [],
   }
 })
 
 const match = computed(() => bundle.value?.match ?? null)
 
+type RosterRow = PlayerInfoSource & { first_name: string, last_name: string }
+
 const names = computed<Record<number, string>>(() => {
   const out: Record<number, string> = {}
   for (const p of bundle.value?.participants ?? []) {
-    const player = p.players as { first_name: string, last_name: string } | null
+    const player = p.players as RosterRow | null
     out[p.slot] = player ? `${player.first_name} ${player.last_name}` : `Slot ${p.slot}`
   }
   return out
@@ -43,6 +47,35 @@ const names = computed<Record<number, string>>(() => {
 const slotToPlayerId = computed<Record<number, string>>(() => {
   const out: Record<number, string> = {}
   for (const p of bundle.value?.participants ?? []) out[p.slot] = p.player_id
+  return out
+})
+
+/** First names only, for the scoreboard and the side columns. */
+const sideLabels = computed<Record<number, string>>(() => {
+  const first = (slot: number) => names.value[slot]?.split(' ')[0]
+  const side = (a: number, b: number, fallback: string) => {
+    const both = [first(a), first(b)].filter(Boolean)
+    return both.length ? both.join(' & ') : fallback
+  }
+  return { 1: side(1, 2, 'Us'), 2: side(3, 4, 'Opponents') }
+})
+
+/** Club per slot, for the acronym tags on the scoreboard. */
+const clubs = computed<Record<number, string | null>>(() => {
+  const out: Record<number, string | null> = {}
+  for (const p of bundle.value?.participants ?? []) {
+    out[p.slot] = (p.players as RosterRow | null)?.club ?? null
+  }
+  return out
+})
+
+/** Roster rows by id, for the personal details in the match panel. */
+const playerRows = computed<Record<string, PlayerInfoSource>>(() => {
+  const out: Record<string, PlayerInfoSource> = {}
+  for (const p of bundle.value?.participants ?? []) {
+    const player = p.players as RosterRow | null
+    if (player) out[p.player_id] = player
+  }
   return out
 })
 
@@ -57,8 +90,8 @@ const config = computed<MatchConfig>(() => ({
   initialServerSide: (match.value?.initial_server_side ?? null) as Side | null,
   side1RightCourtSlot: (match.value?.side1_right_court_slot ?? null) as Slot | null,
   side2RightCourtSlot: (match.value?.side2_right_court_slot ?? null) as Slot | null,
-  gameStarts: (bundle.value?.gameStarts ?? []).map(g => ({
-    gameNumber: g.game_number,
+  setStarts: (bundle.value?.setStarts ?? []).map(g => ({
+    setNumber: g.set_number,
     serverSlot: g.server_slot as Slot | null,
     side1RightCourtSlot: g.side1_right_court_slot as Slot | null,
     side2RightCourtSlot: g.side2_right_court_slot as Slot | null,
@@ -125,76 +158,98 @@ function seekAndPlay(seconds: number) {
 
 const currentTime = computed(() => stage.value?.currentTime ?? 0)
 const duration = computed(() => stage.value?.duration ?? 0)
+const playback = useMatchPlayback(session.derived, currentTime)
 
+const { actionFor } = useKeybinds()
+
+/**
+ * Start the match over.
+ *
+ * Everything the YouTube import supplied is kept — title, date, video id,
+ * thumbnail, duration — because that is not ours to throw away and re-importing
+ * will not bring it back for a video already known. Everything a human entered
+ * or tagged goes: the rally log, the breaks, the set starts, the roster, the
+ * scoring rules and the type all return to what a fresh match starts with,
+ * including our half of the court.
+ */
+const resetting = ref(false)
+
+async function resetMatch() {
+  const confirmed = confirm(
+    'Clear every tagged point, break and set start on this match, along with '
+    + 'the roster, scoring rules and type? The video, title and date stay. '
+    + 'This cannot be undone.',
+  )
+  if (!confirmed) return
+
+  resetting.value = true
+  await Promise.all([
+    client.from('rallies').delete().eq('match_id', matchId),
+    client.from('match_breaks').delete().eq('match_id', matchId),
+    client.from('match_set_starts').delete().eq('match_id', matchId),
+    client.from('match_players').delete().eq('match_id', matchId),
+  ])
+
+  await client.from('matches').update({
+    venue: 'Talence',
+    format: 'doubles',
+    match_type_id: null,
+    player_info_fields: [],
+    best_of: 3,
+    points_to_win: 15,
+    win_by: 2,
+    points_cap: 21,
+    initial_server_side: null,
+    side1_right_court_slot: null,
+    side2_right_court_slot: null,
+    tagging_status: 'untagged',
+  }).eq('id', matchId)
+
+  const { data: roster } = await client.from('players').select('id, first_name, last_name')
+  const home = homePairSlots(roster ?? [])
+  const rows = Object.entries(home).map(([slot, playerId]) => ({
+    match_id: matchId,
+    slot: Number(slot),
+    player_id: playerId,
+  }))
+  if (rows.length) await client.from('match_players').insert(rows)
+
+  // A full reload rather than a refetch: the tagging session still holds the
+  // old rally log in memory, and its next autosave would write it all back.
+  window.location.reload()
+}
+
+/**
+ * Every key comes from the editable bindings, so nothing here assumes a
+ * layout. The cheat sheet listens in the capture phase while it is waiting
+ * for a key, which stops a rebind from also scoring a point.
+ */
 function onKeydown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
 
-  // Undo/redo first: the only bindings that use a modifier.
-  if (event.ctrlKey || event.metaKey) {
-    const key = event.key.toLowerCase()
-    if (key === 'z') {
-      event.preventDefault()
-      session.undo()
-    }
-    else if (key === 'y') {
-      event.preventDefault()
-      session.redo()
-    }
-    return
-  }
+  const action = actionFor(event)
+  if (!action) return
 
+  event.preventDefault()
   const time = stage.value?.getTime() ?? 0
 
-  // Digits match on event.code: on AZERTY the unshifted digit row produces
-  // & é " ' rather than 1 2 3 4. Numpad1-4 report their own codes and are
-  // accepted alongside, so either hand works.
-  const digit = event.code.startsWith('Digit')
-    ? Number(event.code.slice(5))
-    : event.code.startsWith('Numpad') ? Number(event.code.slice(6)) : Number.NaN
-  if (!Number.isNaN(digit)) {
-    if (digit >= 1 && digit <= 4) {
-      event.preventDefault()
-      session.setScorerOnLast(slotToPlayerId.value[digit] ?? null)
-    }
-    return
-  }
-
-  // Letters match on event.key: event.code reports physical position, so the
-  // AZERTY A key would report KeyQ.
-  switch (event.key.toLowerCase()) {
-    case 'a':
-      event.preventDefault()
-      session.addRally(1, time)
-      break
-    case 'z':
-      event.preventDefault()
-      session.addRally(2, time)
-      break
-    case 'r':
-      event.preventDefault()
-      session.addLet(time)
-      break
-    case 'p':
-      event.preventDefault()
-      session.toggleHighlightOnLast()
-      break
-    case 'm':
-      event.preventDefault()
-      session.toggleBreak(time)
-      break
-    case ' ':
-      event.preventDefault()
-      stage.value?.toggle()
-      break
-    case 'arrowleft':
-      event.preventDefault()
-      stage.value?.seekBy(-5)
-      break
-    case 'arrowright':
-      event.preventDefault()
-      stage.value?.seekBy(5)
-      break
+  switch (action) {
+    case 'pointUs': session.addRally(1, time); break
+    case 'pointThem': session.addRally(2, time); break
+    case 'let': session.addLet(time); break
+    case 'highlight': session.toggleHighlightOnLast(); break
+    case 'break': session.toggleBreak(time); break
+    case 'scorer1': session.setScorerOnLast(slotToPlayerId.value[1] ?? null); break
+    case 'scorer2': session.setScorerOnLast(slotToPlayerId.value[2] ?? null); break
+    case 'scorer3': session.setScorerOnLast(slotToPlayerId.value[3] ?? null); break
+    case 'scorer4': session.setScorerOnLast(slotToPlayerId.value[4] ?? null); break
+    case 'playPause': stage.value?.toggle(); break
+    case 'seekBack': stage.value?.seekBy(-5); break
+    case 'seekForward': stage.value?.seekBy(5); break
+    case 'undo': session.undo(); break
+    case 'redo': session.redo(); break
+    case 'save': session.saveNow(); break
   }
 }
 
@@ -226,24 +281,21 @@ const saveLabel = computed(() => {
 <template>
   <div v-if="match">
     <div class="flex items-center justify-between">
-      <div class="flex min-w-0 items-center gap-3">
-        <h1 class="truncate text-xl font-bold">
-          {{ match.title }}
-        </h1>
-        <VideoStatusBadge
-          :tagging-status="taggingStatus"
-          :visibility="match.visibility"
-        />
-      </div>
+      <!-- No title: it is the YouTube upload name, it is long, and the video
+           underneath already says which match this is. -->
+      <VideoStatusBadge
+        :tagging-status="taggingStatus"
+        :visibility="match.visibility"
+      />
       <div class="flex items-center gap-3 text-sm">
         <span
           data-testid="save-state"
-          class="text-slate-400"
-          :class="{ 'text-amber-400': session.saveState.value === 'error' }"
+          class="text-ink-subtle"
+          :class="{ 'text-accent': session.saveState.value === 'error' }"
         >{{ saveLabel }}</span>
         <button
           data-testid="undo"
-          class="rounded bg-slate-800 px-3 py-1 disabled:opacity-40"
+          class="btn btn-sm btn-ghost"
           :disabled="!session.canUndo.value"
           @click="session.undo()"
         >
@@ -251,22 +303,34 @@ const saveLabel = computed(() => {
         </button>
         <button
           data-testid="redo"
-          class="rounded bg-slate-800 px-3 py-1 disabled:opacity-40"
+          class="btn btn-sm btn-ghost"
           :disabled="!session.canRedo.value"
           @click="session.redo()"
         >
           Redo
         </button>
-        <button data-testid="save-now" class="rounded bg-emerald-600 px-3 py-1" @click="session.saveNow()">
-          Save now
+        <button
+          data-testid="reset-match"
+          type="button"
+          class="btn btn-sm btn-ghost"
+          :disabled="resetting"
+          title="Clear every tag and start this match over"
+          @click="resetMatch"
+        >
+          <RotateCcw :size="14" :class="resetting ? 'animate-spin' : ''" aria-hidden="true" />
+          Reset
         </button>
+        <NuxtLink data-testid="open-edit" :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-primary">
+          <Pencil :size="14" aria-hidden="true" />
+          Edit match
+        </NuxtLink>
       </div>
     </div>
 
     <!--
-      The point list gets a generous fixed column and the video takes what is
-      left, rather than the reverse: the video is already height-capped, so
-      extra width past that cap would only pad it.
+      The point list gets a generous fixed column and the video takes all the
+      rest, so the rally is as large as the screen allows while the list it
+      feeds stays fully readable beside it.
     -->
     <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
       <div>
@@ -274,7 +338,18 @@ const saveLabel = computed(() => {
           ref="stage"
           :video-id="match.youtube_video_id"
           restore-focus
-        />
+        >
+          <template #overlay>
+            <PlayerScoreBoard
+              :playback="playback"
+              :derived="session.derived.value"
+              :names="names"
+              :side-labels="sideLabels"
+              :clubs="clubs"
+              :format="(match.format as MatchFormat)"
+            />
+          </template>
+        </PlayerYouTubeStage>
         <PlayerMatchTimeline
           class="mt-3"
           :derived="session.derived.value"
@@ -286,10 +361,10 @@ const saveLabel = computed(() => {
         <p
           v-if="session.openBreak.value"
           data-testid="break-open"
-          class="mt-2 rounded bg-amber-950 px-2 py-1 text-xs text-amber-300"
+          class="mt-2 rounded-lg border border-accent/35 bg-accent-soft px-3 py-1.5 text-xs text-accent"
         >
           Break running since {{ Math.floor(session.openBreak.value.startsAtSeconds / 60) }}m —
-          press <span class="font-mono font-semibold">M</span> again to end it.
+          press the break key again to end it.
         </p>
         <PlayerMarkerNavigator
           class="mt-4"
@@ -298,8 +373,18 @@ const saveLabel = computed(() => {
           :breaks="session.breaks.value"
           @seek="(s: number) => stage?.seekTo(s)"
         />
-        <TaggingScoreBoard class="mt-4" :derived="session.derived.value" :names="names" />
         <TaggingKeyHelp class="mt-4" />
+        <MatchDetails
+          class="mt-4"
+          :derived="session.derived.value"
+          :breaks="session.breaks.value"
+          :format="(match.format as MatchFormat)"
+          :names="names"
+          :side-labels="sideLabels"
+          :slot-to-player-id="slotToPlayerId"
+          :player-rows="playerRows"
+          :player-info-fields="match.player_info_fields ?? []"
+        />
       </div>
       <TaggingPointList
         :rallies="session.rallies.value"

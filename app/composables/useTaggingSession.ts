@@ -3,7 +3,10 @@ import type { BreakInput, MatchConfig, RallyInput, Side } from '~~/shared/badmin
 import { deriveMatch, insertPositionFor } from '~~/shared/badminton'
 
 const UNDO_LIMIT = 100
-const SAVE_DEBOUNCE_MS = 1500
+// Short enough to feel immediate, long enough that a burst of keystrokes
+// during a rally is one write rather than six. There is no save button any
+// more, so this is the only thing standing between a tag and the database.
+const SAVE_DEBOUNCE_MS = 400
 
 interface Snapshot {
   rallies: RallyInput[]

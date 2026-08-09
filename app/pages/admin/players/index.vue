@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { FfbadPlayer } from '~~/server/utils/ffbad'
+import { Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -56,7 +57,13 @@ async function save() {
   await refresh()
 }
 
-async function remove(id: string) {
+async function remove(player: PlayerRow) {
+  // Deleting a player is not undoable and the FK only stops it when a match
+  // already uses them — a roster typo would otherwise vanish silently.
+  const name = `${player.first_name} ${player.last_name}`.trim()
+  if (import.meta.client && !window.confirm(`Delete ${name} from the roster?`)) return
+
+  const id = player.id
   error.value = null
   const { error: dbError } = await client.from('players').delete().eq('id', id)
   if (dbError) {
@@ -91,77 +98,171 @@ function age(birthYear: number | null) {
   return birthYear ? new Date().getFullYear() - birthYear : '—'
 }
 
-const inputClass = 'rounded border border-slate-700 bg-slate-900 px-3 py-2'
+/** Labelled, not placeholder-only: a filled-in field must still say what it is. */
+interface TextField {
+  key: 'first_name' | 'last_name' | 'club' | 'rank_singles' | 'rank_doubles' | 'rank_mixed' | 'ffbad_license'
+  label: string
+  testid?: string
+  required?: boolean
+  placeholder: string
+}
+
+const fields: TextField[] = [
+  { key: 'first_name', label: 'First name', testid: 'p-first', required: true, placeholder: 'Jean' },
+  { key: 'last_name', label: 'Last name', testid: 'p-last', required: true, placeholder: 'Dupont' },
+  { key: 'club', label: 'Club', testid: 'p-club', placeholder: 'USTalence' },
+  { key: 'rank_singles', label: 'Rank S', placeholder: 'D9' },
+  { key: 'rank_doubles', label: 'Rank D', placeholder: 'D8' },
+  { key: 'rank_mixed', label: 'Rank Mx', placeholder: 'P10' },
+  { key: 'ffbad_license', label: 'FFBaD licence', placeholder: '00000000' },
+]
 </script>
 
 <template>
-  <h1 class="text-2xl font-bold">
-    Players
-  </h1>
-
-  <PlayerFfbadSearch class="mt-6 max-w-xl" @select="fillFromFfbad" />
-
-  <form class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4" @submit.prevent="save">
-    <input v-model="form.first_name" data-testid="p-first" required placeholder="First name" :class="inputClass">
-    <input v-model="form.last_name" data-testid="p-last" required placeholder="Last name" :class="inputClass">
-    <input v-model="form.club" data-testid="p-club" placeholder="Club" :class="inputClass">
-    <input v-model.number="form.birth_year" data-testid="p-year" type="number" placeholder="Birth year" :class="inputClass">
-    <input v-model="form.rank_singles" placeholder="Rank S (D9…)" :class="inputClass">
-    <input v-model="form.rank_doubles" placeholder="Rank D" :class="inputClass">
-    <input v-model="form.rank_mixed" placeholder="Rank Mx" :class="inputClass">
-    <input v-model="form.ffbad_license" placeholder="FFBad licence" :class="inputClass">
-    <div class="col-span-2 flex gap-2 md:col-span-4">
-      <button type="submit" data-testid="p-save" class="rounded bg-emerald-600 px-4 py-2 font-medium">
-        {{ editingId ? 'Save changes' : 'Add player' }}
-      </button>
-      <button v-if="editingId" type="button" class="rounded bg-slate-800 px-4 py-2" @click="cancel">
-        Cancel
-      </button>
+  <div>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="eyebrow">
+          <UsersRound :size="15" aria-hidden="true" />
+          Roster
+        </p>
+        <h1 class="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight">
+          Players
+        </h1>
+      </div>
+      <p class="text-sm text-ink-subtle">
+        <span class="tabular-nums">{{ players?.length ?? 0 }}</span> on the roster
+      </p>
     </div>
-  </form>
 
-  <p v-if="error" data-testid="p-error" class="mt-3 text-sm text-red-400">
-    {{ error }}
-  </p>
+    <section class="mt-8 rounded-2xl p-5 glass sm:p-6">
+      <h2 class="label">
+        {{ editingId ? 'Edit player' : 'Add a player' }}
+      </h2>
 
-  <table class="mt-8 w-full text-left text-sm">
-    <thead class="text-slate-400">
-      <tr>
-        <th class="py-2">
-          Name
-        </th>
-        <th>Club</th>
-        <th>Age</th>
-        <th>S / D / Mx</th>
-        <th />
-      </tr>
-    </thead>
-    <tbody data-testid="p-rows" class="divide-y divide-slate-800">
-      <tr v-for="p in players" :key="p.id" :data-player-id="p.id">
-        <td class="py-2 font-medium">
-          {{ p.first_name }} {{ p.last_name }}
-        </td>
-        <td class="text-slate-400">
-          {{ p.club || '—' }}
-        </td>
-        <td class="text-slate-400" data-testid="p-age">
-          {{ age(p.birth_year) }}
-        </td>
-        <td class="text-slate-400">
-          {{ p.rank_singles || '—' }} / {{ p.rank_doubles || '—' }} / {{ p.rank_mixed || '—' }}
-        </td>
-        <td class="text-right">
-          <button class="text-slate-400 hover:text-slate-100" @click="edit(p)">
-            Edit
+      <PlayerFfbadSearch class="mt-4 max-w-xl" @select="fillFromFfbad" />
+
+      <form class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="save">
+        <label v-for="field in fields" :key="field.key" class="block">
+          <span class="label">
+            {{ field.label }}<span v-if="field.required" class="text-accent"> *</span>
+          </span>
+          <input
+            v-model="form[field.key]"
+            :data-testid="field.testid"
+            :required="field.required"
+            :placeholder="field.placeholder"
+            class="field mt-2"
+          >
+        </label>
+
+        <label class="block">
+          <span class="label">Birth year</span>
+          <input
+            v-model.number="form.birth_year"
+            data-testid="p-year"
+            type="number"
+            inputmode="numeric"
+            placeholder="1995"
+            class="field mt-2 tabular-nums"
+          >
+        </label>
+
+        <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+          <button type="submit" data-testid="p-save" class="btn btn-primary">
+            <component :is="editingId ? Save : UserPlus" :size="16" aria-hidden="true" />
+            {{ editingId ? 'Save changes' : 'Add player' }}
           </button>
-          <button class="ml-3 text-red-400 hover:text-red-300" @click="remove(p.id)">
-            Delete
+          <button v-if="editingId" type="button" class="btn btn-ghost" @click="cancel">
+            <X :size="16" aria-hidden="true" />
+            Cancel
           </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p v-if="!players?.length" class="mt-4 text-slate-400">
-    No players yet.
-  </p>
+        </div>
+      </form>
+
+      <p
+        v-if="error"
+        data-testid="p-error"
+        role="alert"
+        class="mt-4 flex items-start gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-3 text-sm text-accent"
+      >
+        <TriangleAlert :size="16" class="mt-px shrink-0" aria-hidden="true" />
+        {{ error }}
+      </p>
+    </section>
+
+    <!-- The table scrolls inside its own box; the page itself never scrolls
+         sideways on a phone. -->
+    <div v-if="players?.length" class="mt-8 overflow-x-auto rounded-2xl border border-line">
+      <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
+        <thead>
+          <tr class="border-b border-line bg-panel">
+            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+              Name
+            </th>
+            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+              Club
+            </th>
+            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+              Age
+            </th>
+            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+              S / D / Mx
+            </th>
+            <th class="px-4 py-3">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody data-testid="p-rows">
+          <tr
+            v-for="p in players"
+            :key="p.id"
+            :data-player-id="p.id"
+            class="border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-panel"
+            :class="editingId === p.id ? 'bg-accent-soft' : ''"
+          >
+            <td class="px-4 py-3 font-medium text-ink">
+              {{ p.first_name }} {{ p.last_name }}
+            </td>
+            <td class="px-4 py-3 text-ink-muted">
+              {{ p.club || '—' }}
+            </td>
+            <td class="px-4 py-3 tabular-nums text-ink-muted" data-testid="p-age">
+              {{ age(p.birth_year) }}
+            </td>
+            <td class="px-4 py-3 tabular-nums text-ink-muted">
+              {{ p.rank_singles || '—' }} / {{ p.rank_doubles || '—' }} / {{ p.rank_mixed || '—' }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-end gap-1">
+                <button
+                  type="button"
+                  class="grid size-9 place-items-center rounded-lg text-ink-muted transition-colors duration-200 hover:bg-panel-strong hover:text-accent"
+                  :aria-label="`Edit ${p.first_name} ${p.last_name}`"
+                  title="Edit"
+                  @click="edit(p)"
+                >
+                  <Pencil :size="15" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="grid size-9 place-items-center rounded-lg text-ink-muted transition-colors duration-200 hover:bg-accent-soft hover:text-accent"
+                  :aria-label="`Delete ${p.first_name} ${p.last_name}`"
+                  title="Delete"
+                  @click="remove(p)"
+                >
+                  <Trash2 :size="15" aria-hidden="true" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p v-else class="mt-8 rounded-2xl border border-dashed border-line px-6 py-14 text-center text-ink-muted">
+      No players yet — search the federation above, or type one in by hand.
+    </p>
+  </div>
 </template>

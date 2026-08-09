@@ -7,8 +7,8 @@ export const DEFAULT_RULES: ScoringRules = {
   pointsCap: 30,
 }
 
-/** A game is over at pointsToWin with a winBy margin, or immediately at the cap. */
-export function isGameOver(a: number, b: number, rules: ScoringRules): boolean {
+/** A set is over at pointsToWin with a winBy margin, or immediately at the cap. */
+export function isSetOver(a: number, b: number, rules: ScoringRules): boolean {
   const hi = Math.max(a, b)
   const lo = Math.min(a, b)
   if (hi >= rules.pointsCap) return true
@@ -33,17 +33,17 @@ export function addPoint(
   return side === 1 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1]
 }
 
-/** Would giving `side` one more point end the game? */
-export function wouldEndGame(
+/** Would giving `side` one more point end the set? */
+export function wouldEndSet(
   score: readonly [number, number],
   side: Side,
   rules: ScoringRules,
 ): boolean {
   const next = addPoint(score, side)
-  return isGameOver(next[0], next[1], rules)
+  return isSetOver(next[0], next[1], rules)
 }
 
-export function gamesNeeded(rules: ScoringRules): number {
+export function setsNeeded(rules: ScoringRules): number {
   return Math.floor(rules.bestOf / 2) + 1
 }
 

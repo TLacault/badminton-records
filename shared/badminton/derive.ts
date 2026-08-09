@@ -1,7 +1,7 @@
 import type {
   Court,
   DerivedMatch,
-  GameState,
+  SetState,
   MatchConfig,
   RallyInput,
   RallyState,
@@ -11,14 +11,14 @@ import type {
 } from './types'
 import {
   addPoint,
-  gamesNeeded,
-  isGameOver,
+  setsNeeded,
+  isSetOver,
   otherSide,
   partnerSlot,
   scoreOf,
   sideOfSlot,
   singlesSlot,
-  wouldEndGame,
+  wouldEndSet,
 } from './rules'
 
 interface Positions {
@@ -46,7 +46,7 @@ export function deriveMatch(
 ): DerivedMatch {
   const warnings: Warning[] = []
   const rules = config.rules
-  const needed = gamesNeeded(rules)
+  const needed = setsNeeded(rules)
   const isDoubles = config.format === 'doubles'
 
   let servingSide: Side
@@ -71,11 +71,11 @@ export function deriveMatch(
   }
 
   const rallyStates: RallyState[] = []
-  const games: GameState[] = []
+  const sets: SetState[] = []
 
-  let gameNumber = 1
+  let setNumber = 1
   let score: [number, number] = [0, 0]
-  const gamesWon: [number, number] = [0, 0]
+  const setsWon: [number, number] = [0, 0]
   let matchWinnerSide: Side | null = null
   let complete = false
   let firstRallyIdx: number | null = null
@@ -89,6 +89,10 @@ export function deriveMatch(
     const startsAtSeconds = prevEnd
     prevEnd = rally.endedAtSeconds
 
+    // Captured before the rally is scored: `servingSide` below is reassigned to
+    // the winner, and the state we record must describe who served THIS rally,
+    // like `servingSlot` beside it does.
+    const rallyServingSide = servingSide
     const serviceCourt: Court = scoreOf(score, servingSide) % 2 === 0 ? 'right' : 'left'
     const receivingSide = otherSide(servingSide)
     const servingSlot: Slot = isDoubles
@@ -113,7 +117,7 @@ export function deriveMatch(
       }
       rallyStates.push({
         idx: rally.idx,
-        gameNumber,
+        setNumber,
         scoreBefore,
         scoreAfter: scoreBefore,
         servingSide,
@@ -122,9 +126,9 @@ export function deriveMatch(
         serviceCourt,
         startsAtSeconds,
         endsAtSeconds: rally.endedAtSeconds,
-        isGamePoint: false,
+        isSetPoint: false,
         isMatchPoint: false,
-        endedGame: false,
+        endedSet: false,
         endedMatch: false,
         isLet: rally.isLet,
         isHighlight: rally.isHighlight,
@@ -133,15 +137,15 @@ export function deriveMatch(
       continue
     }
 
-    const gp1 = wouldEndGame(scoreBefore, 1, rules)
-    const gp2 = wouldEndGame(scoreBefore, 2, rules)
+    const gp1 = wouldEndSet(scoreBefore, 1, rules)
+    const gp2 = wouldEndSet(scoreBefore, 2, rules)
     const isMatchPoint
-      = (gp1 && gamesWon[0] + 1 >= needed) || (gp2 && gamesWon[1] + 1 >= needed)
+      = (gp1 && setsWon[0] + 1 >= needed) || (gp2 && setsWon[1] + 1 >= needed)
 
     if (firstRallyIdx === null) firstRallyIdx = rally.idx
     lastRallyIdx = rally.idx
 
-    let endedGame = false
+    let endedSet = false
     let endedMatch = false
 
     if (!rally.isLet && rally.winnerSide) {
@@ -155,13 +159,13 @@ export function deriveMatch(
       }
       servingSide = winner
 
-      if (isGameOver(score[0], score[1], rules)) {
-        endedGame = true
-        if (winner === 1) gamesWon[0] += 1
-        else gamesWon[1] += 1
+      if (isSetOver(score[0], score[1], rules)) {
+        endedSet = true
+        if (winner === 1) setsWon[0] += 1
+        else setsWon[1] += 1
 
-        games.push({
-          number: gameNumber,
+        sets.push({
+          number: setNumber,
           score: [score[0], score[1]],
           winnerSide: winner,
           firstRallyIdx,
@@ -169,7 +173,7 @@ export function deriveMatch(
           complete: true,
         })
 
-        if (scoreOf(gamesWon, winner) >= needed) {
+        if (scoreOf(setsWon, winner) >= needed) {
           endedMatch = true
           complete = true
           matchWinnerSide = winner
@@ -179,34 +183,34 @@ export function deriveMatch(
 
     rallyStates.push({
       idx: rally.idx,
-      gameNumber,
+      setNumber,
       scoreBefore,
       scoreAfter: [score[0], score[1]],
-      servingSide,
+      servingSide: rallyServingSide,
       servingSlot,
       receivingSlot,
       serviceCourt,
       startsAtSeconds,
       endsAtSeconds: rally.endedAtSeconds,
-      isGamePoint: gp1 || gp2,
+      isSetPoint: gp1 || gp2,
       isMatchPoint,
-      endedGame,
+      endedSet,
       endedMatch,
       isLet: rally.isLet,
       isHighlight: rally.isHighlight,
       scoredByPlayerId: rally.scoredByPlayerId,
     })
 
-    // Open the next game.
-    if (endedGame && !complete) {
-      gameNumber += 1
+    // Open the next set.
+    if (endedSet && !complete) {
+      setNumber += 1
       score = [0, 0]
       firstRallyIdx = null
       lastRallyIdx = null
-      // servingSide already equals the previous game's winner, which is correct.
+      // servingSide already equals the previous set's winner, which is correct.
 
       if (isDoubles) {
-        const override = config.gameStarts.find(g => g.gameNumber === gameNumber)
+        const override = config.setStarts.find(g => g.setNumber === setNumber)
         if (override?.side1RightCourtSlot && override?.side2RightCourtSlot) {
           positions = {
             1: positionsFromRight(override.side1RightCourtSlot),
@@ -216,11 +220,11 @@ export function deriveMatch(
         else {
           positions = { 1: { ...baseline[1] }, 2: { ...baseline[2] } }
           warnings.push({
-            code: 'ambiguous_game_start',
+            code: 'ambiguous_set_start',
             message:
-              `Game ${gameNumber}: which partner serves first is a choice made on `
-              + `the day and cannot be derived. Reusing game 1's arrangement.`,
-            gameNumber,
+              `Set ${setNumber}: which partner serves first is a choice made on `
+              + `the day and cannot be derived. Reusing set 1's arrangement.`,
+            setNumber,
           })
         }
         // At 0-0 the score is even, so the right-court player serves. Forcing
@@ -233,10 +237,10 @@ export function deriveMatch(
     }
   }
 
-  // A game still in progress at the end of the log.
+  // A set still in progress at the end of the log.
   if (!complete && rallyStates.length > 0) {
-    games.push({
-      number: gameNumber,
+    sets.push({
+      number: setNumber,
       score: [score[0], score[1]],
       winnerSide: null,
       firstRallyIdx,
@@ -244,16 +248,16 @@ export function deriveMatch(
       complete: false,
     })
     warnings.push({
-      code: 'final_game_incomplete',
-      message: `Game ${gameNumber} has no winner yet (${score[0]}-${score[1]}).`,
-      gameNumber,
+      code: 'final_set_incomplete',
+      message: `Set ${setNumber} has no winner yet (${score[0]}-${score[1]}).`,
+      setNumber,
     })
   }
 
   return {
     rallyStates,
-    games,
-    gamesWon: [gamesWon[0], gamesWon[1]],
+    sets,
+    setsWon: [setsWon[0], setsWon[1]],
     matchWinnerSide,
     complete,
     warnings,

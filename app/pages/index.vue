@@ -1,51 +1,74 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
+import type { ListRow } from '~/utils/videoFilters'
+import { site } from '~/config/site'
+import { LIST_SELECT } from '~/utils/matchSummary'
+import { decorate } from '~/utils/videoFilters'
+
+// The hero bleeds edge to edge, so the layout's measure is applied per section
+// on this page instead of once around the whole outlet.
+definePageMeta({ bleed: true })
 
 const client = useSupabaseClient<Database>()
-const { data: matches } = await useAsyncData('public-matches', async () => {
+
+const { data: matches } = await useAsyncData('home-matches', async () => {
   // RLS already hides private rows; the explicit filter keeps the intent
   // legible and lets the index on (visibility, played_on) do the work.
   const { data } = await client
     .from('matches')
-    .select('id, title, played_on, venue, format, tagging_status, youtube_thumbnail_url, youtube_duration_seconds')
+    .select(LIST_SELECT)
     .eq('visibility', 'public')
     .order('played_on', { ascending: false, nullsFirst: false })
-  return data ?? []
+  return (data ?? []) as unknown as ListRow[]
+})
+
+const entries = computed(() => decorate(matches.value ?? []))
+const sessions = computed(() => groupBySession(entries.value, entry => entry.row))
+const latest = computed(() => sessions.value[0] ?? null)
+
+/** Everything but the newest session, capped so the landing page stays a
+ *  landing page rather than a second archive. */
+const more = computed(() =>
+  sessions.value.slice(1).flatMap(session => session.matches).slice(0, 6),
+)
+
+/*
+ * Measured, not typed in. A hand-maintained "42 sessions" goes stale the week
+ * after it is written; these three only ever say what the library actually
+ * holds, and the strip disappears on an empty library rather than showing
+ * three zeroes.
+ */
+const heroStats = computed(() => {
+  const all = matches.value ?? []
+  if (!all.length) return []
+  const seconds = all.reduce((sum, m) => sum + (m.youtube_duration_seconds ?? 0), 0)
+  return [
+    { value: String(sessions.value.length), label: 'Sessions filmed' },
+    { value: String(all.length), label: 'Matches online' },
+    { value: `${Math.max(1, Math.round(seconds / 3600))}h`, label: 'Of play' },
+  ]
+})
+
+useSeoMeta({
+  title: site.seo.title,
+  description: site.seo.description,
+  ogTitle: site.seo.title,
+  ogDescription: site.seo.description,
+  ogType: 'website',
 })
 </script>
 
 <template>
-  <h1 class="text-2xl font-bold">
-    Videos
-  </h1>
+  <div>
+    <HomeHero :stats="heroStats" />
 
-  <ul data-testid="public-matches" class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-    <li v-for="m in matches" :key="m.id">
-      <NuxtLink :to="`/matches/${m.id}`" class="group block">
-        <div class="relative overflow-hidden rounded bg-slate-900">
-          <img
-            v-if="m.youtube_thumbnail_url"
-            :src="m.youtube_thumbnail_url"
-            alt=""
-            class="aspect-video w-full object-cover transition group-hover:opacity-90"
-          >
-          <div v-else class="aspect-video w-full" />
-          <span
-            v-if="m.youtube_duration_seconds"
-            class="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 text-xs tabular-nums text-slate-200"
-          >{{ formatDuration(m.youtube_duration_seconds) }}</span>
-        </div>
-        <h2 class="mt-2 font-semibold leading-snug group-hover:underline">
-          {{ m.title }}
-        </h2>
-        <p class="mt-1 text-sm text-slate-400">
-          {{ formatDate(m.played_on) }} · {{ m.format }}{{ m.venue ? ` · ${m.venue}` : '' }}
-        </p>
-      </NuxtLink>
-    </li>
-  </ul>
-
-  <p v-if="!matches?.length" data-testid="public-empty" class="mt-6 text-slate-400">
-    Nothing published yet.
-  </p>
+    <div class="mx-auto flex max-w-6xl flex-col gap-24 px-4 py-20 sm:gap-32 sm:px-6 sm:py-28">
+      <HomeAbout />
+      <HomeGear />
+      <HomePartner />
+      <HomeLatestSession :session="latest" />
+      <HomeMoreVideos :matches="more" />
+      <HomeComingSoon />
+    </div>
+  </div>
 </template>

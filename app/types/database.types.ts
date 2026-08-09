@@ -63,38 +63,6 @@ export type Database = {
           },
         ]
       }
-      match_game_starts: {
-        Row: {
-          game_number: number
-          match_id: string
-          server_slot: number | null
-          side1_right_court_slot: number | null
-          side2_right_court_slot: number | null
-        }
-        Insert: {
-          game_number: number
-          match_id: string
-          server_slot?: number | null
-          side1_right_court_slot?: number | null
-          side2_right_court_slot?: number | null
-        }
-        Update: {
-          game_number?: number
-          match_id?: string
-          server_slot?: number | null
-          side1_right_court_slot?: number | null
-          side2_right_court_slot?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "match_game_starts_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: false
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       match_players: {
         Row: {
           match_id: string
@@ -131,6 +99,62 @@ export type Database = {
           },
         ]
       }
+      match_set_starts: {
+        Row: {
+          match_id: string
+          server_slot: number | null
+          set_number: number
+          side1_right_court_slot: number | null
+          side2_right_court_slot: number | null
+        }
+        Insert: {
+          match_id: string
+          server_slot?: number | null
+          set_number: number
+          side1_right_court_slot?: number | null
+          side2_right_court_slot?: number | null
+        }
+        Update: {
+          match_id?: string
+          server_slot?: number | null
+          set_number?: number
+          side1_right_court_slot?: number | null
+          side2_right_court_slot?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_game_starts_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_types: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           best_of: number
@@ -140,7 +164,9 @@ export type Database = {
           id: string
           imported_at: string | null
           initial_server_side: number | null
+          match_type_id: string | null
           played_on: string | null
+          player_info_fields: string[]
           points_cap: number
           points_to_win: number
           side1_right_court_slot: number | null
@@ -166,7 +192,9 @@ export type Database = {
           id?: string
           imported_at?: string | null
           initial_server_side?: number | null
+          match_type_id?: string | null
           played_on?: string | null
+          player_info_fields?: string[]
           points_cap?: number
           points_to_win?: number
           side1_right_court_slot?: number | null
@@ -192,7 +220,9 @@ export type Database = {
           id?: string
           imported_at?: string | null
           initial_server_side?: number | null
+          match_type_id?: string | null
           played_on?: string | null
+          player_info_fields?: string[]
           points_cap?: number
           points_to_win?: number
           side1_right_court_slot?: number | null
@@ -216,6 +246,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_match_type_id_fkey"
+            columns: ["match_type_id"]
+            isOneToOne: false
+            referencedRelation: "match_types"
             referencedColumns: ["id"]
           },
         ]

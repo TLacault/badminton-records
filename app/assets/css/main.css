@@ -1,6 +1,512 @@
 @import "tailwindcss";
 
 /*
+  ─────────────────────────────────────────────────────────────────────────────
+  U.S. TALENCE BADMINTON — design system
+  ─────────────────────────────────────────────────────────────────────────────
+  Bichromatic: one crimson (the club's #ba0925) against a neutral ink/paper
+  axis. Nothing else carries meaning through hue, so every screen stays on
+  brand and colour-blind users lose nothing.
+
+  Themes are driven by --ui-* variables on :root / .dark, mapped into Tailwind
+  through `@theme inline` so utilities like `bg-panel` follow the live variable
+  instead of baking one theme's value in at build time.
+*/
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+
+  /* Expo-out. Fast departure, long settle — reads as momentum, not as easing. */
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-glow-pulse: glow-pulse 4s ease-in-out infinite;
+  --animate-drift: drift 22s ease-in-out infinite;
+  --animate-sweep: sweep 2.4s var(--ease-brand) infinite;
+  --animate-rise: rise 600ms var(--ease-brand) both;
+}
+
+/*
+  The two themes. Only these blocks differ — every component reads the mapped
+  token, so neither theme can drift out of sync with the other.
+
+  `--brand` is the club red exactly as issued (#ba0925) and is only ever used
+  as a *fill* under white text, where it clears 4.5:1. `--accent` is what red
+  looks like as text or as a glow: unchanged in light mode, lifted to #ff2e4d
+  on the near-black background where #ba0925 would only reach 3:1.
+*/
+:root {
+  color-scheme: light;
+
+  --ui-bg: #f4f3f6;
+  --ui-bg-deep: #e9e7ee;
+  --ui-panel: rgb(255 255 255 / 0.72);
+  --ui-panel-strong: rgb(255 255 255 / 0.9);
+  --ui-panel-solid: #ffffff;
+  --ui-line: rgb(20 16 26 / 0.1);
+  --ui-line-strong: rgb(20 16 26 / 0.2);
+
+  --ui-ink: #17151c;
+  --ui-ink-muted: #5b5564;
+  /* Subtle, but still 5.1:1 — captions and field hints are set in it at 12px,
+     which is exactly where a "quiet grey" usually stops being readable. */
+  --ui-ink-subtle: #6b6575;
+
+  --ui-brand: #ba0925;
+  --ui-brand-hover: #9d0720;
+  --ui-accent: #ba0925;
+  --ui-accent-soft: rgb(186 9 37 / 0.1);
+  --ui-on-brand: #ffffff;
+
+  /* Rally ownership. Crimson is us, ink is them — no second hue enters. */
+  --ui-us: #ba0925;
+  --ui-them: #3a3542;
+  --ui-neutral: #a9a3b2;
+
+  --ui-glow-strong: 0 0 24px -6px rgb(186 9 37 / 0.45);
+  --ui-glow-soft: 0 0 40px -14px rgb(186 9 37 / 0.35);
+  --ui-shadow: 0 18px 40px -24px rgb(20 16 26 / 0.4);
+  --ui-scrim: rgb(20 16 26 / 0.45);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --ui-bg: #08070a;
+  --ui-bg-deep: #0d0c11;
+  --ui-panel: rgb(255 255 255 / 0.045);
+  --ui-panel-strong: rgb(255 255 255 / 0.08);
+  --ui-panel-solid: #121116;
+  --ui-line: rgb(255 255 255 / 0.09);
+  --ui-line-strong: rgb(255 255 255 / 0.2);
+
+  --ui-ink: #ecebee;
+  --ui-ink-muted: #9d98a3;
+  /* 5.5:1 on the near-black background — see the note in the light block. */
+  --ui-ink-subtle: #8a8492;
+
+  --ui-brand: #ba0925;
+  --ui-brand-hover: #d40f2c;
+  /*
+    #ba0925 only reaches 3:1 on this background, so text and icons use the
+    smallest lift that clears 4.5:1 (measured 4.97:1). Any brighter and the
+    club red starts reading pink.
+  */
+  --ui-accent: #f5233f;
+  --ui-accent-soft: rgb(245 35 63 / 0.13);
+  --ui-on-brand: #ffffff;
+
+  --ui-us: #e01235;
+  --ui-them: #d7d4dd;
+  --ui-neutral: #57525f;
+
+  --ui-glow-strong: 0 0 26px -4px rgb(245 35 63 / 0.55);
+  --ui-glow-soft: 0 0 56px -16px rgb(245 35 63 / 0.45);
+  --ui-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.9);
+  --ui-scrim: rgb(4 3 6 / 0.62);
+}
+
+@theme inline {
+  --color-bg: var(--ui-bg);
+  --color-bg-deep: var(--ui-bg-deep);
+  --color-panel: var(--ui-panel);
+  --color-panel-strong: var(--ui-panel-strong);
+  --color-panel-solid: var(--ui-panel-solid);
+  --color-line: var(--ui-line);
+  --color-line-strong: var(--ui-line-strong);
+
+  --color-ink: var(--ui-ink);
+  --color-ink-muted: var(--ui-ink-muted);
+  --color-ink-subtle: var(--ui-ink-subtle);
+
+  --color-brand: var(--ui-brand);
+  --color-brand-hover: var(--ui-brand-hover);
+  --color-accent: var(--ui-accent);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-on-brand: var(--ui-on-brand);
+
+  --color-us: var(--ui-us);
+  --color-them: var(--ui-them);
+  --color-neutral: var(--ui-neutral);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Sticky header height plus a breath, so anchored sections are not
+       clipped by the bar that is floating over them. */
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--ui-bg);
+    color: var(--ui-ink);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+  }
+
+  p, li {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--ui-brand);
+    color: var(--ui-on-brand);
+  }
+
+  /*
+    Native form controls follow the OS, not the page, unless told otherwise.
+    `color-scheme` is what makes a <select>'s popup, a date picker's calendar
+    and a scrollbar render dark — it is set on :root with the palette, and
+    inherited here so a control never opens a white sheet over a dark page.
+
+    The option rows are painted explicitly on top of that: `color-scheme`
+    alone leaves them the browser's grey rather than the panel colour.
+  */
+  select,
+  option,
+  input[type="date"],
+  input[type="search"] {
+    color-scheme: inherit;
+  }
+
+  select option,
+  select optgroup {
+    background-color: var(--ui-panel-solid);
+    color: var(--ui-ink);
+  }
+
+  /*
+    No <select> is left in the app — `<UiSelect>` renders its own glass menu —
+    but the rules above still matter for the date input and the search box's
+    datalist, both of which the browser draws itself.
+  */
+
+  /* One ring definition for the whole app: keyboard users always get the
+     same crimson halo, and it never sits flush against the element. */
+  :focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ui-line-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ui-accent);
+    background-clip: content-box;
+  }
+}
+
+/* ── Surfaces ─────────────────────────────────────────────────────────────── */
+
+/*
+  Frosted panel. The inset hairline on the top edge is what sells the glass —
+  it reads as light catching a bevel, and without it a translucent card just
+  looks faded.
+*/
+@utility glass {
+  background-color: var(--ui-panel);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--ui-line);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    var(--ui-shadow);
+}
+
+@utility glass-strong {
+  background-color: var(--ui-panel-strong);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--ui-line);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.08),
+    var(--ui-shadow);
+}
+
+/* Hairline crimson rim + bloom. Reserved for the element a screen is about. */
+@utility glow {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--ui-accent) 45%, transparent),
+    var(--ui-glow-strong);
+}
+
+@utility glow-soft {
+  box-shadow: var(--ui-glow-soft);
+}
+
+@utility text-glow {
+  text-shadow: 0 0 22px color-mix(in oklab, var(--ui-accent) 55%, transparent);
+}
+
+/*
+  Legibility over moving video. The score overlay is deliberately thin — a
+  solid scrim would hide the rally it sits on — so contrast comes from a
+  shadow hugging the glyphs instead of from a box behind them. Two layers: a
+  tight one for edge definition against pale kit, a wide one for the halo that
+  survives a bright hall floor.
+*/
+@utility legible {
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.92),
+    0 0 12px rgb(0 0 0 / 0.6);
+}
+
+/* A key as printed on the cheat sheet: physical, and clickable to rebind. */
+@utility kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 1.75rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-line-strong);
+  background-color: var(--ui-panel-strong);
+  box-shadow: inset 0 -2px 0 0 rgb(0 0 0 / 0.18);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ui-ink);
+  white-space: nowrap;
+}
+
+/*
+  Diagonal crimson slash, the banner's signature mark. Drawn with a gradient
+  rather than an image so it recolours with the theme and costs nothing.
+*/
+@utility slash {
+  background-image: linear-gradient(
+    115deg,
+    transparent 0%,
+    color-mix(in oklab, var(--ui-brand) 80%, transparent) 42%,
+    color-mix(in oklab, var(--ui-accent) 90%, transparent) 50%,
+    color-mix(in oklab, var(--ui-brand) 80%, transparent) 58%,
+    transparent 100%
+  );
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* 44px tall including the border: the platform minimum for a touch target,
+     which the previous py-2 buttons missed by 6px. */
+  min-height: 2.75rem;
+  padding-inline: 1.125rem;
+  border-radius: 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 180ms var(--ease-brand),
+    box-shadow 220ms var(--ease-brand),
+    background-color 180ms var(--ease-brand),
+    border-color 180ms var(--ease-brand),
+    color 180ms var(--ease-brand);
+}
+
+@utility btn-sm {
+  min-height: 2.25rem;
+  padding-inline: 0.875rem;
+  font-size: 0.8125rem;
+  border-radius: 0.625rem;
+}
+
+@utility btn-primary {
+  background-color: var(--ui-brand);
+  color: var(--ui-on-brand);
+  border: 1px solid color-mix(in oklab, var(--ui-accent) 55%, transparent);
+  box-shadow: var(--ui-glow-strong);
+
+  &:hover:not(:disabled) {
+    background-color: var(--ui-brand-hover);
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--ui-accent) 70%, transparent),
+      0 0 34px -4px color-mix(in oklab, var(--ui-accent) 75%, transparent);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.985);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+@utility btn-ghost {
+  background-color: var(--ui-panel);
+  color: var(--ui-ink);
+  border: 1px solid var(--ui-line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  &:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--ui-accent) 50%, transparent);
+    color: var(--ui-accent);
+    transform: translateY(-1px);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.985);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+@utility field {
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ui-line);
+  background-color: var(--ui-panel);
+  padding: 0.5rem 0.875rem;
+  color: var(--ui-ink);
+  /* 16px: anything smaller makes iOS Safari zoom the page on focus. */
+  font-size: 1rem;
+  transition:
+    border-color 180ms var(--ease-brand),
+    box-shadow 180ms var(--ease-brand),
+    background-color 180ms var(--ease-brand);
+
+  &::placeholder {
+    color: var(--ui-ink-subtle);
+  }
+  &:hover:not(:disabled) {
+    border-color: var(--ui-line-strong);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px var(--ui-accent-soft);
+    background-color: var(--ui-panel-strong);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ui-ink-subtle);
+}
+
+/* Small caps-and-tracking eyebrow above a section title. */
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(4%, -6%, 0) scale(1.08); }
+  66% { transform: translate3d(-5%, 4%, 0) scale(0.95); }
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/*
+  Scroll reveal. The hidden state is applied by the Reveal component only once
+  the observer is live, so content is never left invisible if JS fails.
+*/
+.reveal-hidden {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+}
+
+.reveal-shown {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 700ms var(--ease-brand),
+    transform 700ms var(--ease-brand);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* Page transitions. Exit runs at ~60% of enter so navigation feels answered. */
+.page-enter-active {
+  transition:
+    opacity 320ms var(--ease-brand),
+    transform 320ms var(--ease-brand);
+}
+.page-leave-active {
+  transition:
+    opacity 180ms ease-in,
+    transform 180ms ease-in;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translate3d(0, -8px, 0);
+}
+
+/*
   Confirmation that a keypress registered. Tagging is a heads-down, eyes-on-the
   video job — the admin needs to know the point landed without looking away to
   read the list.
@@ -15,7 +521,25 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .point-flash {
-    animation: none;
+  html {
+    scroll-behavior: auto;
+  }
+
+  /*
+    Blanket kill rather than per-animation opt-outs: a decorative animation
+    added later would otherwise silently escape the preference.
+  */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal-hidden {
+    opacity: 1;
+    transform: none;
   }
 }

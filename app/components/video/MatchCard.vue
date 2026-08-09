@@ -1,0 +1,134 @@
+<script setup lang="ts">
+import type { ListRow, MatchEntry } from '~/utils/videoFilters'
+import { CalendarDays, CircleDashed, Play, Sparkles, Trophy } from '@lucide/vue'
+
+const props = withDefaults(
+  defineProps<{
+    entry: MatchEntry<ListRow>
+    /** The lead card of a session: bigger type, eager thumbnail. */
+    featured?: boolean
+  }>(),
+  { featured: false },
+)
+
+const match = computed(() => props.entry.row)
+const tagged = computed(() => match.value.tagging_status === 'tagged')
+const meta = computed(() =>
+  [formatDateShort(match.value.played_on), match.value.format, match.value.venue]
+    .filter(Boolean)
+    .join(' · '),
+)
+
+const CHIP = 'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]'
+
+/** Weight, not hue: a win is the filled chip, a loss the plain outline. */
+const resultClass = computed(() => {
+  switch (props.entry.outcome?.state) {
+    case 'won': return 'border-transparent bg-brand text-on-brand'
+    case 'lost': return 'border-line-strong text-ink-muted'
+    default: return 'border-dashed border-line text-ink-subtle'
+  }
+})
+</script>
+
+<template>
+  <NuxtLink
+    :to="`/matches/${match.id}`"
+    class="group relative block overflow-hidden rounded-2xl glass transition-[transform,box-shadow,border-color] duration-300 ease-brand hover:-translate-y-1 hover:border-accent/40 focus-visible:-translate-y-1"
+    :class="featured ? 'sm:grid sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] sm:items-center sm:rounded-3xl' : ''"
+  >
+    <!-- The lead card splits sideways rather than stacking: a full-width 16:9
+         still is over 700px tall on a laptop, which buries everything after
+         it under one thumbnail. -->
+    <div class="relative overflow-hidden bg-bg-deep">
+      <img
+        v-if="match.youtube_thumbnail_url"
+        :src="match.youtube_thumbnail_url"
+        alt=""
+        width="1280"
+        height="720"
+        :loading="featured ? 'eager' : 'lazy'"
+        decoding="async"
+        class="aspect-video w-full object-cover transition-transform duration-500 ease-brand group-hover:scale-[1.04]"
+      >
+      <div v-else class="grid aspect-video w-full place-items-center text-ink-subtle">
+        <CircleDashed :size="28" aria-hidden="true" />
+      </div>
+
+      <!-- Bottom scrim. The chips sit on video stills whose brightness we do
+           not control, so contrast has to be manufactured, not hoped for. -->
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/85 to-transparent"
+        aria-hidden="true"
+      />
+
+      <!-- Play affordance. Scales up from the centre on hover rather than
+           fading in, so it reads as the card offering itself. -->
+      <span
+        class="pointer-events-none absolute inset-0 grid place-items-center"
+        aria-hidden="true"
+      >
+        <span
+          class="grid size-14 place-items-center rounded-full border border-white/25 bg-black/45 text-white opacity-0 backdrop-blur-md transition-[opacity,transform] duration-300 ease-brand group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100"
+          :class="featured ? 'scale-90' : 'scale-75'"
+          style="box-shadow: var(--ui-glow-strong)"
+        >
+          <Play :size="20" class="ml-0.5 fill-current" />
+        </span>
+      </span>
+
+      <span
+        v-if="match.youtube_duration_seconds"
+        class="absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-white backdrop-blur-sm"
+      >{{ formatDuration(match.youtube_duration_seconds) }}</span>
+
+      <!-- "Enhanced", not "tagged": from the outside the promise is the live
+           score, the timeline and the stats, not the work that produced them. -->
+      <span
+        v-if="tagged"
+        class="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md border border-accent/40 bg-black/60 px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-sm"
+        style="box-shadow: var(--ui-glow-soft)"
+      >
+        <Sparkles :size="11" class="text-accent" aria-hidden="true" />
+        Enhanced
+      </span>
+    </div>
+
+    <div class="p-4" :class="featured ? 'sm:p-7' : ''">
+      <p
+        v-if="featured"
+        class="mb-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-accent"
+      >
+        Latest match
+      </p>
+
+      <!-- The fixture, built from the roster. The YouTube upload name is not
+           shown anywhere on the site. -->
+      <h3
+        class="font-display font-semibold uppercase leading-tight tracking-wide text-ink transition-colors duration-200 group-hover:text-accent"
+        :class="featured ? 'text-xl sm:text-3xl' : 'text-base'"
+      >
+        {{ entry.title }}
+      </h3>
+
+      <ul v-if="entry.outcome" class="mt-2 flex flex-wrap items-center gap-1.5">
+        <li>
+          <span :class="[CHIP, resultClass]" :data-result="entry.outcome.state">
+            <Trophy v-if="entry.outcome.state === 'won'" :size="10" aria-hidden="true" />
+            {{ entry.outcome.label }}
+          </span>
+        </li>
+        <li v-for="(score, i) in entry.outcome.setScores" :key="i">
+          <span :class="CHIP" class="border-line font-mono tabular-nums text-ink-muted">
+            {{ score }}
+          </span>
+        </li>
+      </ul>
+
+      <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+        <CalendarDays :size="13" class="shrink-0" aria-hidden="true" />
+        {{ meta }}
+      </p>
+    </div>
+  </NuxtLink>
+</template>

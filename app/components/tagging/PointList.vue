@@ -58,10 +58,12 @@ onBeforeUnmount(() => {
     height is left. A fixed max-height left the panel short, with dead space
     below it on tall screens.
   -->
-  <div class="flex h-full flex-col overflow-hidden rounded border border-slate-800 bg-slate-900">
-    <div class="flex shrink-0 items-center justify-between border-b border-slate-800 px-3 py-2 text-sm">
-      <span class="font-semibold">Points</span>
-      <span data-testid="pl-count" class="text-slate-500">{{ rallies.length }}</span>
+  <div class="flex h-full flex-col overflow-hidden rounded-2xl glass">
+    <div class="flex shrink-0 items-center justify-between border-b border-line px-4 py-2.5">
+      <span class="label !text-ink">Points</span>
+      <span data-testid="pl-count" class="font-display text-sm font-semibold tabular-nums text-accent">
+        {{ rallies.length }}
+      </span>
     </div>
 
     <ul data-testid="pl-rows" class="min-h-0 flex-1 overflow-y-auto px-3">
@@ -83,8 +85,8 @@ onBeforeUnmount(() => {
       />
     </ul>
 
-    <p v-if="!rallies.length" class="px-3 py-4 text-xs text-slate-500">
-      Press A or Z to log the first point.
+    <p v-if="!rallies.length" class="px-4 py-4 text-xs text-ink-subtle">
+      Nothing logged yet — the keyboard panel under the video lists the keys.
     </p>
   </div>
 </template>

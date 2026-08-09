@@ -1,20 +1,37 @@
+<script setup lang="ts">
+// Opt out of the standard measure with `definePageMeta({ bleed: true })` when
+// a page draws its own full-width sections (the landing hero, for one).
+const route = useRoute()
+const bleed = computed(() => route.meta.bleed === true)
+</script>
+
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100">
-    <header class="border-b border-slate-800">
-      <nav class="mx-auto flex max-w-5xl items-center gap-6 px-4 py-4">
-        <NuxtLink to="/" class="text-lg font-semibold tracking-tight">
-          UST Badminton
-        </NuxtLink>
-        <NuxtLink to="/" class="text-sm text-slate-400 hover:text-slate-100">
-          Videos
-        </NuxtLink>
-        <NuxtLink to="/admin" class="ml-auto text-sm text-slate-400 hover:text-slate-100">
-          Admin
-        </NuxtLink>
-      </nav>
-    </header>
-    <main class="mx-auto max-w-5xl px-4 py-8">
+  <div class="flex min-h-dvh flex-col">
+    <UiAmbientBackdrop />
+
+    <a
+      href="#main"
+      class="btn btn-primary sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[60]"
+    >
+      Skip to content
+    </a>
+
+    <SiteHeader />
+
+    <!--
+      The measured pages pad past the fixed header so their first heading is
+      not born underneath it. Bleed pages do not: their hero is supposed to run
+      *under* the transparent bar, and reserving the height here would leave a
+      flat strip above the artwork.
+    -->
+    <main
+      id="main"
+      class="flex-1"
+      :class="bleed ? '' : 'mx-auto w-full max-w-6xl px-4 pb-12 pt-28 sm:px-6 sm:pb-16 sm:pt-32'"
+    >
       <slot />
     </main>
+
+    <SiteFooter />
   </div>
 </template>

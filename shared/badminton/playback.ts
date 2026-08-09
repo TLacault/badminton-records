@@ -5,8 +5,8 @@ export interface PlaybackState {
   rally: RallyState | null
   /** Scoreboard reading — what a spectator would see right now. */
   score: [number, number]
-  gamesWon: [number, number]
-  gameNumber: number
+  setsWon: [number, number]
+  setNumber: number
   servingSlot: Slot | null
   servingSide: Side | null
 }
@@ -14,8 +14,8 @@ export interface PlaybackState {
 const EMPTY: PlaybackState = {
   rally: null,
   score: [0, 0],
-  gamesWon: [0, 0],
-  gameNumber: 1,
+  setsWon: [0, 0],
+  setNumber: 1,
   servingSlot: null,
   servingSide: null,
 }
@@ -54,8 +54,8 @@ export function breakAtTime(
  *
  * Rallies are contiguous and anchored at 0, so a rally's start can sit inside
  * dead time — the first point of a match "starts" at 0 even though the players
- * are still warming up, and the first point after a game break "starts" the
- * instant the previous game ended. Landing there means watching the pause.
+ * are still warming up, and the first point after a set break "starts" the
+ * instant the previous set ended. Landing there means watching the pause.
  *
  * An open break has no resume point, so `t` is returned unchanged.
  */
@@ -94,7 +94,7 @@ export function playbackAt(derived: DerivedMatch | null, t: number): PlaybackSta
     const first = states[0]!
     return {
       ...EMPTY,
-      gameNumber: first.gameNumber,
+      setNumber: first.setNumber,
       servingSlot: first.servingSlot,
       servingSide: first.servingSide,
     }
@@ -104,20 +104,20 @@ export function playbackAt(derived: DerivedMatch | null, t: number): PlaybackSta
   const ended = t >= current.endsAtSeconds
   const next = ended ? states[currentPos + 1] ?? null : null
 
-  // Games decided strictly before the rally on screen.
+  // Sets decided strictly before the rally on screen.
   const settledThrough = ended ? current.idx : current.idx - 1
-  const gamesWon: [number, number] = [0, 0]
-  for (const g of derived.games) {
+  const setsWon: [number, number] = [0, 0]
+  for (const g of derived.sets) {
     if (g.lastRallyIdx === null || g.lastRallyIdx > settledThrough) continue
-    if (g.winnerSide === 1) gamesWon[0]++
-    else if (g.winnerSide === 2) gamesWon[1]++
+    if (g.winnerSide === 1) setsWon[0]++
+    else if (g.winnerSide === 2) setsWon[1]++
   }
 
   return {
     rally: current,
     score: ended ? current.scoreAfter : current.scoreBefore,
-    gamesWon,
-    gameNumber: current.gameNumber,
+    setsWon,
+    setNumber: current.setNumber,
     servingSlot: next?.servingSlot ?? current.servingSlot,
     servingSide: next?.servingSide ?? current.servingSide,
   }

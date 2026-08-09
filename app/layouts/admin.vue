@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '@lucide/vue'
+
 const client = useSupabaseClient()
 const { profile } = useCurrentProfile()
 
@@ -7,6 +9,17 @@ const { profile } = useCurrentProfile()
 const route = useRoute()
 const wide = computed(() => route.meta.wide === true)
 
+const links = [
+  { to: '/admin', label: 'Videos', icon: Video, exact: true },
+  { to: '/admin/matches/new', label: 'New match', icon: Plus, exact: true },
+  { to: '/admin/players', label: 'Players', icon: UsersRound, exact: false },
+  { to: '/admin/match-types', label: 'Types', icon: Tags, exact: true },
+]
+
+function isActive(link: (typeof links)[number]) {
+  return link.exact ? route.path === link.to : route.path.startsWith(link.to)
+}
+
 async function signOut() {
   await client.auth.signOut()
   await navigateTo('/login')
@@ -14,25 +27,68 @@ async function signOut() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100">
-    <header class="border-b border-slate-800">
-      <nav class="mx-auto flex items-center gap-6 px-4 py-3 text-sm" :class="wide ? 'max-w-none' : 'max-w-6xl'">
-        <NuxtLink to="/admin" class="font-semibold">
-          Videos
+  <div class="flex min-h-dvh flex-col">
+    <UiAmbientBackdrop />
+
+    <header class="sticky top-0 z-50 border-b border-line bg-bg/75 backdrop-blur-xl backdrop-saturate-150">
+      <nav
+        class="mx-auto flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6"
+        :class="wide ? 'max-w-none' : 'max-w-6xl'"
+        aria-label="Admin"
+      >
+        <NuxtLink to="/admin" class="-m-1 flex items-center gap-2.5 rounded-lg p-1">
+          <UiBrandLogo size="h-7" :wordmark="false" />
+          <span class="font-display text-sm font-bold uppercase tracking-[0.18em] text-accent">
+            Admin
+          </span>
         </NuxtLink>
-        <NuxtLink to="/admin/matches/new" class="text-slate-400 hover:text-slate-100">
-          New match
-        </NuxtLink>
-        <NuxtLink to="/admin/players" class="text-slate-400 hover:text-slate-100">
-          Players
-        </NuxtLink>
-        <span data-testid="admin-name" class="ml-auto text-slate-500">{{ profile?.display_name }}</span>
-        <button class="text-slate-400 hover:text-slate-100" @click="signOut">
-          Sign out
-        </button>
+
+        <ul class="flex items-center gap-1">
+          <li v-for="link in links" :key="link.to">
+            <NuxtLink
+              :to="link.to"
+              class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 font-display text-sm font-semibold uppercase tracking-[0.08em] transition-[color,background-color] duration-200 ease-brand"
+              :class="isActive(link)
+                ? 'bg-accent-soft text-accent'
+                : 'text-ink-muted hover:text-ink'"
+              :aria-current="isActive(link) ? 'page' : undefined"
+            >
+              <component :is="link.icon" :size="15" aria-hidden="true" />
+              <span class="hidden sm:inline">{{ link.label }}</span>
+            </NuxtLink>
+          </li>
+        </ul>
+
+        <div class="ml-auto flex items-center gap-2">
+          <NuxtLink
+            to="/"
+            class="hidden min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-ink-subtle transition-colors duration-200 hover:text-accent md:inline-flex"
+          >
+            View site
+            <ExternalLink :size="13" aria-hidden="true" />
+          </NuxtLink>
+
+          <span
+            data-testid="admin-name"
+            class="hidden max-w-40 truncate rounded-lg border border-line px-3 py-1.5 text-sm text-ink-muted sm:inline-block"
+          >{{ profile?.display_name }}</span>
+
+          <UiThemeToggle />
+
+          <button
+            type="button"
+            class="grid size-11 place-items-center rounded-xl border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent"
+            aria-label="Sign out"
+            title="Sign out"
+            @click="signOut"
+          >
+            <LogOut :size="17" aria-hidden="true" />
+          </button>
+        </div>
       </nav>
     </header>
-    <main class="mx-auto px-4 py-6" :class="wide ? 'max-w-none' : 'max-w-6xl'">
+
+    <main class="mx-auto w-full flex-1 px-4 py-8 sm:px-6" :class="wide ? 'max-w-none' : 'max-w-6xl'">
       <slot />
     </main>
   </div>
