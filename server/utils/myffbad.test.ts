@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MyffbadScrapeError, normalisePlayer, parseSearchPage, splitName } from './myffbad'
+import { MyffbadScrapeError, normalisePlayer, parseSearchPage, splitName, toTitleCase } from './myffbad'
 
 /**
  * The fixtures are unedited pages from myffbad.fr, saved on 2026-08-10. They
@@ -42,6 +42,28 @@ describe('splitName', () => {
   })
 })
 
+describe('toTitleCase', () => {
+  it('calms a shouted surname', () => {
+    expect(toTitleCase('LACAULT')).toBe('Lacault')
+  })
+
+  it('capitalises each part of a compound name', () => {
+    expect(toTitleCase('JEAN-PIERRE')).toBe('Jean-Pierre')
+    expect(toTitleCase("D'ARTAGNAN")).toBe("D'Artagnan")
+  })
+
+  it('keeps particles lower-case, except when they lead', () => {
+    expect(toTitleCase('DE LA CROIX')).toBe('De la Croix')
+    expect(toTitleCase('LE GALL')).toBe('Le Gall')
+    expect(toTitleCase('VAN DEN BERG')).toBe('Van den Berg')
+  })
+
+  it('preserves accented letters', () => {
+    expect(toTitleCase('MÜLLER')).toBe('Müller')
+    expect(toTitleCase('LÉVÊQUE')).toBe('Lévêque')
+  })
+})
+
 describe('normalisePlayer', () => {
   it('drops a row with no licence, since nothing can be filled from it', () => {
     expect(normalisePlayer({ PersonName: 'Tim LACAULT' })).toBeNull()
@@ -62,7 +84,8 @@ describe('parseSearchPage', () => {
       personId: '1553921',
       licence: '07667823',
       firstName: 'Tim',
-      lastName: 'LACAULT',
+      lastName: 'Lacault',
+      clubId: '830',
       club: 'Union Sportive Talence Badminton',
       category: 'Senior',
       rankSingles: 'P11',

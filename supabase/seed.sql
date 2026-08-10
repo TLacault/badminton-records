@@ -10,12 +10,12 @@
 --
 --   delete from public.matches where id = '55555555-5555-5555-5555-555555555555';
 
-insert into public.players (id, first_name, last_name, club, birth_year, rank_doubles)
+insert into public.players (id, first_name, last_name, club, rank_doubles)
 values
-  ('11111111-1111-1111-1111-111111111111', 'Demo', 'Player One',   'USTalence', 1995, 'D8'),
-  ('22222222-2222-2222-2222-222222222222', 'Demo', 'Player Two',   'USTalence', 1998, 'D9'),
-  ('33333333-3333-3333-3333-333333333333', 'Demo', 'Opponent One', 'BC Bordeaux', 1994, 'D7'),
-  ('44444444-4444-4444-4444-444444444444', 'Demo', 'Opponent Two', 'BC Bordeaux', 1996, 'D8');
+  ('11111111-1111-1111-1111-111111111111', 'Demo', 'Player One',   'USTalence', 'D8'),
+  ('22222222-2222-2222-2222-222222222222', 'Demo', 'Player Two',   'USTalence', 'D9'),
+  ('33333333-3333-3333-3333-333333333333', 'Demo', 'Opponent One', 'BC Bordeaux', 'D7'),
+  ('44444444-4444-4444-4444-444444444444', 'Demo', 'Opponent Two', 'BC Bordeaux', 'D8');
 
 insert into public.matches (
   id, title, played_on, venue, format, youtube_video_id,

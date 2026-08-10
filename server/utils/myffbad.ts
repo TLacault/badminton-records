@@ -26,6 +26,8 @@ export interface MyffbadPlayer {
   licence: string
   firstName: string
   lastName: string
+  /** MyFFBaD's club id — the exact key the badiste club list links to. */
+  clubId: string | null
   club: string | null
   category: string | null
   rankSingles: string | null
@@ -141,6 +143,50 @@ function isUpperCaseToken(token: string): boolean {
 }
 
 /**
+ * Name particles, which stay lower-case inside a surname: `DE LA CROIX` reads
+ * as `De la Croix`, not `De La Croix`. A leading particle keeps its capital —
+ * `LE GALL` is `Le Gall` — because that is how such names are written when the
+ * surname stands on its own.
+ */
+const PARTICLES = new Set([
+  'de', 'du', 'des', 'da', 'del', 'della', 'di', 'la', 'le', 'les',
+  'van', 'von', 'der', 'den', 'ter', 'bin', 'al',
+])
+
+function capitaliseSegment(segment: string): string {
+  if (!segment) return segment
+  return segment.charAt(0).toLocaleUpperCase('fr-FR')
+    + segment.slice(1).toLocaleLowerCase('fr-FR')
+}
+
+/** Capitalises each part of a hyphenated or elided word: `D'ARTAGNAN` → `D'Artagnan`. */
+function capitaliseWord(word: string): string {
+  return word
+    .split(/([-'’])/)
+    .map(part => (/^[-'’]$/.test(part) ? part : capitaliseSegment(part)))
+    .join('')
+}
+
+/**
+ * `LACAULT` → `Lacault`, `JEAN-PIERRE` → `Jean-Pierre`.
+ *
+ * MyFFBaD shouts surnames. Storing them that way would shout them through
+ * every scoreboard and table in the app, and would stop `HOME_PAIR` matching
+ * the roster by name, so the case is normalised on the way in.
+ */
+export function toTitleCase(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, index) => {
+      const lower = word.toLocaleLowerCase('fr-FR')
+      return index > 0 && PARTICLES.has(lower) ? lower : capitaliseWord(word)
+    })
+    .join(' ')
+}
+
+/**
  * `"Tim LACAULT"` → `Tim` / `LACAULT`, `"Jean DE LA CROIX"` → `Jean` / `DE LA
  * CROIX`. MyFFBaD prints the surname in capitals, so the trailing run of
  * upper-case tokens is the surname and whatever precedes it is the first name.
@@ -189,8 +235,9 @@ export function normalisePlayer(row: Record<string, unknown>): MyffbadPlayer | n
   return {
     personId: text(row.PersonId) ?? '',
     licence,
-    firstName,
-    lastName,
+    firstName: toTitleCase(firstName),
+    lastName: toTitleCase(lastName),
+    clubId: text(row.ClubId),
     club: text(row.ClubName),
     category: text(row.CategoryName),
     rankSingles: text(row.SimpleSubLevel),

@@ -259,7 +259,6 @@ export type Database = {
       }
       players: {
         Row: {
-          birth_year: number | null
           category: string | null
           club: string | null
           cpph: number | null
@@ -275,7 +274,6 @@ export type Database = {
           rank_singles: string | null
         }
         Insert: {
-          birth_year?: number | null
           category?: string | null
           club?: string | null
           cpph?: number | null
@@ -291,7 +289,6 @@ export type Database = {
           rank_singles?: string | null
         }
         Update: {
-          birth_year?: number | null
           category?: string | null
           club?: string | null
           cpph?: number | null

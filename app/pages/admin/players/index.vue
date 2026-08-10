@@ -21,7 +21,6 @@ function blank(): PlayerInsert {
     first_name: '',
     last_name: '',
     club: '',
-    birth_year: null,
     rank_singles: '',
     rank_doubles: '',
     rank_mixed: '',
@@ -47,14 +46,39 @@ function cancel() {
   form.value = blank()
 }
 
+/** The licence already on the roster, if this form would duplicate one. */
+const duplicate = computed(() => {
+  const licence = form.value.ffbad_license?.trim()
+  if (!licence) return null
+  return (players.value ?? []).find(
+    p => p.ffbad_license === licence && p.id !== editingId.value,
+  ) ?? null
+})
+
 async function save() {
   error.value = null
-  const payload = { ...form.value }
+
+  if (duplicate.value) {
+    const { first_name, last_name } = duplicate.value
+    error.value
+      = `Licence ${form.value.ffbad_license} already belongs to ${first_name} ${last_name}.`
+    return
+  }
+
+  // '' would collide with every other blank licence under the unique index,
+  // and an empty string is not a licence anyway.
+  const licence = form.value.ffbad_license?.trim()
+  const payload = { ...form.value, ffbad_license: licence || null }
+
   const { error: dbError } = editingId.value
     ? await client.from('players').update(payload).eq('id', editingId.value)
     : await client.from('players').insert(payload)
   if (dbError) {
-    error.value = dbError.message
+    // The unique index is the real guard — the check above only catches what
+    // this browser has already loaded.
+    error.value = dbError.code === '23505'
+      ? `Licence ${licence} is already on the roster.`
+      : dbError.message
     return
   }
   cancel()
@@ -83,11 +107,12 @@ async function remove(player: PlayerRow) {
  * reviews and submits, so a bad match, or a name the surname rule split wrong,
  * is caught before it reaches the roster.
  *
- * `birth_year` is deliberately left blank: MyFFBaD publishes no birth date, so
- * anything here would be invented.
+ * Picking someone already on the roster switches the form to editing them
+ * rather than preparing a duplicate the unique licence index would reject.
  */
 function fillFromMyffbad(p: MyffbadPlayer) {
-  editingId.value = null
+  const existing = (players.value ?? []).find(row => row.ffbad_license === p.licence)
+  editingId.value = existing?.id ?? null
   form.value = {
     ...blank(),
     first_name: p.firstName,
@@ -101,11 +126,6 @@ function fillFromMyffbad(p: MyffbadPlayer) {
     cpph: p.cpph,
     myffbad_person_id: p.personId,
   }
-}
-
-/** Age is derived, never stored: a stored age silently rots. */
-function age(birthYear: number | null) {
-  return birthYear ? new Date().getFullYear() - birthYear : '—'
 }
 
 /** Labelled, not placeholder-only: a filled-in field must still say what it is. */
@@ -168,18 +188,6 @@ const fields: TextField[] = [
         </label>
 
         <label class="block">
-          <span class="label">Birth year</span>
-          <input
-            v-model.number="form.birth_year"
-            data-testid="p-year"
-            type="number"
-            inputmode="numeric"
-            placeholder="1995"
-            class="field mt-2 tabular-nums"
-          >
-        </label>
-
-        <label class="block">
           <span class="label">CPPH</span>
           <input
             v-model.number="form.cpph"
@@ -228,9 +236,6 @@ const fields: TextField[] = [
               Club
             </th>
             <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-              Age
-            </th>
-            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
               S / D / Mx
             </th>
             <th class="px-4 py-3">
@@ -251,9 +256,6 @@ const fields: TextField[] = [
             </td>
             <td class="px-4 py-3 text-ink-muted">
               {{ p.club || '—' }}
-            </td>
-            <td class="px-4 py-3 tabular-nums text-ink-muted" data-testid="p-age">
-              {{ age(p.birth_year) }}
             </td>
             <td class="px-4 py-3 tabular-nums text-ink-muted">
               {{ p.rank_singles || '—' }} / {{ p.rank_doubles || '—' }} / {{ p.rank_mixed || '—' }}

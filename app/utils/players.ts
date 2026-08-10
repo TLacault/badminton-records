@@ -17,14 +17,23 @@ export const HOME_PAIR = [
   { first_name: 'Adrien', last_name: 'Chapour' },
 ]
 
-/** Player ids for slots 1 and 2, for whichever of the pair the roster holds. */
+/**
+ * Player ids for slots 1 and 2, for whichever of the pair the roster holds.
+ *
+ * Matched case-insensitively: the MyFFBaD lookup normalises `LACAULT` to
+ * `Lacault`, but a row typed by hand — or imported before that normalisation
+ * existed — can be cased any way at all, and an exact compare would silently
+ * stop pre-filling our own side of the court.
+ */
 export function homePairSlots(
   roster: { id: string, first_name: string, last_name: string }[],
 ): Record<number, string> {
+  const fold = (value: string) => value.trim().toLocaleLowerCase('fr-FR')
   const out: Record<number, string> = {}
   HOME_PAIR.forEach((wanted, index) => {
     const found = roster.find(
-      p => p.first_name === wanted.first_name && p.last_name === wanted.last_name,
+      p => fold(p.first_name) === fold(wanted.first_name)
+        && fold(p.last_name) === fold(wanted.last_name),
     )
     if (found) out[index + 1] = found.id
   })
@@ -33,7 +42,6 @@ export function homePairSlots(
 
 export interface PlayerInfoSource {
   club?: string | null
-  birth_year?: number | null
   rank_singles?: string | null
   rank_doubles?: string | null
   rank_mixed?: string | null
@@ -51,13 +59,6 @@ export const PLAYER_INFO_FIELDS: PlayerInfoField[] = [
   { id: 'rank_singles', label: 'Singles rank', read: p => p.rank_singles || null },
   { id: 'rank_doubles', label: 'Doubles rank', read: p => p.rank_doubles || null },
   { id: 'rank_mixed', label: 'Mixed rank', read: p => p.rank_mixed || null },
-  {
-    id: 'age',
-    label: 'Age',
-    // Year arithmetic only: the roster stores a birth year, so a real age
-    // would be a guess either side of a birthday.
-    read: p => (p.birth_year ? `${new Date().getFullYear() - p.birth_year}` : null),
-  },
   { id: 'licence', label: 'Licence', read: p => p.ffbad_license || null },
 ]
 
