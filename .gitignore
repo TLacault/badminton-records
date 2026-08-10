@@ -18,7 +18,11 @@ logs
 .fleet
 .idea
 
-# Local env files
+# Local env files. The negation has to stay last: a later `.env*` would
+# re-ignore the example, which is the one env file meant to be committed.
 .env
 .env.*
 !.env.example
+
+# Vercel project link and its downloaded OIDC token
+.vercel
