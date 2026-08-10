@@ -54,6 +54,9 @@ const form = reactive({
   player_info_fields: PLAYER_INFO_FIELDS.map(f => f.id),
   format: 'doubles' as MatchFormat,
   youtube_video_id: '',
+  // Everything is filmed on the same rig, so this is true until said otherwise
+  // — the column defaults the same way, and the card pins it on the thumbnail.
+  is_4k: true,
   visibility: 'private' as 'private' | 'public',
   // Normally set by the tagger as work progresses; exposed here so a mistake
   // can be corrected by hand.
@@ -283,6 +286,21 @@ const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
             The id only — the part after <code>v=</code>, not the whole URL.
           </span>
         </label>
+        <div class="md:col-span-2">
+          <label class="inline-flex items-center gap-2 text-sm text-ink-muted">
+            <input
+              v-model="form.is_4k"
+              data-testid="m-4k"
+              type="checkbox"
+              class="size-4 accent-[var(--ui-brand)]"
+            >
+            Available in 4K
+          </label>
+          <span class="mt-1.5 block text-xs text-ink-subtle">
+            Pinned on the video card. On by default, since every session is
+            filmed in 4K at 60fps — untick it for an upload that is not.
+          </span>
+        </div>
         <div>
           <span class="label">Format</span>
           <UiSelect v-model="form.format" data-testid="m-format" class="mt-2" label="Format" :options="formatOptions" />

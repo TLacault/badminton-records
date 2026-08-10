@@ -203,6 +203,7 @@ export type Database = {
           id: string
           imported_at: string | null
           initial_server_side: number | null
+          is_4k: boolean
           match_type_id: string | null
           played_on: string | null
           player_info_fields: string[]
@@ -231,6 +232,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           initial_server_side?: number | null
+          is_4k?: boolean
           match_type_id?: string | null
           played_on?: string | null
           player_info_fields?: string[]
@@ -259,6 +261,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           initial_server_side?: number | null
+          is_4k?: boolean
           match_type_id?: string | null
           played_on?: string | null
           player_info_fields?: string[]

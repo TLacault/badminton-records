@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowUpRight, Play } from "@lucide/vue";
+import { ArrowDown, ArrowUpRight, Play, Video } from "@lucide/vue";
 import { site } from "~/config/site";
 
 defineProps<{
@@ -102,6 +102,21 @@ defineProps<{
 
         <p class="max-w-[52ch] text-lg leading-relaxed text-ink-muted">
           {{ $lt(site.hero.lede) }}
+        </p>
+
+        <!-- The recording spec, on its own line rather than inside the lede:
+             the picture is half of what is on offer here, and a claim about it
+             is worth reading on its own. -->
+        <p
+          class="flex max-w-[56ch] flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-relaxed text-ink-muted"
+        >
+          <span
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-accent/45 bg-accent-soft px-2 py-1 font-display text-xs font-bold uppercase tracking-[0.12em] text-accent"
+          >
+            <Video :size="14" aria-hidden="true" />
+            {{ site.hero.quality.badge }}
+          </span>
+          {{ $lt(site.hero.quality.note) }}
         </p>
 
         <div class="mt-2 flex flex-wrap items-center gap-3">

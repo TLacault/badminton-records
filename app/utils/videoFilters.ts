@@ -18,6 +18,7 @@ export interface ListRow extends SummaryRow {
   tagging_status: string
   youtube_duration_seconds: number | null
   youtube_thumbnail_url: string | null
+  is_4k: boolean
   match_types?: { label: string } | null
 }
 

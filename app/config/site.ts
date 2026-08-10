@@ -78,6 +78,18 @@ export const site = {
       fr: "On filme trois à six matchs par séance, puis on annote chaque échange — score, service, temps forts — pour qu'un match se rejoue point par point au lieu d'être parcouru à l'avance rapide.",
       en: "We film three to six matches every training session, then tag every rally — score, serve, highlights — so a match can be replayed point by point instead of scrubbed through.",
     },
+    /**
+     * The recording spec, as its own strip under the lede. Kept out of the
+     * lede itself: a claim about the picture is worth more read on its own
+     * than buried in the fourth clause of a paragraph about tagging.
+     */
+    quality: {
+      badge: "4K · 60 fps",
+      note: {
+        fr: "Toutes nos vidéos sont filmées et publiées en 4K à 60 images par seconde — image nette, ralentis propres, chaque volant lisible.",
+        en: "Every one of our videos is filmed and published in 4K at 60 frames per second — sharp picture, clean slow motion, every shuttle readable.",
+      },
+    },
   },
 
   player: {

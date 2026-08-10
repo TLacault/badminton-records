@@ -54,7 +54,7 @@ export const LIST_SELECT = `
   id, title, played_on, venue, format, tagging_status,
   best_of, points_to_win, win_by, points_cap,
   initial_server_side, side1_right_court_slot, side2_right_court_slot,
-  youtube_thumbnail_url, youtube_duration_seconds,
+  youtube_thumbnail_url, youtube_duration_seconds, is_4k,
   match_types(label),
   match_players(slot, players(first_name, last_name, club)),
   match_set_starts(set_number, server_slot, side1_right_court_slot, side2_right_court_slot),
