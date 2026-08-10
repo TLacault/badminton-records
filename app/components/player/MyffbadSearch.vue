@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { MyffbadPlayer } from '~~/server/utils/myffbad'
-import { Loader, Search } from '@lucide/vue'
+import { Globe, Loader, Search } from '@lucide/vue'
 
 const emit = defineEmits<{ select: [player: MyffbadPlayer] }>()
 
@@ -14,15 +14,8 @@ const term = ref('')
 const results = ref<MyffbadPlayer[]>([])
 const truncated = ref(false)
 const total = ref(0)
-const maxPages = ref(0)
-
-/**
- * `total` counts the first page only, so it understates the moment there are
- * further pages — say "many" rather than a number we know to be wrong.
- */
-const matchCount = computed(() =>
-  maxPages.value > 1 ? 'many' : String(total.value),
-)
+const hidden = ref(0)
+const scope = ref<'local' | 'all'>('local')
 const busy = ref(false)
 const error = ref<string | null>(null)
 const open = ref(false)
@@ -31,7 +24,7 @@ const searched = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null
 let sequence = 0
 
-async function run(value: string) {
+async function run(value: string, using: 'local' | 'all' = 'local') {
   if (value.trim().length < 2) {
     results.value = []
     error.value = null
@@ -46,13 +39,15 @@ async function run(value: string) {
     const res = await $fetch<{
       players: MyffbadPlayer[]
       total: number
-      maxPages: number
+      hidden: number
+      scope: 'local' | 'all'
       truncated: boolean
-    }>('/api/myffbad/search', { query: { q: value } })
+    }>('/api/myffbad/search', { query: { q: value, scope: using } })
     if (ticket !== sequence) return
     results.value = res.players
     total.value = res.total
-    maxPages.value = res.maxPages ?? 0
+    hidden.value = res.hidden
+    scope.value = res.scope
     truncated.value = res.truncated
     searched.value = true
     open.value = true
@@ -69,9 +64,16 @@ async function run(value: string) {
   }
 }
 
+/** Re-runs the same term across every club in France. */
+function broaden() {
+  run(term.value, 'all')
+}
+
 watch(term, (value) => {
   if (timer) clearTimeout(timer)
   searched.value = false
+  // A new term always starts local again.
+  scope.value = 'local'
   timer = setTimeout(() => run(value), DEBOUNCE_MS)
 })
 onBeforeUnmount(() => {
@@ -89,6 +91,10 @@ function choose(player: MyffbadPlayer) {
 function ranks(p: MyffbadPlayer) {
   return [p.rankSingles, p.rankDoubles, p.rankMixed].map(r => r || '—').join(' / ')
 }
+
+const canBroaden = computed(() =>
+  scope.value === 'local' && searched.value && !busy.value && hidden.value > 0,
+)
 </script>
 
 <template>
@@ -116,8 +122,8 @@ function ranks(p: MyffbadPlayer) {
     </div>
 
     <p id="myffbad-help" class="mt-1.5 text-xs text-ink-subtle">
-      Fills the form from myffbad.fr — it does not save anything, and it cannot
-      know a birth year.
+      Fills the form from myffbad.fr — it does not save anything. Gironde clubs
+      first, ours at the top.
     </p>
 
     <p v-if="error" data-testid="myffbad-error" role="alert" class="mt-1.5 text-xs text-accent">
@@ -145,18 +151,29 @@ function ranks(p: MyffbadPlayer) {
     </ul>
 
     <p
-      v-if="open && truncated && results.length"
-      data-testid="myffbad-truncated"
+      v-if="open && searched && !results.length && !busy && !error"
       class="mt-1.5 text-xs text-ink-subtle"
     >
-      Showing {{ results.length }} of {{ matchCount }} matches — add a first name to narrow it down.
+      {{ scope === 'local' ? 'Nobody in our clubs.' : 'No licensee found.' }}
     </p>
 
     <p
-      v-else-if="open && searched && !results.length && !busy && !error"
+      v-else-if="open && truncated && results.length"
+      data-testid="myffbad-truncated"
       class="mt-1.5 text-xs text-ink-subtle"
     >
-      No licensee found.
+      Showing {{ results.length }} of {{ total }} matches — add a first name to narrow it down.
     </p>
+
+    <button
+      v-if="open && canBroaden"
+      type="button"
+      data-testid="myffbad-broaden"
+      class="mt-2 inline-flex items-center gap-1.5 text-xs text-accent underline-offset-4 hover:underline"
+      @click="broaden"
+    >
+      <Globe :size="13" aria-hidden="true" />
+      Search all {{ hidden }} {{ hidden === 1 ? 'match' : 'matches' }} outside our clubs
+    </button>
   </div>
 </template>

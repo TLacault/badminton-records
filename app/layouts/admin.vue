@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '@lucide/vue'
+import { Building2, ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '@lucide/vue'
 
 const client = useSupabaseClient()
 const { profile } = useCurrentProfile()
@@ -13,6 +13,7 @@ const links = [
   { to: '/admin', label: 'Videos', icon: Video, exact: true },
   { to: '/admin/matches/new', label: 'New match', icon: Plus, exact: true },
   { to: '/admin/players', label: 'Players', icon: UsersRound, exact: false },
+  { to: '/admin/clubs', label: 'Clubs', icon: Building2, exact: false },
   { to: '/admin/match-types', label: 'Types', icon: Tags, exact: true },
 ]
 

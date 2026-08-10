@@ -281,6 +281,43 @@ export function parseSearchPage(html: string): MyffbadSearchResult {
   }
 }
 
+export interface RankedPlayer extends MyffbadPlayer {
+  /** The club's search priority, or null when the club is not on our list. */
+  priority: number | null
+}
+
+/**
+ * Puts our clubs first, and by default shows nothing else.
+ *
+ * MyFFBaD orders by surname across the whole country, which buries the people
+ * we actually play. `priorities` maps a MyFFBaD club id to its rank, so the
+ * comparison is on ids rather than club names — no spelling to get wrong.
+ *
+ * `hidden` is the number of matches held back by the local filter, which is
+ * what lets the UI offer to widen the search instead of showing a dead end.
+ */
+export function rankBySearchPriority(
+  players: MyffbadPlayer[],
+  priorities: Map<string, number>,
+  scope: 'local' | 'all',
+): { shown: RankedPlayer[], hidden: number } {
+  const ranked: RankedPlayer[] = players.map(player => ({
+    ...player,
+    priority: player.clubId ? priorities.get(player.clubId) ?? null : null,
+  }))
+
+  const local = ranked.filter(p => p.priority !== null)
+  const shown = scope === 'all' ? ranked : local
+
+  shown.sort((a, b) =>
+    (b.priority ?? -1) - (a.priority ?? -1)
+    || a.lastName.localeCompare(b.lastName, 'fr')
+    || a.firstName.localeCompare(b.firstName, 'fr'),
+  )
+
+  return { shown, hidden: ranked.length - local.length }
+}
+
 /** Fetches and parses one page of results for `term`. */
 export async function searchPlayers(term: string): Promise<MyffbadSearchResult> {
   const html = await $fetch<string>(SEARCH_URL, {

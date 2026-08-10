@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MyffbadScrapeError, normalisePlayer, parseSearchPage, splitName, toTitleCase } from './myffbad'
+import {
+  MyffbadScrapeError,
+  normalisePlayer,
+  parseSearchPage,
+  rankBySearchPriority,
+  splitName,
+  toTitleCase,
+} from './myffbad'
 
 /**
  * The fixtures are unedited pages from myffbad.fr, saved on 2026-08-10. They
@@ -115,5 +122,76 @@ describe('parseSearchPage', () => {
   it('says the site changed when the page has neither results nor the empty notice', () => {
     expect(() => parseSearchPage('<html><body>Maintenance</body></html>'))
       .toThrow(MyffbadScrapeError)
+  })
+})
+
+describe('rankBySearchPriority', () => {
+  /** Real MyFFBaD rows: 50 people called Martin, from every club in France. */
+  const crowd = () => parseSearchPage(fixture('martin')).players
+
+  /**
+   * Two clubs that genuinely appear in the fixture. Picking ids by hand — 830
+   * is ours in real life — made the filter tests vacuous, because no Martin
+   * plays for us: `shown` came back empty and every assertion about it passed
+   * for the wrong reason.
+   */
+  const [top, second] = [...new Set(crowd().map(p => p.clubId))] as string[]
+  const priorities = new Map([[top!, 100], [second!, 0]])
+
+  it('has two real clubs to rank, or the tests below prove nothing', () => {
+    const all = crowd()
+    expect(all.filter(p => p.clubId === top).length).toBeGreaterThan(0)
+    expect(all.filter(p => p.clubId === second).length).toBeGreaterThan(0)
+  })
+
+  it('shows only our clubs by default, and counts what it held back', () => {
+    const all = crowd()
+    const { shown, hidden } = rankBySearchPriority(all, priorities, 'local')
+
+    expect(shown.length).toBeGreaterThan(0)
+    expect(shown.length).toBeLessThan(all.length)
+    expect(shown.every(p => p.priority !== null)).toBe(true)
+    expect(shown.length + hidden).toBe(all.length)
+  })
+
+  it('puts the highest priority club first', () => {
+    const players = crowd()
+    // Borrow two real rows and place them in known clubs.
+    const ours = { ...players[10]!, clubId: top!, lastName: 'Zzz', firstName: 'Zzz' }
+    const neighbour = { ...players[11]!, clubId: second!, lastName: 'Aaa', firstName: 'Aaa' }
+
+    const { shown } = rankBySearchPriority([neighbour, ours], priorities, 'local')
+    // 'Zzz' sorts last alphabetically, so only priority can put it first.
+    expect(shown.map(p => p.lastName)).toEqual(['Zzz', 'Aaa'])
+  })
+
+  it('falls back to surname order within one club', () => {
+    const players = crowd()
+    const b = { ...players[0]!, clubId: top!, lastName: 'Bernard' }
+    const a = { ...players[1]!, clubId: top!, lastName: 'Andre' }
+
+    const { shown } = rankBySearchPriority([b, a], priorities, 'local')
+    expect(shown.map(p => p.lastName)).toEqual(['Andre', 'Bernard'])
+  })
+
+  it('keeps everyone when the search is broadened, unknown clubs last', () => {
+    const all = crowd()
+    const { shown, hidden } = rankBySearchPriority(all, priorities, 'all')
+
+    expect(shown).toHaveLength(all.length)
+    expect(hidden).toBe(all.length - shown.filter(p => p.priority !== null).length)
+
+    // A player from an unlisted club can never outrank one of ours.
+    const firstUnknown = shown.findIndex(p => p.priority === null)
+    const lastKnown = shown.findLastIndex(p => p.priority !== null)
+    expect(firstUnknown).toBeGreaterThan(-1)
+    expect(lastKnown).toBeGreaterThan(-1)
+    expect(firstUnknown).toBeGreaterThan(lastKnown)
+  })
+
+  it('treats a player with no club as unknown rather than crashing', () => {
+    const orphan = { ...crowd()[0]!, clubId: null }
+    expect(rankBySearchPriority([orphan], priorities, 'local').shown).toHaveLength(0)
+    expect(rankBySearchPriority([orphan], priorities, 'all').shown).toHaveLength(1)
   })
 })

@@ -34,6 +34,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      clubs: {
+        Row: {
+          acronym: string | null
+          archived_at: string | null
+          city: string | null
+          created_at: string
+          department: string
+          id: string
+          myffbad_club_id: string | null
+          name: string
+          priority: number
+          source: string
+        }
+        Insert: {
+          acronym?: string | null
+          archived_at?: string | null
+          city?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          myffbad_club_id?: string | null
+          name: string
+          priority?: number
+          source?: string
+        }
+        Update: {
+          acronym?: string | null
+          archived_at?: string | null
+          city?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          myffbad_club_id?: string | null
+          name?: string
+          priority?: number
+          source?: string
+        }
+        Relationships: []
+      }
       match_breaks: {
         Row: {
           ends_at_seconds: number | null
@@ -261,6 +300,7 @@ export type Database = {
         Row: {
           category: string | null
           club: string | null
+          club_id: string | null
           cpph: number | null
           created_at: string
           ffbad_license: string | null
@@ -276,6 +316,7 @@ export type Database = {
         Insert: {
           category?: string | null
           club?: string | null
+          club_id?: string | null
           cpph?: number | null
           created_at?: string
           ffbad_license?: string | null
@@ -291,6 +332,7 @@ export type Database = {
         Update: {
           category?: string | null
           club?: string | null
+          club_id?: string | null
           cpph?: number | null
           created_at?: string
           ffbad_license?: string | null
@@ -303,7 +345,15 @@ export type Database = {
           rank_mixed?: string | null
           rank_singles?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "players_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

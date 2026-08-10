@@ -16,6 +16,15 @@ const { data: players, refresh } = await useAsyncData('players', async () => {
   return data ?? []
 })
 
+/** MyFFBaD club id → our club row, so autofill can link rather than copy text. */
+const { data: clubs } = await useAsyncData('players-clubs', async () => {
+  const { data } = await client
+    .from('clubs')
+    .select('id, myffbad_club_id')
+    .not('myffbad_club_id', 'is', null)
+  return data ?? []
+})
+
 function blank(): PlayerInsert {
   return {
     first_name: '',
@@ -28,6 +37,7 @@ function blank(): PlayerInsert {
     category: '',
     cpph: null,
     myffbad_person_id: '',
+    club_id: null,
     notes: '',
   }
 }
@@ -125,6 +135,9 @@ function fillFromMyffbad(p: MyffbadPlayer) {
     category: p.category ?? '',
     cpph: p.cpph,
     myffbad_person_id: p.personId,
+    // Free text stays as the label; club_id links to our list when we know the
+    // club, which is what the search ranking and any "who plays at UST" reads.
+    club_id: (clubs.value ?? []).find(c => c.myffbad_club_id === p.clubId)?.id ?? null,
   }
 }
 
