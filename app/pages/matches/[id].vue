@@ -132,6 +132,11 @@ const stage = ref<{
   isFullscreen: boolean
   seekTo: (s: number) => void
   play: () => void
+  toggle: () => void
+  seekBy: (delta: number) => void
+  changeVolume: (delta: number) => number
+  toggleFullscreen: () => void
+  wake: () => void
 } | null>(null)
 
 /**
@@ -148,6 +153,29 @@ const playbackDuration = computed(() => stage.value?.duration ?? 0)
 const playback = useMatchPlayback(derived, currentTime)
 
 const { revealed, reveal } = useResultReveal(matchId)
+
+const scoreboard = useScoreboardMode()
+const timeline = usePlayerTimeline()
+const playerKeys = usePlayerKeys({
+  toggle: () => stage.value?.toggle(),
+  seekBy: delta => stage.value?.seekBy(delta),
+  changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,
+  toggleFullscreen: () => stage.value?.toggleFullscreen(),
+  wake: () => stage.value?.wake(),
+})
+
+/**
+ * Shortcuts are only shortcuts when nothing is being typed into — Space in a
+ * search box must stay a space. `isContentEditable` covers the rest.
+ */
+function onKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+  playerKeys.handle(event)
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 /**
  * Only a finished match has something to give away. A half-tagged one shows
@@ -235,8 +263,9 @@ useSeoMeta({
         ref="stage"
         :video-id="match.youtube_video_id"
       >
-        <template #overlay>
+        <template #overlay="{ chromeVisible }">
           <PlayerScoreBoard
+            v-if="scoreboard.visible.value"
             :playback="playback"
             :derived="derived"
             :names="names"
@@ -244,9 +273,28 @@ useSeoMeta({
             :clubs="clubs"
             :format="(match.format as MatchFormat)"
           />
+
+          <PlayerStageChrome
+            :chrome-visible="chromeVisible"
+            :timeline-visible="timeline.visible.value"
+            :volume-flash="playerKeys.volumeFlash.value"
+          >
+            <template #timeline>
+              <PlayerMatchTimeline
+                :derived="derived"
+                :duration="playbackDuration"
+                :current-time="currentTime"
+                :breaks="breaks"
+                @seek="seekAndPlay"
+              />
+            </template>
+          </PlayerStageChrome>
         </template>
       </PlayerYouTubeStage>
 
+      <!-- The same timeline again, under the video, for reading rather than
+           reaching: in a window there is room for it, and it stays put while
+           the overlay comes and goes with the cursor. -->
       <PlayerMatchTimeline
         class="mt-4"
         :derived="derived"

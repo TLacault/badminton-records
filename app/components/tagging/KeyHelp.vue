@@ -16,7 +16,7 @@ const capturing = ref<{ id: KeybindActionId, at: number | null } | null>(null)
 const notice = ref<string | null>(null)
 
 const groups = computed(() => {
-  const order = ['Scoring', 'Playback', 'Session'] as const
+  const order = ['Scoring', 'Playback', 'Display', 'Session'] as const
   return order.map(name => ({
     name,
     actions: KEYBIND_ACTIONS.filter(a => a.group === name),

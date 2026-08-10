@@ -9,6 +9,16 @@ declare global {
       getCurrentTime: () => number
       getDuration: () => number
       getPlayerState: () => number
+      /**
+       * Volume is 0–100 on YouTube's own scale, not 0–1. Optional because the
+       * embed only gains these once it is ready, and calling into a player
+       * mid-construction is how you get an undefined-is-not-a-function.
+       */
+      getVolume?: () => number
+      setVolume?: (volume: number) => void
+      isMuted?: () => boolean
+      mute?: () => void
+      unMute?: () => void
       destroy: () => void
     }
     interface PlayerEvent { target: Player }

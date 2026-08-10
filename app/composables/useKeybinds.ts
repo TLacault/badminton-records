@@ -21,7 +21,8 @@
 
 export type KeybindActionId =
   | 'pointUs' | 'pointThem' | 'let' | 'highlight' | 'break'
-  | 'playPause' | 'seekBack' | 'seekForward'
+  | 'playPause' | 'seekBack' | 'seekForward' | 'volumeUp' | 'volumeDown'
+  | 'fullscreen' | 'toggleScoreboard' | 'scoreboardSize' | 'toggleTimeline'
   | 'scorer1' | 'scorer2' | 'scorer3' | 'scorer4'
   | 'undo' | 'redo' | 'save'
 
@@ -36,7 +37,9 @@ export interface Binding {
 export interface KeybindAction {
   id: KeybindActionId
   label: string
-  group: 'Scoring' | 'Playback' | 'Session'
+  group: 'Scoring' | 'Playback' | 'Display' | 'Session'
+  /** Works on the public match page too, not only in the tagger. */
+  player?: boolean
 }
 
 export const KEYBIND_ACTIONS: KeybindAction[] = [
@@ -49,9 +52,15 @@ export const KEYBIND_ACTIONS: KeybindAction[] = [
   { id: 'scorer2', label: 'Scorer: slot 2', group: 'Scoring' },
   { id: 'scorer3', label: 'Scorer: slot 3', group: 'Scoring' },
   { id: 'scorer4', label: 'Scorer: slot 4', group: 'Scoring' },
-  { id: 'playPause', label: 'Play / pause', group: 'Playback' },
-  { id: 'seekBack', label: 'Back 5 seconds', group: 'Playback' },
-  { id: 'seekForward', label: 'Forward 5 seconds', group: 'Playback' },
+  { id: 'playPause', label: 'Play / pause', group: 'Playback', player: true },
+  { id: 'seekBack', label: 'Back 5 seconds', group: 'Playback', player: true },
+  { id: 'seekForward', label: 'Forward 5 seconds', group: 'Playback', player: true },
+  { id: 'volumeUp', label: 'Volume up', group: 'Playback', player: true },
+  { id: 'volumeDown', label: 'Volume down', group: 'Playback', player: true },
+  { id: 'fullscreen', label: 'Fullscreen', group: 'Display', player: true },
+  { id: 'toggleScoreboard', label: 'Show / hide scoreboard', group: 'Display', player: true },
+  { id: 'scoreboardSize', label: 'Maximise / minimise scoreboard', group: 'Display', player: true },
+  { id: 'toggleTimeline', label: 'Show / hide the timeline', group: 'Display', player: true },
   { id: 'undo', label: 'Undo', group: 'Session' },
   { id: 'redo', label: 'Redo', group: 'Session' },
   // Tagging saves itself; this only skips the debounce for the impatient.
@@ -71,8 +80,11 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
   pointUs: [letter('a', 'KeyA')],
   pointThem: [letter('z', 'KeyZ')],
   let: [letter('r', 'KeyR')],
-  highlight: [letter('p', 'KeyP')],
-  break: [letter('m', 'KeyM')],
+  // H and B, not P and M: those two now drive the scoreboard on every player,
+  // public page included, and a shortcut cannot mean one thing here and
+  // another there without becoming a trap during a long tagging session.
+  highlight: [letter('h', 'KeyH')],
+  break: [letter('b', 'KeyB')],
   scorer1: digit(1),
   scorer2: digit(2),
   scorer3: digit(3),
@@ -80,12 +92,37 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
   playPause: [physical('Space', ' ')],
   seekBack: [physical('ArrowLeft', 'arrowleft')],
   seekForward: [physical('ArrowRight', 'arrowright')],
+  volumeUp: [physical('ArrowUp', 'arrowup')],
+  volumeDown: [physical('ArrowDown', 'arrowdown')],
+  fullscreen: [letter('f', 'KeyF')],
+  toggleScoreboard: [letter('p', 'KeyP')],
+  scoreboardSize: [letter('m', 'KeyM')],
+  toggleTimeline: [letter('t', 'KeyT')],
   undo: [letter('z', 'KeyZ', true)],
   redo: [letter('y', 'KeyY', true)],
   save: [letter('s', 'KeyS', true)],
 }
 
-const STORAGE_KEY = 'ust-tagging-keybinds-v1'
+/**
+ * v2 because P and M changed hands. Overrides are stored per action, so a
+ * sheet saved under v1 could still hold P for "highlight" and quietly fight
+ * the scoreboard for it. Starting a new key drops those rather than merging
+ * a conflict nobody asked for.
+ */
+const STORAGE_KEY = 'ust-tagging-keybinds-v2'
+
+/** The subset every player understands, in the order the cheat sheet reads. */
+export const PLAYER_ACTIONS: KeybindActionId[] = [
+  'fullscreen',
+  'seekBack',
+  'seekForward',
+  'volumeUp',
+  'volumeDown',
+  'playPause',
+  'toggleScoreboard',
+  'scoreboardSize',
+  'toggleTimeline',
+]
 
 const PRETTY_CODE: Record<string, string> = {
   Space: 'Space',

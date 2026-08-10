@@ -36,6 +36,9 @@ export function useYouTubePlayer(
   const isPlaying = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
+  /** 0–100, YouTube's own scale. Mirrors the player so the OSD can show it. */
+  const volume = ref(100)
+  const muted = ref(false)
   let frame = 0
 
   function tick() {
@@ -70,6 +73,10 @@ export function useYouTubePlayer(
         onReady: (e) => {
           ready.value = true
           duration.value = e.target.getDuration()
+          // Read rather than assume: YouTube restores the viewer's own volume,
+          // and starting our indicator at 100 would lie about it.
+          volume.value = Math.round(e.target.getVolume?.() ?? 100)
+          muted.value = e.target.isMuted?.() ?? false
           frame = requestAnimationFrame(tick)
         },
         onStateChange: (e) => {
@@ -129,16 +136,40 @@ export function useYouTubePlayer(
     seekTo(getTime() + delta)
   }
 
+  /**
+   * Nudges the volume and reports where it landed.
+   *
+   * Raising the volume unmutes: a viewer pressing "louder" on a muted video
+   * means "let me hear it", and leaving it silent while the number climbs is
+   * the kind of thing that gets blamed on the site.
+   */
+  function changeVolume(delta: number): number {
+    const p = player.value
+    if (!p?.setVolume) return volume.value
+    // Stepped from our own value, not from getVolume(): the player does not
+    // apply setVolume synchronously, so holding the key re-read a stale level
+    // and three presses out of eight vanished.
+    const next = Math.min(100, Math.max(0, Math.round(volume.value + delta)))
+    p.setVolume(next)
+    if (next > 0 && p.isMuted?.()) p.unMute?.()
+    volume.value = next
+    muted.value = next === 0 ? true : (p.isMuted?.() ?? false)
+    return next
+  }
+
   return {
     ready,
     isPlaying,
     currentTime,
     duration,
+    volume,
+    muted,
     getTime,
     play,
     pause,
     toggle,
     seekTo,
     seekBy,
+    changeVolume,
   }
 }

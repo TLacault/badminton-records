@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { Maximize, Minimize } from '@lucide/vue'
+import { bindingLabel, KEYBIND_ACTIONS, PLAYER_ACTIONS } from '~/composables/useKeybinds'
 
 const props = withDefaults(
   defineProps<{
     videoId: string | null
-    /** Tagging needs keystrokes back after any click into the player. */
+    /**
+     * Pull keystrokes back out of the iframe after a click into the player.
+     * Both players want this now that shortcuts drive them; it stays a prop so
+     * a future embed with no keyboard of its own can opt out.
+     */
     restoreFocus?: boolean
   }>(),
-  { restoreFocus: false },
+  { restoreFocus: true },
 )
 
 const host = ref<HTMLElement | null>(null)
@@ -19,17 +23,17 @@ const api = useYouTubePlayer(host, videoId, {
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(frame)
 
 /**
- * The control appears with the cursor and leaves a second later, the way video
+ * Chrome appears with the cursor and leaves two seconds later, the way video
  * chrome should: there when you reach for it, gone while you watch.
  *
  * A cross-origin iframe swallows every pointer event inside it, so "the cursor
  * stopped moving" is not observable once the mouse is over the video — only
- * entering and leaving the stage are. Playback state fills the gap: a paused
- * player keeps the button, a playing one hides it a second after the last
- * movement we could see. Keyboard focus pins it open, or it would be
- * unreachable without a mouse.
+ * entering and leaving the stage are. Two things fill the gap: a paused player
+ * keeps the chrome, and any shortcut counts as activity, so a keypress never
+ * lands on a hidden overlay. Keyboard focus pins it open, or the sheet would
+ * be unreachable without a mouse.
  */
-const IDLE_MS = 1000
+const IDLE_MS = 2000
 const cursorActive = ref(false)
 const focused = ref(false)
 let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -51,11 +55,25 @@ onBeforeUnmount(() => {
   if (idleTimer) clearTimeout(idleTimer)
 })
 
-const controlVisible = computed(() =>
+const chromeVisible = computed(() =>
   cursorActive.value || focused.value || !api.isPlaying.value,
 )
 
-defineExpose({ ...api, isFullscreen, toggleFullscreen })
+/** The sheet, built from the live bindings so a rebind shows up here too. */
+const { bindings } = useKeybinds()
+const shortcuts = computed(() =>
+  PLAYER_ACTIONS.map((id) => {
+    const action = KEYBIND_ACTIONS.find(a => a.id === id)
+    const keys = bindings.value[id] ?? []
+    return {
+      id,
+      label: action?.label ?? id,
+      keys: keys.map(bindingLabel).join(' / '),
+    }
+  }).filter(item => item.keys),
+)
+
+defineExpose({ ...api, isFullscreen, toggleFullscreen, wake })
 </script>
 
 <template>
@@ -84,36 +102,37 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen })
       interactive child opts back in with pointer-events-auto.
     -->
     <div class="pointer-events-none absolute inset-0">
-      <slot name="overlay" :is-fullscreen="isFullscreen" />
+      <slot name="overlay" :is-fullscreen="isFullscreen" :chrome-visible="chromeVisible" />
     </div>
 
     <!--
-      Our own fullscreen control, and the only one that keeps the scoreboard:
-      YouTube's fullscreens the bare iframe, so it is caught and handed back to
-      this wrapper.
+      The shortcut sheet, where our fullscreen button used to be. F does that
+      job now, so a button for it was one more thing covering the video.
 
       Bottom centre, above YouTube's control bar: the corners belong to the
-      embed — the settings and fullscreen buttons on the right, the channel
-      chrome on the left — and covering any of them is worse than sharing the
-      middle with the seek bar.
+      embed — settings and fullscreen on the right, channel chrome on the left
+      — and covering any of them is worse than sharing the middle with the
+      seek bar.
     -->
-    <button
+    <div
       v-if="videoId"
-      type="button"
-      data-testid="stage-fullscreen"
-      class="pointer-events-auto absolute bottom-14 left-1/2 inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-lg border border-white/25 bg-black/60 px-3 font-display text-xs font-semibold uppercase tracking-[0.1em] text-white backdrop-blur-md transition-[opacity,background-color,border-color] duration-200 hover:border-accent/70 hover:bg-black/80"
-      :class="controlVisible ? 'opacity-100' : 'pointer-events-none opacity-0'"
+      data-testid="stage-shortcuts"
+      class="pointer-events-none absolute bottom-14 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg border border-white/25 bg-black/70 px-3 py-2 backdrop-blur-md transition-opacity duration-200"
+      :class="chromeVisible ? 'opacity-100' : 'opacity-0'"
+      :aria-hidden="!chromeVisible"
       style="box-shadow: var(--ui-glow-soft)"
-      :aria-hidden="!controlVisible"
-      :tabindex="videoId ? 0 : -1"
-      :aria-label="isFullscreen ? $t('player.exitFullscreen') : $t('player.fullscreen')"
-      @focus="focused = true"
-      @blur="focused = false"
-      @click="toggleFullscreen"
     >
-      <component :is="isFullscreen ? Minimize : Maximize" :size="15" aria-hidden="true" />
-      {{ isFullscreen ? 'Exit fullscreen' : 'Fullscreen + score' }}
-    </button>
+      <ul class="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
+        <li
+          v-for="item in shortcuts"
+          :key="item.id"
+          class="flex items-baseline gap-1.5 whitespace-nowrap text-[0.6875rem] leading-5 text-white/80"
+        >
+          <kbd class="rounded border border-white/30 bg-white/10 px-1 font-mono text-[0.625rem] text-white">{{ item.keys }}</kbd>
+          {{ item.label }}
+        </li>
+      </ul>
+    </div>
 
     <p v-if="!videoId" class="absolute inset-0 grid place-items-center px-6 text-center text-sm text-ink-subtle">
       {{ $t('player.noVideo') }}

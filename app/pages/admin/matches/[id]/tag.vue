@@ -170,6 +170,9 @@ const stage = ref<{
   seekBy: (d: number) => void
   seekTo: (s: number) => void
   play: () => void
+  changeVolume: (delta: number) => number
+  toggleFullscreen: () => void
+  wake: () => void
   currentTime: number
   duration: number
 } | null>(null)
@@ -185,6 +188,16 @@ const duration = computed(() => stage.value?.duration ?? 0)
 const playback = useMatchPlayback(session.derived, currentTime)
 
 const { actionFor } = useKeybinds()
+
+const scoreboard = useScoreboardMode()
+const timeline = usePlayerTimeline()
+const playerKeys = usePlayerKeys({
+  toggle: () => stage.value?.toggle(),
+  seekBy: delta => stage.value?.seekBy(delta),
+  changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,
+  toggleFullscreen: () => stage.value?.toggleFullscreen(),
+  wake: () => stage.value?.wake(),
+})
 
 /**
  * Start the match over.
@@ -250,7 +263,12 @@ async function resetMatch() {
  */
 function onKeydown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
-  if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+
+  // Playback, volume, fullscreen and the overlays are the same everywhere, so
+  // they are handled once, in one place, and this page only keeps what is
+  // genuinely about tagging.
+  if (playerKeys.handle(event)) return
 
   const action = actionFor(event)
   if (!action) return
@@ -268,9 +286,6 @@ function onKeydown(event: KeyboardEvent) {
     case 'scorer2': session.setScorerOnLast(slotToPlayerId.value[2] ?? null); break
     case 'scorer3': session.setScorerOnLast(slotToPlayerId.value[3] ?? null); break
     case 'scorer4': session.setScorerOnLast(slotToPlayerId.value[4] ?? null); break
-    case 'playPause': stage.value?.toggle(); break
-    case 'seekBack': stage.value?.seekBy(-5); break
-    case 'seekForward': stage.value?.seekBy(5); break
     case 'undo': session.undo(); break
     case 'redo': session.redo(); break
     case 'save': session.saveNow(); break
@@ -371,8 +386,9 @@ const saveLabel = computed(() => {
           :video-id="match.youtube_video_id"
           restore-focus
         >
-          <template #overlay>
+          <template #overlay="{ chromeVisible }">
             <PlayerScoreBoard
+              v-if="scoreboard.visible.value"
               :playback="playback"
               :derived="session.derived.value"
               :names="names"
@@ -380,6 +396,22 @@ const saveLabel = computed(() => {
               :clubs="clubs"
               :format="(match.format as MatchFormat)"
             />
+
+            <PlayerStageChrome
+              :chrome-visible="chromeVisible"
+              :timeline-visible="timeline.visible.value"
+              :volume-flash="playerKeys.volumeFlash.value"
+            >
+              <template #timeline>
+                <PlayerMatchTimeline
+                  :derived="session.derived.value"
+                  :duration="duration"
+                  :current-time="currentTime"
+                  :breaks="session.breaks.value"
+                  @seek="seekAndPlay"
+                />
+              </template>
+            </PlayerStageChrome>
           </template>
         </PlayerYouTubeStage>
         <PlayerMatchTimeline
