@@ -94,15 +94,32 @@ function rateLabel(value: number) {
     :aria-hidden="!chromeVisible"
   >
     <!--
+      The scrim. It is what makes white text over a bright rally readable, the
+      way every video player does it — and it is also what buries YouTube's own
+      bottom bar, which sits in exactly this band of the frame and cannot be
+      asked to leave. Solid at the floor, gone by the top.
+    -->
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black from-15% via-black/60 to-transparent"
+      :class="isFullscreen ? 'h-44' : 'h-32'"
+      aria-hidden="true"
+    />
+
+    <!--
       The scrub bar, and only in fullscreen: windowed, the same timeline sits
       under the player where there is room to read it, and two of them would
       be one too many.
+
+      Pushed down into the bar's own top padding, over the line YouTube draws
+      its progress on: one scrub bar in that band, and it should be ours.
     -->
-    <div v-if="isFullscreen && timelineVisible" class="px-3 pb-1.5">
+    <!-- z-10 because it now hangs over the bar's padding: without it the bar
+         would take the clicks meant for the bottom of the scrub track. -->
+    <div v-if="isFullscreen && timelineVisible" class="relative z-10 translate-y-5 px-3 pb-1.5">
       <slot name="timeline" />
     </div>
 
-    <div class="flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-6">
+    <div class="relative flex items-center gap-3 px-3 pb-2 pt-6">
       <button
         type="button"
         data-testid="control-play"

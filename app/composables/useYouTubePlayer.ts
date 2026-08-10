@@ -68,18 +68,20 @@ export function useYouTubePlayer(
     player.value = new window.YT.Player(host.value, {
       videoId: videoId.value,
       playerVars: {
-        // No native chrome at all: the bar, the progress line and the buttons
-        // are ours now, drawn over the video, and two sets of controls fighting
-        // for the same corner is worse than either alone.
+        // YouTube's own chrome is left on and covered rather than switched
+        // off. The bar, the progress line and the buttons are all ours — drawn
+        // over the video by StageChrome, whose scrim and scrub bar sit in the
+        // band YouTube draws its own in — and the click shield in YouTubeStage
+        // means none of what shows through can be reached anyway.
         //
-        // What this cannot remove is the title and "Watch on YouTube" overlay —
-        // modestbranding was deprecated in 2023 and is ignored. Those are dealt
-        // with by the click shield in YouTubeStage, which is also what stops a
-        // click on our scoreboard opening a YouTube tab.
+        // That shield is there for the title and "Watch on YouTube" overlay,
+        // which no parameter removes: modestbranding was deprecated in 2023
+        // and is ignored. It is also what stops a click on our scoreboard
+        // opening a YouTube tab.
         //
         // disablekb:1 remains: YouTube must not act on keystrokes, since the
         // same keys drive tagging and our own shortcuts.
-        controls: 0,
+        controls: 1,
         disablekb: 1,
         fs: 0,
         rel: 0,

@@ -127,7 +127,7 @@ function seekFromPointer(event: MouseEvent) {
     data-testid="match-timeline"
     class="relative w-full cursor-pointer overflow-hidden rounded-xl border transition-[border-color] duration-200"
     :class="overlay
-      ? 'h-8 border-white/20 bg-black/45 backdrop-blur-sm hover:border-white/40'
+      ? 'h-11 border-white/20 bg-black/85 backdrop-blur-sm hover:border-white/40'
       : 'h-10 border-line bg-bg-deep hover:border-line-strong'"
     @click="seekFromPointer"
   >

@@ -161,8 +161,12 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen, wake })
     -->
     <div
       v-if="videoId"
-      class="pointer-events-none absolute bottom-14 right-3 flex flex-col items-end gap-2"
-      :class="chromeVisible || sheetOpen ? 'opacity-100' : 'opacity-0'"
+      class="pointer-events-none absolute right-3 flex flex-col items-end gap-2"
+      :class="[
+        chromeVisible || sheetOpen ? 'opacity-100' : 'opacity-0',
+        // Clear of the scrub bar, which only rides over the video in fullscreen.
+        isFullscreen ? 'bottom-28' : 'bottom-14',
+      ]"
       style="transition: opacity 200ms"
       @pointerleave="hovering = false"
     >
