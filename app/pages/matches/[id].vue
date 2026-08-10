@@ -343,6 +343,13 @@ useSeoMeta({
           {{ item.label }}
         </li>
       </ul>
+
+      <!--
+        The same panel the tagger gets, scoped to what a viewer can act on:
+        the shortcuts here are theirs to change too, and this is the only place
+        that says what they are now that the in-player sheet is gone.
+      -->
+      <PlayerKeyHelp scope="player" class="mt-4" />
     </div>
 
     <div class="mt-8 rounded-2xl p-5 glass sm:p-6">

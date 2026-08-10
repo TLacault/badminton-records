@@ -491,7 +491,7 @@ const saveLabel = computed(() => {
           :breaks="session.breaks.value"
           @seek="(s: number) => stage?.seekTo(s)"
         />
-        <TaggingKeyHelp class="mt-4" />
+        <PlayerKeyHelp class="mt-4" />
         <MatchDetails
           class="mt-4"
           :derived="session.derived.value"

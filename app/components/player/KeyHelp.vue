@@ -1,9 +1,29 @@
 <script setup lang="ts">
 import type { KeybindActionId } from '~/composables/useKeybinds'
 import { ChevronDown, Keyboard, Plus, RotateCcw, X } from '@lucide/vue'
-import { bindingLabel, KEYBIND_ACTIONS } from '~/composables/useKeybinds'
+import { bindingLabel, KEYBIND_ACTIONS, PLAYER_ACTIONS } from '~/composables/useKeybinds'
 
-const { bindings, rebind, unbind, reset, isDefault } = useKeybinds()
+/**
+ * The one keyboard panel, for both audiences.
+ *
+ * There used to be two: this one under the tagger, and a read-only sheet drawn
+ * inside the player behind a `?`. They listed the same keys and only one of
+ * them could change anything — and the sheet's `?` was a binding of its own,
+ * living outside the keybind system it was describing, so rebinding an action
+ * onto `?` fired both. One editable panel, scoped to its reader, replaces them.
+ */
+const props = withDefaults(
+  defineProps<{
+    /**
+     * `player` shows only what a viewer can act on. Scoring and session keys
+     * belong to the tagger, and a match page is not the place to learn them.
+     */
+    scope?: 'all' | 'player'
+  }>(),
+  { scope: 'all' },
+)
+
+const { bindings, rebind, unbind, reset, isDefaultFor } = useKeybinds()
 
 const open = ref(false)
 
@@ -15,12 +35,21 @@ const open = ref(false)
 const capturing = ref<{ id: KeybindActionId, at: number | null } | null>(null)
 const notice = ref<string | null>(null)
 
+/** In player scope, PLAYER_ACTIONS also fixes the order the rows read in. */
+const shown = computed<KeybindActionId[]>(() =>
+  props.scope === 'player' ? PLAYER_ACTIONS : KEYBIND_ACTIONS.map(a => a.id),
+)
+
 const groups = computed(() => {
   const order = ['Scoring', 'Playback', 'Jump to', 'Display', 'Session'] as const
-  return order.map(name => ({
-    name,
-    actions: KEYBIND_ACTIONS.filter(a => a.group === name),
-  }))
+  return order
+    .map(name => ({
+      name,
+      actions: shown.value
+        .map(id => KEYBIND_ACTIONS.find(a => a.id === id)!)
+        .filter(a => a.group === name),
+    }))
+    .filter(group => group.actions.length)
 })
 
 function labelOf(id: KeybindActionId): string {
@@ -34,6 +63,25 @@ function isCapturing(id: KeybindActionId, at: number | null): boolean {
 function startCapture(id: KeybindActionId, at: number | null) {
   capturing.value = isCapturing(id, at) ? null : { id, at }
   notice.value = null
+}
+
+/**
+ * Says what the key was taken from, naming only actions this reader can see.
+ * A viewer who lands a playback key on a scoring one has still taken it, and
+ * is told so — but the scoring key is not introduced to them by name.
+ */
+function conflictNotice(takenFrom: KeybindActionId[]): string | null {
+  if (!takenFrom.length) return null
+  const named = takenFrom.filter(id => shown.value.includes(id))
+  if (!named.length) {
+    return takenFrom.length > 1
+      ? 'Taken from other shortcuts of yours.'
+      : 'Taken from another shortcut of yours.'
+  }
+  const rest = takenFrom.length - named.length
+  const list = named.map(labelOf).join(', ')
+  const tail = rest ? `${list} and ${rest} other` : list
+  return `Taken from ${tail} — rebind ${takenFrom.length > 1 ? 'those' : 'that'} too.`
 }
 
 /**
@@ -57,9 +105,7 @@ function onCapture(event: KeyboardEvent) {
 
   const takenFrom = rebind(target.id, event, target.at ?? undefined)
   capturing.value = null
-  notice.value = takenFrom.length
-    ? `Taken from ${takenFrom.map(labelOf).join(', ')} — rebind ${takenFrom.length > 1 ? 'those' : 'that'} too.`
-    : null
+  notice.value = conflictNotice(takenFrom)
 }
 
 onMounted(() => window.addEventListener('keydown', onCapture, true))
@@ -80,7 +126,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
         <Keyboard :size="15" class="shrink-0 text-accent" aria-hidden="true" />
         <span class="label !text-ink">Keyboard</span>
         <span class="ml-auto text-xs text-ink-subtle">
-          {{ open ? 'Click a key to rebind' : `${KEYBIND_ACTIONS.length} shortcuts` }}
+          {{ open ? 'Click a key to rebind' : `${shown.length} shortcuts` }}
         </span>
         <ChevronDown
           :size="15"
@@ -160,12 +206,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
         </ul>
       </div>
 
+      <!-- Scoped to what is on screen: a viewer restoring "defaults" should not
+           reach behind the panel and change keys they were never shown. -->
       <button
         type="button"
         data-testid="keybind-reset"
         class="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-subtle transition-colors duration-200 hover:text-accent disabled:opacity-40"
-        :disabled="isDefault"
-        @click="reset(); notice = null"
+        :disabled="isDefaultFor(shown)"
+        @click="reset(shown); notice = null"
       >
         <RotateCcw :size="12" aria-hidden="true" />
         Restore defaults

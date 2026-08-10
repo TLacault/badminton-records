@@ -1,9 +1,10 @@
 /**
- * The tagging keyboard, as data.
+ * The keyboard, as data — the tagger's and the viewer's alike.
  *
  * Every binding is editable and lives in localStorage, so the layout follows
  * the person rather than the source file. Defaults reproduce what the tool
- * shipped with.
+ * shipped with. Actions marked `player` are the ones a viewer on a match page
+ * can act on, and the only ones they are shown.
  *
  * A binding records how it wants to be matched, decided when it is captured:
  *
@@ -137,26 +138,16 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
  */
 const STORAGE_KEY = 'ust-tagging-keybinds-v3'
 
-/** The subset every player understands, in the order the cheat sheet reads. */
-export const PLAYER_ACTIONS: KeybindActionId[] = [
-  'playPause',
-  'seekBack',
-  'seekForward',
-  'volumeUp',
-  'volumeDown',
-  'speedDown',
-  'speedUp',
-  'prevPoint',
-  'nextPoint',
-  'prevSet',
-  'nextSet',
-  'prevHighlight',
-  'nextHighlight',
-  'fullscreen',
-  'toggleScoreboard',
-  'scoreboardSize',
-  'toggleTimeline',
-]
+/**
+ * The subset every player understands, in the order the panel reads.
+ *
+ * Derived from the `player` flag rather than listed again: the two were kept
+ * by hand and had to agree, which is the kind of pair that stays right until
+ * an action is added to one of them.
+ */
+export const PLAYER_ACTIONS: KeybindActionId[] = KEYBIND_ACTIONS
+  .filter(a => a.player)
+  .map(a => a.id)
 
 const PRETTY_CODE: Record<string, string> = {
   Space: 'Space',
@@ -304,21 +295,33 @@ export function useKeybinds() {
     persist()
   }
 
-  /** Restores one action, or the whole sheet. */
-  function reset(id?: KeybindActionId) {
-    bindings.value = id
-      ? { ...bindings.value, [id]: structuredClone(DEFAULT_BINDINGS[id]) }
-      : structuredClone(DEFAULT_BINDINGS)
+  /**
+   * Restores one action, a named set of them, or the whole sheet.
+   *
+   * The set matters now that the same panel is shown to a viewer with only the
+   * playback keys in front of them: "restore defaults" there must not silently
+   * put back scoring keys they were never shown.
+   */
+  function reset(id?: KeybindActionId | KeybindActionId[]) {
+    const ids = id === undefined
+      ? KEYBIND_ACTIONS.map(a => a.id)
+      : Array.isArray(id) ? id : [id]
+    const next = { ...bindings.value }
+    for (const one of ids) next[one] = structuredClone(DEFAULT_BINDINGS[one])
+    bindings.value = next
     persist()
   }
 
-  const isDefault = computed(() =>
-    KEYBIND_ACTIONS.every(a =>
-      JSON.stringify(bindings.value[a.id]) === JSON.stringify(DEFAULT_BINDINGS[a.id]),
-    ),
-  )
+  /** Whether these actions still hold the keys they shipped with. */
+  function isDefaultFor(ids: KeybindActionId[]): boolean {
+    return ids.every(id =>
+      JSON.stringify(bindings.value[id]) === JSON.stringify(DEFAULT_BINDINGS[id]),
+    )
+  }
+
+  const isDefault = computed(() => isDefaultFor(KEYBIND_ACTIONS.map(a => a.id)))
 
   onMounted(load)
 
-  return { bindings, actionFor, rebind, unbind, reset, isDefault }
+  return { bindings, actionFor, rebind, unbind, reset, isDefault, isDefaultFor }
 }
