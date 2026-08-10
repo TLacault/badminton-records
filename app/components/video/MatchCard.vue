@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
-import { CalendarDays, CircleDashed, Play, Sparkles, Trophy } from '@lucide/vue'
+import { CalendarDays, CircleDashed, Flame, Play, Trophy } from '@lucide/vue'
 
 const { t, bcp47 } = useI18n()
 
@@ -88,16 +88,29 @@ const resultClass = computed(() => {
         class="absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-white backdrop-blur-sm"
       >{{ formatDuration(match.youtube_duration_seconds) }}</span>
 
-      <!-- "Enhanced", not "tagged": from the outside the promise is the live
-           score, the timeline and the stats, not the work that produced them. -->
+      <!-- "Edited", not "tagged": from the outside the promise is the live
+           score, the timeline and the stats, not the work that produced them.
+
+           Filled crimson rather than outlined over black — it is the one thing
+           on the card worth crossing the wall for, and an outline chip beside
+           the duration read as another piece of metadata. -->
       <span
         v-if="tagged"
-        class="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md border border-accent/40 bg-black/60 px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-sm"
-        style="box-shadow: var(--ui-glow-soft)"
+        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em] text-on-brand"
+        style="box-shadow: var(--ui-glow-strong)"
       >
-        <Sparkles :size="11" class="text-accent" aria-hidden="true" />
-        {{ $t('card.enhanced') }}
+        <Flame :size="14" fill="currentColor" aria-hidden="true" />
+        {{ $t('card.edited') }}
       </span>
+
+      <!-- The opposite corner from the badge, and the same corner YouTube puts
+           its own quality mark in. -->
+      <span
+        v-if="match.is_4k"
+        data-testid="card-4k"
+        class="absolute right-2 top-2 rounded-md border border-white/25 bg-black/70 px-1.5 py-0.5 font-display text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm"
+        :title="$t('card.fourKTitle')"
+      >{{ $t('card.fourK') }}</span>
     </div>
 
     <div class="p-4" :class="featured ? 'sm:p-7' : ''">

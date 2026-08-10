@@ -128,7 +128,9 @@ export default {
   },
 
   card: {
-    enhanced: "Enhanced",
+    edited: "Edited",
+    fourK: "4K",
+    fourKTitle: "Filmed and uploaded in 4K at 60fps",
     latest: "Latest match",
   },
 

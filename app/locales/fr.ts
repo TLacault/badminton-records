@@ -125,7 +125,9 @@ export default {
   },
 
   card: {
-    enhanced: "Enrichi",
+    edited: "Monté",
+    fourK: "4K",
+    fourKTitle: "Filmé et publié en 4K à 60 i/s",
     latest: "Dernier match",
   },
 
