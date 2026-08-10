@@ -10,8 +10,8 @@ playing the video from the youtube section will open a youtube player in a box w
 Admin can fill in the match stats and scores for each match, including player names, scores, and highlights. This information will be displayed alongside the video player, allowing users to easily follow along with the match.
 
 For practicity, as we often play against the same players, we will have a list of players to select from, and the admin can add new players to the list as needed.
-each player will contain its own infos & stats including rank, name, age.
-Player infos are auto-filled from MyFFBad: the federation's own API turned out not to be open to the public, so the roster form reads myffbad.fr directly. It fills licence, club, category, CPPH and the three rankings — everything but the birth year, which MyFFBad does not publish.
+each player will contain its own infos & stats including rank and name.
+Player infos are auto-filled from MyFFBad: the federation's own API turned out not to be open to the public, so the roster form reads myffbad.fr directly. It fills licence, club, category, CPPH and the three rankings. Age is not tracked at all — MyFFBad publishes no birth date, and the category ("Senior", "Veteran 2") says enough.
 
 ### Enhanced Video Player
 

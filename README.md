@@ -245,12 +245,35 @@ this reads the public site instead, <https://myffbad.fr/recherche/joueur>, which
 answers anonymously. There is nothing to configure: no API key, no login. Any
 `MYFFBAD_*` variables in your `.env` are not read by the app.
 
+Results are filtered to our clubs and ranked by `clubs.priority`, so Talence
+comes first. When nothing local matches, the dropdown offers to search the rest
+of France rather than leaving you at a dead end.
+
 Two things it cannot do:
 
-- **Birth year.** MyFFBaD publishes no birth date, so that field stays manual.
-  `category` ("Senior", "Veteran 2") is the closest public stand-in.
+- **Age.** MyFFBaD publishes no birth date, and the roster does not track age at
+  all. `category` ("Senior", "Veteran 2") is the closest public stand-in.
 - **Deep paging.** A bare surname can match thousands. The lookup reads page one
   and shows ten, then tells you to add a first name.
+
+The same search backs the four player slots on a match form, with the roster
+filtered first and MyFFBaD asked only when the roster has nobody — picking a
+licensee there adds them to the roster and fills the slot at once.
+
+## Clubs
+
+`/admin/clubs` holds the Gironde clubs, imported from
+<https://badiste.fr/liste-club-badminton/33-gironde.html> with **Refresh from
+badiste**. Every row there links to the club's MyFFBaD page, and that id is the
+same one MyFFBaD puts on a player, so the two join exactly rather than by name.
+
+`priority` drives the search ranking — ours is seeded at 100, everything else 0.
+A refresh carries your priorities through untouched, leaves clubs you added by
+hand (`source = 'manual'`) alone, and archives rather than deletes a club
+badiste has dropped, since players may still point at it.
+
+The page is served as **iso-8859-15**; decoding it as UTF-8 is what turns
+`AMBARÈS-ET-LAGRAVE` into mojibake.
 
 ### When it breaks
 
