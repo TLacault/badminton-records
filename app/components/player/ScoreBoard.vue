@@ -70,9 +70,21 @@ const gridStyle = computed(() => ({
     rally it describes is a second thing to look at, and the point of the
     overlay is that you never look away from the court.
   -->
+  <!--
+    The whole board is the control, not just the chevron: it is a big target
+    over a small icon, and the icon was easy to miss and land on the video
+    behind instead. `pointer-events-auto` is also what keeps a click here from
+    reaching the embed underneath.
+  -->
   <div
     data-testid="scoreboard"
-    class="pointer-events-none absolute left-3 top-3 overflow-hidden rounded-xl border border-white/12 bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 legible"
+    role="button"
+    tabindex="0"
+    :aria-label="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
+    class="pointer-events-auto absolute left-3 top-3 cursor-pointer overflow-hidden rounded-xl border border-white/12 bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 transition-[border-color] duration-200 hover:border-white/30 legible"
+    @click="toggle"
+    @keydown.enter.prevent="toggle"
+    @keydown.space.prevent="toggle"
   >
     <div class="relative px-3 py-2">
       <!-- Set numbers. Only earns its line once a second set exists. -->
@@ -148,15 +160,15 @@ const gridStyle = computed(() => ({
       </div>
     </div>
 
-    <button
-      type="button"
+    <!-- Kept as the affordance — it is what tells you the board can change
+         size — but the click is handled by the board itself, so this is
+         decoration and must not swallow the event or double-toggle it. -->
+    <span
       data-testid="scoreboard-mode"
-      class="pointer-events-auto absolute right-1 top-1 grid size-6 place-items-center rounded-md text-white/40 transition-colors duration-200 hover:text-white"
-      :aria-label="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
-      :title="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
-      @click="toggle"
+      class="pointer-events-none absolute right-1 top-1 grid size-6 place-items-center rounded-md text-white/40"
+      aria-hidden="true"
     >
-      <component :is="mode === 'compact' ? ChevronsUpDown : ChevronsDownUp" :size="13" aria-hidden="true" />
-    </button>
+      <component :is="mode === 'compact' ? ChevronsUpDown : ChevronsDownUp" :size="13" />
+    </span>
   </div>
 </template>

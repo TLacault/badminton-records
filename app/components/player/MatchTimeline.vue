@@ -9,8 +9,10 @@ const props = withDefaults(
     duration: number;
     currentTime: number;
     breaks?: BreakInput[];
+    /** Drawn over the video: translucent, so the play still reads through it. */
+    overlay?: boolean;
   }>(),
-  { breaks: () => [] },
+  { breaks: () => [], overlay: false },
 );
 
 const emit = defineEmits<{ seek: [seconds: number] }>();
@@ -123,7 +125,10 @@ function seekFromPointer(event: MouseEvent) {
   <div
     ref="track"
     data-testid="match-timeline"
-    class="relative h-10 w-full cursor-pointer overflow-hidden rounded-xl border border-line bg-bg-deep transition-[border-color] duration-200 hover:border-line-strong"
+    class="relative w-full cursor-pointer overflow-hidden rounded-xl border transition-[border-color] duration-200"
+    :class="overlay
+      ? 'h-8 border-white/20 bg-black/45 backdrop-blur-sm hover:border-white/40'
+      : 'h-10 border-line bg-bg-deep hover:border-line-strong'"
     @click="seekFromPointer"
   >
     <!--
@@ -134,8 +139,8 @@ function seekFromPointer(event: MouseEvent) {
     <div
       v-for="s in segments"
       :key="s.idx"
-      class="absolute bottom-0 top-2.5 border-r border-bg-deep opacity-85 transition-opacity duration-150 hover:opacity-100"
-      :class="s.class"
+      class="absolute bottom-0 top-2.5 border-r opacity-85 transition-opacity duration-150 hover:opacity-100"
+      :class="[s.class, overlay ? 'border-black/60' : 'border-bg-deep']"
       :style="{ left: s.left, width: s.width }"
       :title="s.title"
     />
@@ -146,8 +151,8 @@ function seekFromPointer(event: MouseEvent) {
       v-for="b in breakBands"
       :key="`b${b.idx}`"
       data-testid="timeline-break"
-      class="absolute bottom-0 top-2.5 border-x border-line-strong bg-bg-deep"
-      :class="b.open ? 'opacity-70' : ''"
+      class="absolute bottom-0 top-2.5 border-x border-line-strong"
+      :class="[b.open ? 'opacity-70' : '', overlay ? 'bg-black/70' : 'bg-bg-deep']"
       :style="{
         left: b.left,
         width: b.width,
@@ -169,11 +174,16 @@ function seekFromPointer(event: MouseEvent) {
       :title="$t('player.highlight')"
     />
 
+    <!--
+      A notch, not a full-height line. Drawn the same way as the playhead it
+      sat beside, a set mark was indistinguishable from it — every match past
+      set one looked like it had two cursors, one of which would not move.
+    -->
     <div
       v-for="g in gameMarks"
       :key="`g${g.number}`"
       data-testid="timeline-set-mark"
-      class="absolute inset-y-0 w-0.5 bg-ink"
+      class="absolute bottom-0 h-2 w-px bg-ink-muted"
       :style="{ left: g.left }"
       :title="`Set ${g.number}`"
     />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Keyboard } from '@lucide/vue'
 import { bindingLabel, KEYBIND_ACTIONS, PLAYER_ACTIONS } from '~/composables/useKeybinds'
 
 const props = withDefaults(
@@ -27,11 +28,10 @@ const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(frame)
  * chrome should: there when you reach for it, gone while you watch.
  *
  * A cross-origin iframe swallows every pointer event inside it, so "the cursor
- * stopped moving" is not observable once the mouse is over the video — only
- * entering and leaving the stage are. Two things fill the gap: a paused player
- * keeps the chrome, and any shortcut counts as activity, so a keypress never
- * lands on a hidden overlay. Keyboard focus pins it open, or the sheet would
- * be unreachable without a mouse.
+ * stopped moving" would not be observable — except that the shield below now
+ * covers the iframe, so movement over the video reaches us after all. A paused
+ * player keeps the chrome, and any shortcut counts as activity, so a keypress
+ * never lands on a hidden overlay.
  */
 const IDLE_MS = 2000
 const cursorActive = ref(false)
@@ -61,17 +61,46 @@ const chromeVisible = computed(() =>
 
 /** The sheet, built from the live bindings so a rebind shows up here too. */
 const { bindings } = useKeybinds()
-const shortcuts = computed(() =>
-  PLAYER_ACTIONS.map((id) => {
+
+/**
+ * Hover peeks at the sheet, a click pins it open, `?` does the same from the
+ * keyboard. Kept as two flags because one was not enough: with a single
+ * `open`, hovering the chip opened it and the click that followed closed it
+ * again, so the button appeared to do nothing.
+ */
+const hovering = ref(false)
+const pinned = ref(false)
+const sheetOpen = computed(() => hovering.value || pinned.value)
+
+const shortcutGroups = computed(() => {
+  const groups = new Map<string, { label: string, keys: string }[]>()
+  for (const id of PLAYER_ACTIONS) {
     const action = KEYBIND_ACTIONS.find(a => a.id === id)
-    const keys = bindings.value[id] ?? []
-    return {
-      id,
-      label: action?.label ?? id,
-      keys: keys.map(bindingLabel).join(' / '),
-    }
-  }).filter(item => item.keys),
-)
+    const keys = (bindings.value[id] ?? []).map(bindingLabel).join(' / ')
+    if (!action || !keys) continue
+    const list = groups.get(action.group) ?? []
+    list.push({ label: action.label, keys })
+    groups.set(action.group, list)
+  }
+  return [...groups].map(([name, items]) => ({ name, items }))
+})
+
+/** `?` opens the sheet from anywhere; Escape closes it. */
+function onKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+  if (event.key === '?') {
+    pinned.value = !pinned.value
+    wake()
+    event.preventDefault()
+  }
+  else if (event.key === 'Escape' && sheetOpen.value) {
+    pinned.value = false
+    hovering.value = false
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 defineExpose({ ...api, isFullscreen, toggleFullscreen, wake })
 </script>
@@ -97,41 +126,83 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen, wake })
     <div ref="host" class="h-full w-full" />
 
     <!--
-      Overlay content sits above the player but must never intercept a click:
-      the native controls are underneath and have to stay reachable. Any
-      interactive child opts back in with pointer-events-auto.
+      The shield. YouTube's own chrome is off, but the title and "Watch on
+      YouTube" overlay cannot be turned off by any parameter, and a click on
+      either opened a new tab — including clicks meant for our scoreboard,
+      which sits over exactly that corner. Covering the iframe ends that, and
+      hands us the click to use as play/pause instead.
+
+      It also gives back pointer movement over the video, which a cross-origin
+      iframe would otherwise swallow, so the chrome can idle out properly.
+    -->
+    <button
+      v-if="videoId"
+      type="button"
+      data-testid="stage-shield"
+      class="absolute inset-0 h-full w-full cursor-default"
+      aria-label="Play or pause"
+      tabindex="-1"
+      @click="api.toggle()"
+      @pointermove="wake"
+    />
+
+    <!--
+      Overlay content sits above the shield. Anything interactive in here opts
+      back in with pointer-events-auto.
     -->
     <div class="pointer-events-none absolute inset-0">
       <slot name="overlay" :is-fullscreen="isFullscreen" :chrome-visible="chromeVisible" />
     </div>
 
     <!--
-      The shortcut sheet, where our fullscreen button used to be. F does that
-      job now, so a button for it was one more thing covering the video.
-
-      Bottom centre, above YouTube's control bar: the corners belong to the
-      embed — settings and fullscreen on the right, channel chrome on the left
-      — and covering any of them is worse than sharing the middle with the
-      seek bar.
+      The shortcuts, as a corner mark rather than a panel: a permanent list
+      over the match was more of the video covered than it was worth. It opens
+      on hover, on click, or on `?`.
     -->
     <div
       v-if="videoId"
-      data-testid="stage-shortcuts"
-      class="pointer-events-none absolute bottom-14 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg border border-white/25 bg-black/70 px-3 py-2 backdrop-blur-md transition-opacity duration-200"
-      :class="chromeVisible ? 'opacity-100' : 'opacity-0'"
-      :aria-hidden="!chromeVisible"
-      style="box-shadow: var(--ui-glow-soft)"
+      class="pointer-events-none absolute bottom-14 right-3 flex flex-col items-end gap-2"
+      :class="chromeVisible || sheetOpen ? 'opacity-100' : 'opacity-0'"
+      style="transition: opacity 200ms"
+      @pointerleave="hovering = false"
     >
-      <ul class="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
-        <li
-          v-for="item in shortcuts"
-          :key="item.id"
-          class="flex items-baseline gap-1.5 whitespace-nowrap text-[0.6875rem] leading-5 text-white/80"
-        >
-          <kbd class="rounded border border-white/30 bg-white/10 px-1 font-mono text-[0.625rem] text-white">{{ item.keys }}</kbd>
-          {{ item.label }}
-        </li>
-      </ul>
+      <div
+        v-if="sheetOpen"
+        data-testid="stage-shortcuts"
+        class="pointer-events-auto max-h-[60vh] max-w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-xl p-3 glass-menu"
+        style="box-shadow: var(--ui-glow-soft), var(--ui-shadow)"
+      >
+        <div v-for="group in shortcutGroups" :key="group.name" class="mt-3 first:mt-0">
+          <p class="font-display text-[0.625rem] uppercase tracking-[0.16em] text-ink-subtle">
+            {{ group.name }}
+          </p>
+          <ul class="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            <li
+              v-for="item in group.items"
+              :key="item.label"
+              class="flex items-baseline justify-between gap-3 whitespace-nowrap text-xs leading-6 text-ink-muted"
+            >
+              <span>{{ item.label }}</span>
+              <kbd class="rounded border border-line bg-panel px-1.5 font-mono text-[0.625rem] text-ink">{{ item.keys }}</kbd>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        data-testid="stage-shortcuts-toggle"
+        class="pointer-events-auto inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-white/20 bg-black/50 px-2 text-[0.6875rem] text-white/70 backdrop-blur-sm transition-colors duration-150 hover:border-accent/60 hover:text-white"
+        :aria-expanded="sheetOpen"
+        aria-label="Keyboard shortcuts"
+        @click="pinned = !pinned"
+        @pointerenter="hovering = true"
+        @focus="focused = true"
+        @blur="focused = false"
+      >
+        <Keyboard :size="14" aria-hidden="true" />
+        ?
+      </button>
     </div>
 
     <p v-if="!videoId" class="absolute inset-0 grid place-items-center px-6 text-center text-sm text-ink-subtle">

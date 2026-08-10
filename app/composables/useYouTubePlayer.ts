@@ -39,11 +39,24 @@ export function useYouTubePlayer(
   /** 0–100, YouTube's own scale. Mirrors the player so the OSD can show it. */
   const volume = ref(100)
   const muted = ref(false)
+  const rate = ref(1)
+  const rates = ref<number[]>([1])
+  /**
+   * Read-only, and not for lack of trying: `setPlaybackQuality` is ignored by
+   * YouTube now — asking for tiny, small, medium or hd720, or reloading with
+   * `suggestedQuality`, all left a 1440p stream on 1440p. The level can be
+   * reported, never chosen, so the UI offers speed instead.
+   */
+  const quality = ref<string | null>(null)
   let frame = 0
 
   function tick() {
     const p = player.value
     if (p?.getCurrentTime) currentTime.value = p.getCurrentTime()
+    // Quality only settles once a stream is actually flowing, and it changes
+    // under us as the network does, so it is polled rather than read once.
+    const level = p?.getPlaybackQuality?.()
+    if (level && level !== 'unknown') quality.value = level
     frame = requestAnimationFrame(tick)
   }
 
@@ -55,16 +68,20 @@ export function useYouTubePlayer(
     player.value = new window.YT.Player(host.value, {
       videoId: videoId.value,
       playerVars: {
-        // Native controls, for the settings menu (quality / playback speed).
-        // disablekb:1 still applies: YouTube must not act on keystrokes, since
-        // the same keys drive tagging.
+        // No native chrome at all: the bar, the progress line and the buttons
+        // are ours now, drawn over the video, and two sets of controls fighting
+        // for the same corner is worse than either alone.
         //
-        // The branding cannot be turned off from here. modestbranding was
-        // deprecated in 2023 and is ignored; the title bar, share/watch-later,
-        // "Plus de vidéos" and the logo are part of the embed and unreachable
-        // from this origin. rel:0 at least keeps end-cards to this channel.
-        controls: 1,
+        // What this cannot remove is the title and "Watch on YouTube" overlay —
+        // modestbranding was deprecated in 2023 and is ignored. Those are dealt
+        // with by the click shield in YouTubeStage, which is also what stops a
+        // click on our scoreboard opening a YouTube tab.
+        //
+        // disablekb:1 remains: YouTube must not act on keystrokes, since the
+        // same keys drive tagging and our own shortcuts.
+        controls: 0,
         disablekb: 1,
+        fs: 0,
         rel: 0,
         iv_load_policy: 3,
         playsinline: 1,
@@ -77,6 +94,8 @@ export function useYouTubePlayer(
           // and starting our indicator at 100 would lie about it.
           volume.value = Math.round(e.target.getVolume?.() ?? 100)
           muted.value = e.target.isMuted?.() ?? false
+          rates.value = e.target.getAvailablePlaybackRates?.() ?? [1]
+          rate.value = e.target.getPlaybackRate?.() ?? 1
           frame = requestAnimationFrame(tick)
         },
         onStateChange: (e) => {
@@ -157,6 +176,24 @@ export function useYouTubePlayer(
     return next
   }
 
+  /** Sets the speed to an offered rate, and reports what it became. */
+  function setRate(next: number): number {
+    const p = player.value
+    if (!p?.setPlaybackRate) return rate.value
+    p.setPlaybackRate(next)
+    rate.value = next
+    return next
+  }
+
+  /** Steps to the neighbouring offered rate — the list is not evenly spaced. */
+  function stepRate(direction: 1 | -1): number {
+    const list = rates.value.length ? rates.value : [1]
+    const at = list.indexOf(rate.value)
+    const from = at === -1 ? list.indexOf(1) : at
+    const next = list[Math.min(list.length - 1, Math.max(0, from + direction))]
+    return next === undefined ? rate.value : setRate(next)
+  }
+
   return {
     ready,
     isPlaying,
@@ -164,6 +201,9 @@ export function useYouTubePlayer(
     duration,
     volume,
     muted,
+    rate,
+    rates,
+    quality,
     getTime,
     play,
     pause,
@@ -171,5 +211,7 @@ export function useYouTubePlayer(
     seekTo,
     seekBy,
     changeVolume,
+    setRate,
+    stepRate,
   }
 }

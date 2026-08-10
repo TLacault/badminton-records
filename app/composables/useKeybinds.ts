@@ -22,6 +22,9 @@
 export type KeybindActionId =
   | 'pointUs' | 'pointThem' | 'let' | 'highlight' | 'break'
   | 'playPause' | 'seekBack' | 'seekForward' | 'volumeUp' | 'volumeDown'
+  | 'speedDown' | 'speedUp'
+  | 'prevPoint' | 'nextPoint' | 'prevSet' | 'nextSet'
+  | 'prevHighlight' | 'nextHighlight'
   | 'fullscreen' | 'toggleScoreboard' | 'scoreboardSize' | 'toggleTimeline'
   | 'scorer1' | 'scorer2' | 'scorer3' | 'scorer4'
   | 'undo' | 'redo' | 'save'
@@ -37,7 +40,7 @@ export interface Binding {
 export interface KeybindAction {
   id: KeybindActionId
   label: string
-  group: 'Scoring' | 'Playback' | 'Display' | 'Session'
+  group: 'Scoring' | 'Playback' | 'Jump to' | 'Display' | 'Session'
   /** Works on the public match page too, not only in the tagger. */
   player?: boolean
 }
@@ -57,6 +60,14 @@ export const KEYBIND_ACTIONS: KeybindAction[] = [
   { id: 'seekForward', label: 'Forward 5 seconds', group: 'Playback', player: true },
   { id: 'volumeUp', label: 'Volume up', group: 'Playback', player: true },
   { id: 'volumeDown', label: 'Volume down', group: 'Playback', player: true },
+  { id: 'speedDown', label: 'Slower', group: 'Playback', player: true },
+  { id: 'speedUp', label: 'Faster', group: 'Playback', player: true },
+  { id: 'prevPoint', label: 'Previous point', group: 'Jump to', player: true },
+  { id: 'nextPoint', label: 'Next point', group: 'Jump to', player: true },
+  { id: 'prevSet', label: 'Previous set', group: 'Jump to', player: true },
+  { id: 'nextSet', label: 'Next set', group: 'Jump to', player: true },
+  { id: 'prevHighlight', label: 'Previous highlight', group: 'Jump to', player: true },
+  { id: 'nextHighlight', label: 'Next highlight', group: 'Jump to', player: true },
   { id: 'fullscreen', label: 'Fullscreen', group: 'Display', player: true },
   { id: 'toggleScoreboard', label: 'Show / hide scoreboard', group: 'Display', player: true },
   { id: 'scoreboardSize', label: 'Maximise / minimise scoreboard', group: 'Display', player: true },
@@ -94,6 +105,19 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
   seekForward: [physical('ArrowRight', 'arrowright')],
   volumeUp: [physical('ArrowUp', 'arrowup')],
   volumeDown: [physical('ArrowDown', 'arrowdown')],
+  // Letters, matched on the character rather than the position, so AZERTY and
+  // QWERTY both get the key they can see. S/D sit together under one hand;
+  // U/O, J/L and C/V are three left-right pairs for the three things worth
+  // jumping between. Plain S does not collide with Ctrl+S: the modifier is
+  // part of the match.
+  speedDown: [letter('s', 'KeyS')],
+  speedUp: [letter('d', 'KeyD')],
+  prevPoint: [letter('j', 'KeyJ')],
+  nextPoint: [letter('l', 'KeyL')],
+  prevSet: [letter('u', 'KeyU')],
+  nextSet: [letter('o', 'KeyO')],
+  prevHighlight: [letter('c', 'KeyC')],
+  nextHighlight: [letter('v', 'KeyV')],
   fullscreen: [letter('f', 'KeyF')],
   toggleScoreboard: [letter('p', 'KeyP')],
   scoreboardSize: [letter('m', 'KeyM')],
@@ -109,16 +133,24 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
  * the scoreboard for it. Starting a new key drops those rather than merging
  * a conflict nobody asked for.
  */
-const STORAGE_KEY = 'ust-tagging-keybinds-v2'
+const STORAGE_KEY = 'ust-tagging-keybinds-v3'
 
 /** The subset every player understands, in the order the cheat sheet reads. */
 export const PLAYER_ACTIONS: KeybindActionId[] = [
-  'fullscreen',
+  'playPause',
   'seekBack',
   'seekForward',
   'volumeUp',
   'volumeDown',
-  'playPause',
+  'speedDown',
+  'speedUp',
+  'prevPoint',
+  'nextPoint',
+  'prevSet',
+  'nextSet',
+  'prevHighlight',
+  'nextHighlight',
+  'fullscreen',
   'toggleScoreboard',
   'scoreboardSize',
   'toggleTimeline',

@@ -19,6 +19,11 @@ declare global {
       isMuted?: () => boolean
       mute?: () => void
       unMute?: () => void
+      getPlaybackRate?: () => number
+      setPlaybackRate?: (rate: number) => void
+      getAvailablePlaybackRates?: () => number[]
+      /** Reports the level in use. Setting it is ignored by YouTube. */
+      getPlaybackQuality?: () => string
       destroy: () => void
     }
     interface PlayerEvent { target: Player }

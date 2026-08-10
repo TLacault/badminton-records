@@ -135,8 +135,14 @@ const stage = ref<{
   toggle: () => void
   seekBy: (delta: number) => void
   changeVolume: (delta: number) => number
+  stepRate: (direction: 1 | -1) => number
+  setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
+  isPlaying: boolean
+  rate: number
+  rates: number[]
+  quality: string | null
 } | null>(null)
 
 /**
@@ -156,11 +162,22 @@ const { revealed, reveal } = useResultReveal(matchId)
 
 const scoreboard = useScoreboardMode()
 const timeline = usePlayerTimeline()
+const nav = useMatchNavigation(derived, computed(() => breaks.value ?? []), currentTime)
 const playerKeys = usePlayerKeys({
   toggle: () => stage.value?.toggle(),
   seekBy: delta => stage.value?.seekBy(delta),
+  seekTo: seconds => seekAndPlay(seconds),
   changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,
+  stepRate: direction => stage.value?.stepRate(direction) ?? 1,
   toggleFullscreen: () => stage.value?.toggleFullscreen(),
+  jump: {
+    prevPoint: nav.prevPoint,
+    nextPoint: nav.nextPoint,
+    prevSet: nav.prevSet,
+    nextSet: nav.nextSet,
+    prevHighlight: nav.prevHighlight,
+    nextHighlight: nav.nextHighlight,
+  },
   wake: () => stage.value?.wake(),
 })
 
@@ -263,7 +280,7 @@ useSeoMeta({
         ref="stage"
         :video-id="match.youtube_video_id"
       >
-        <template #overlay="{ chromeVisible }">
+        <template #overlay="{ chromeVisible, isFullscreen }">
           <PlayerScoreBoard
             v-if="scoreboard.visible.value"
             :playback="playback"
@@ -276,11 +293,25 @@ useSeoMeta({
 
           <PlayerStageChrome
             :chrome-visible="chromeVisible"
+            :is-fullscreen="isFullscreen"
+            :is-playing="stage?.isPlaying ?? false"
+            :current-time="currentTime"
+            :duration="playbackDuration"
+            :rate="stage?.rate ?? 1"
+            :rates="stage?.rates ?? [1]"
+            :quality="stage?.quality ?? null"
             :timeline-visible="timeline.visible.value"
             :volume-flash="playerKeys.volumeFlash.value"
+            :rate-flash="playerKeys.rateFlash.value"
+            :seek-flash="playerKeys.seekFlash.value"
+            :jump-flash="playerKeys.jumpFlash.value"
+            @toggle="stage?.toggle()"
+            @toggle-fullscreen="stage?.toggleFullscreen()"
+            @set-rate="value => stage?.setRate(value)"
           >
             <template #timeline>
               <PlayerMatchTimeline
+                overlay
                 :derived="derived"
                 :duration="playbackDuration"
                 :current-time="currentTime"
