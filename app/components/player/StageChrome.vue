@@ -6,6 +6,7 @@ import {
   Pause,
   Play,
   Rewind,
+  Settings,
   Volume1,
   Volume2,
   VolumeX,
@@ -33,13 +34,14 @@ const emit = defineEmits<{
   toggle: []
   toggleFullscreen: []
   setRate: [rate: number]
+  /** Stand our layer down so YouTube's own settings menu can be reached. */
+  nativeControls: []
 }>()
 
 /**
- * YouTube's own resolution names. Shown because it can be shown — the level
- * cannot be chosen: setPlaybackQuality is ignored by YouTube now, whatever
- * you pass it. Speed is the control that still works, so speed is the control
- * we offer.
+ * YouTube's own resolution names. The level cannot be set through the API —
+ * setPlaybackQuality is ignored now, whatever you pass it — so the chip below
+ * hands the player back to YouTube instead of trying.
  */
 const QUALITY_LABELS: Record<string, string> = {
   tiny: '144p',
@@ -135,12 +137,25 @@ function rateLabel(value: number) {
       </p>
 
       <div class="ml-auto flex shrink-0 items-center gap-1">
-        <span
-          v-if="qualityLabel"
+        <!--
+          The chip is the trigger, because it already names the thing you came
+          for. Clicking it stands our whole layer down and gives the frame back
+          to YouTube, whose settings menu is the only place quality can still
+          be picked.
+        -->
+        <!-- Always here, label or not: quality only reports once a stream is
+             flowing, and a paused player must not be a player with no way in. -->
+        <button
+          type="button"
           data-testid="control-quality"
-          class="rounded border border-white/25 px-1.5 py-0.5 font-mono text-[0.625rem] tabular-nums text-white/70"
-          title="Current quality. YouTube no longer allows this to be chosen."
-        >{{ qualityLabel }}</span>
+          class="inline-grid min-h-9 min-w-9 place-items-center rounded border border-white/25 px-1.5 font-mono text-[0.625rem] tabular-nums text-white/70 transition-colors duration-150 hover:border-accent/60 hover:text-white"
+          :title="$t('player.qualityHint')"
+          :aria-label="$t('player.qualityHint')"
+          @click="emit('nativeControls')"
+        >
+          <template v-if="qualityLabel">{{ qualityLabel }}</template>
+          <Settings v-else :size="13" aria-hidden="true" />
+        </button>
 
         <div class="relative">
           <button

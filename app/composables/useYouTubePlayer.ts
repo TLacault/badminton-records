@@ -27,8 +27,13 @@ export function useYouTubePlayer(
      * Pull keyboard focus back out of the iframe after any click on it.
      * The tagging tool needs this: its A/Z/R/P bindings live on `window`, and
      * a focused iframe would swallow every keystroke until you clicked away.
+     *
+     * Read on every blur rather than once at mount, because it has to be
+     * suspendable: while the stage hands the player back to YouTube, clicks
+     * belong to the iframe and yanking focus out from under an open settings
+     * menu is exactly the wrong move.
      */
-    restoreFocus?: boolean
+    restoreFocus?: MaybeRefOrGetter<boolean>
   } = {},
 ) {
   const player = shallowRef<YT.Player | null>(null)
@@ -42,10 +47,12 @@ export function useYouTubePlayer(
   const rate = ref(1)
   const rates = ref<number[]>([1])
   /**
-   * Read-only, and not for lack of trying: `setPlaybackQuality` is ignored by
-   * YouTube now — asking for tiny, small, medium or hd720, or reloading with
-   * `suggestedQuality`, all left a 1440p stream on 1440p. The level can be
-   * reported, never chosen, so the UI offers speed instead.
+   * Read-only from here, and not for lack of trying: `setPlaybackQuality` is
+   * ignored by YouTube now — asking for tiny, small, medium or hd720, or
+   * reloading with `suggestedQuality`, all left a 1440p stream on 1440p.
+   *
+   * Its own settings menu still changes it, though, which is why the stage can
+   * hand the player back to YouTube for as long as it takes to pick a level.
    */
   const quality = ref<string | null>(null)
   let frame = 0
@@ -115,6 +122,7 @@ export function useYouTubePlayer(
    * click it followed has already been handled inside the player.
    */
   function onWindowBlur() {
+    if (!toValue(options.restoreFocus ?? false)) return
     setTimeout(() => {
       const active = document.activeElement
       if (active instanceof HTMLIFrameElement) {
@@ -126,11 +134,11 @@ export function useYouTubePlayer(
 
   onMounted(() => {
     mount()
-    if (options.restoreFocus) window.addEventListener('blur', onWindowBlur)
+    window.addEventListener('blur', onWindowBlur)
   })
   onBeforeUnmount(() => {
     cancelAnimationFrame(frame)
-    if (options.restoreFocus) window.removeEventListener('blur', onWindowBlur)
+    window.removeEventListener('blur', onWindowBlur)
     player.value?.destroy()
     player.value = null
   })

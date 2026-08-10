@@ -139,6 +139,7 @@ const stage = ref<{
   setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
+  enterNativeMode: () => void
   isPlaying: boolean
   rate: number
   rates: number[]
@@ -308,6 +309,7 @@ useSeoMeta({
             @toggle="stage?.toggle()"
             @toggle-fullscreen="stage?.toggleFullscreen()"
             @set-rate="value => stage?.setRate(value)"
+            @native-controls="stage?.enterNativeMode()"
           >
             <template #timeline>
               <PlayerMatchTimeline

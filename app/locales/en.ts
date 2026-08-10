@@ -170,6 +170,8 @@ export default {
     fullscreen: "Fullscreen with scoreboard",
     exitFullscreen: "Exit fullscreen",
     noVideo: "No YouTube video ID set for this match.",
+    qualityHint: "Current quality. Click for YouTube's own settings, where it can be changed.",
+    nativeControls: "YouTube controls",
   },
 
   login: {

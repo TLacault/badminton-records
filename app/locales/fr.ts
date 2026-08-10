@@ -167,6 +167,8 @@ export default {
     fullscreen: "Plein écran avec le tableau",
     exitFullscreen: "Quitter le plein écran",
     noVideo: "Aucun identifiant de vidéo YouTube pour ce match.",
+    qualityHint: "Qualité actuelle. Cliquez pour ouvrir les réglages YouTube, où elle se change.",
+    nativeControls: "Commandes YouTube",
   },
 
   login: {
