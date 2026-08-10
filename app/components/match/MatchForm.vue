@@ -30,9 +30,15 @@ const { data: players, refresh: refreshPlayers } = await useAsyncData(
 )
 
 const { data: matchTypes } = await useAsyncData('form-match-types', async () => {
-  const { data } = await client.from('match_types').select('id, label').order('sort_order')
+  const { data } = await client
+    .from('match_types')
+    .select('id, label, slug')
+    .order('sort_order')
   return data ?? []
 })
+
+/** Almost every recording is a free-play session, so that is what a new one is. */
+const DEFAULT_MATCH_TYPE = 'free-play'
 
 const form = reactive({
   title: '',
@@ -40,8 +46,12 @@ const form = reactive({
   // Nearly every match is filmed in the same hall.
   venue: 'Talence',
   match_type_id: null as string | null,
-  /** Which personal details the public player table prints. */
-  player_info_fields: [] as string[],
+  /**
+   * Which personal details the public player table prints. Everything we have,
+   * by default: a detail is only noise when the player has no value for it,
+   * and those are dropped at render anyway.
+   */
+  player_info_fields: PLAYER_INFO_FIELDS.map(f => f.id),
   format: 'doubles' as MatchFormat,
   youtube_video_id: '',
   visibility: 'private' as 'private' | 'public',
@@ -76,8 +86,11 @@ if (props.matchId) {
   for (const row of mp ?? []) slotMap[row.slot] = row.player_id
 }
 else {
-  // A new match starts with our half of the court already filled in.
+  // A new match starts with our half of the court already filled in, and as
+  // the kind of session we almost always record.
   Object.assign(slotMap, homePairSlots(players.value ?? []))
+  form.match_type_id
+    = matchTypes.value?.find(t => t.slug === DEFAULT_MATCH_TYPE)?.id ?? null
 }
 
 /**

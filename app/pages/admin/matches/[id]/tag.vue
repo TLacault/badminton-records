@@ -3,6 +3,7 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
 import { Pencil, RotateCcw } from '@lucide/vue'
+import { youtubeTitle } from '~/utils/matchSummary'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
 // get for the point list.
@@ -14,7 +15,7 @@ const client = useSupabaseClient<Database>()
 
 const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
   const [match, participants, rallies, setStarts, breaks] = await Promise.all([
-    client.from('matches').select('*').eq('id', matchId).maybeSingle(),
+    client.from('matches').select('*, match_types(label)').eq('id', matchId).maybeSingle(),
     client.from('match_players')
       .select('slot, player_id, players(*)')
       .eq('match_id', matchId),
@@ -32,6 +33,29 @@ const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
 })
 
 const match = computed(() => bundle.value?.match ?? null)
+
+/**
+ * The name this recording should be uploaded under.
+ *
+ * Built from the roster once the opponents are set, and otherwise left as the
+ * name it was imported with — a half-filled match should not lose the only
+ * title it has. This is the one screen that shows the stored title at all: it
+ * is where the title gets written, rather than read.
+ */
+const uploadTitle = computed(() => {
+  const row = match.value
+  if (!row) return { text: '', generated: false }
+  const summary = {
+    title: row.title,
+    format: row.format,
+    match_players: (bundle.value?.participants ?? []).map(p => ({
+      slot: p.slot,
+      players: p.players,
+    })),
+  }
+  const text = youtubeTitle(summary, row.match_types?.label)
+  return { text, generated: text !== row.title }
+})
 
 type RosterRow = PlayerInfoSource & { first_name: string, last_name: string }
 
@@ -280,9 +304,17 @@ const saveLabel = computed(() => {
 
 <template>
   <div v-if="match">
+    <!-- The exception to the rule that the stored title is never shown: this
+         is the screen where it gets decided, so it leads. -->
+    <TaggingTitleBar
+      class="mb-5"
+      :title="uploadTitle.text"
+      :generated="uploadTitle.generated"
+      :type-label="match.match_types?.label ?? null"
+      :info-fields="match.player_info_fields ?? []"
+    />
+
     <div class="flex items-center justify-between">
-      <!-- No title: it is the YouTube upload name, it is long, and the video
-           underneath already says which match this is. -->
       <VideoStatusBadge
         :tagging-status="taggingStatus"
         :visibility="match.visibility"

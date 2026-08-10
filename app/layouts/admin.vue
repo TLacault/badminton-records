@@ -4,6 +4,19 @@ import { Building2, ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '
 const client = useSupabaseClient()
 const { profile } = useCurrentProfile()
 
+/**
+ * `admin@ust.local` → `admin`.
+ *
+ * A profile with no display name of its own falls back to the sign-in email
+ * (see 0001_schema.sql), and a whole address in the header is more than the
+ * header needs. Only the local part is dropped, so a real display name that
+ * happens to contain no '@' is printed untouched.
+ */
+const shortName = computed(() => {
+  const name = profile.value?.display_name ?? ''
+  return name.includes('@') ? name.slice(0, name.indexOf('@')) : name
+})
+
 // Opt-in per page via `definePageMeta({ wide: true })`. Only the tagging page
 // wants the full viewport; the rest stay readable at a fixed measure.
 const route = useRoute()
@@ -72,7 +85,7 @@ async function signOut() {
           <span
             data-testid="admin-name"
             class="hidden max-w-40 truncate rounded-lg border border-line px-3 py-1.5 text-sm text-ink-muted sm:inline-block"
-          >{{ profile?.display_name }}</span>
+          >{{ shortName }}</span>
 
           <UiThemeToggle />
 

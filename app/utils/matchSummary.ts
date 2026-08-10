@@ -111,6 +111,32 @@ export function matchTitle(row: SummaryRow, long = false): string {
   return `${names[1]} vs ${names[2]}`
 }
 
+/**
+ * The name to upload the video under: `Free play - DH Antho x Gaspard`.
+ *
+ * This is the one place that builds the *stored* kind of title rather than the
+ * fixture — everywhere else in the app deliberately ignores `row.title` and
+ * names a match from the roster. Here we are writing that title, not reading
+ * it, so it follows the shape the channel already uses: the session type, the
+ * format, then the opponents only. Our own side is a constant on the channel
+ * and adding it would say nothing.
+ *
+ * Falls back to whatever is already stored until the opponents are known —
+ * an empty match should keep the name it was imported with rather than lose it
+ * to a half-built one.
+ */
+export function youtubeTitle(row: SummaryRow, typeLabel?: string | null): string {
+  const slots = bySlot(row)
+  const opponents = [slots[3], slots[4]]
+    .filter(Boolean)
+    .map(player => player!.first_name.trim())
+    .filter(Boolean)
+  if (!opponents.length) return row.title
+
+  const fixture = `${row.format === 'singles' ? 'SH' : 'DH'} ${opponents.join(' x ')}`
+  return typeLabel ? `${typeLabel} - ${fixture}` : fixture
+}
+
 /** Club per slot, for the acronym tags on the scoreboard. */
 export function slotClubs(row: SummaryRow): Record<number, string | null> {
   const out: Record<number, string | null> = {}
