@@ -15,8 +15,12 @@ const props = withDefaults(
 
 const match = computed(() => props.entry.row)
 const tagged = computed(() => match.value.tagging_status === 'tagged')
+const discipline = computed(() => disciplineCode(match.value.format))
+
+// The format has moved up into its own chip as DH/SH, so it would read twice
+// here — the date and the hall are what is left.
 const meta = computed(() =>
-  [formatDateShort(match.value.played_on, bcp47.value, t('common.undated')), match.value.format, match.value.venue]
+  [formatDateShort(match.value.played_on, bcp47.value, t('common.undated')), match.value.venue]
     .filter(Boolean)
     .join(' · '),
 )
@@ -113,16 +117,20 @@ const resultClass = computed(() => {
         {{ entry.title }}
       </h3>
 
-      <ul v-if="entry.outcome" class="mt-2 flex flex-wrap items-center gap-1.5">
+      <!-- What the match was and how it ended, in that order. The set-by-set
+           scores are the match page's job; a card that listed them made the
+           row it belongs to unreadable at a glance. -->
+      <ul class="mt-2 flex flex-wrap items-center gap-1.5">
+        <li v-if="entry.typeLabel">
+          <span :class="CHIP" class="border-line text-ink-muted">{{ entry.typeLabel }}</span>
+        </li>
         <li>
+          <span :class="CHIP" class="border-line text-ink-muted">{{ discipline }}</span>
+        </li>
+        <li v-if="entry.outcome">
           <span :class="[CHIP, resultClass]" :data-result="entry.outcome.state">
             <Trophy v-if="entry.outcome.state === 'won'" :size="10" aria-hidden="true" />
-            {{ entry.outcome.label }}
-          </span>
-        </li>
-        <li v-for="(score, i) in entry.outcome.setScores" :key="i">
-          <span :class="CHIP" class="border-line font-mono tabular-nums text-ink-muted">
-            {{ score }}
+            <span class="tabular-nums">{{ entry.outcome.scoreLabel }}</span>
           </span>
         </li>
       </ul>

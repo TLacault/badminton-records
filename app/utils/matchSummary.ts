@@ -125,6 +125,15 @@ export function matchTitle(row: SummaryRow, long = false): string {
  * an empty match should keep the name it was imported with rather than lose it
  * to a half-built one.
  */
+/**
+ * The discipline, the way a French draw sheet writes it: `DH` for doubles,
+ * `SH` for singles. Shared with the upload title so a card and the video it
+ * links to never disagree about what was played.
+ */
+export function disciplineCode(format: string): string {
+  return format === 'singles' ? 'SH' : 'DH'
+}
+
 export function youtubeTitle(row: SummaryRow, typeLabel?: string | null): string {
   const slots = bySlot(row)
   const opponents = [slots[3], slots[4]]
@@ -133,7 +142,7 @@ export function youtubeTitle(row: SummaryRow, typeLabel?: string | null): string
     .filter(Boolean)
   if (!opponents.length) return row.title
 
-  const fixture = `${row.format === 'singles' ? 'SH' : 'DH'} ${opponents.join(' x ')}`
+  const fixture = `${disciplineCode(row.format)} ${opponents.join(' x ')}`
   return typeLabel ? `${typeLabel} - ${fixture}` : fixture
 }
 
@@ -192,19 +201,42 @@ export interface MatchOutcome {
   label: string
   /** `['15–13', '14–12']`, in order. */
   setScores: string[]
+  /**
+   * Sets won, ours first: `2–1`. Counted from each set's winner rather than by
+   * comparing points, so a set abandoned mid-play is not awarded to whoever
+   * happened to be ahead.
+   */
+  sets: string
+  /**
+   * What a card should print: the tally, unless no set has been decided yet —
+   * `0–0` reads as a drawn match rather than one nobody has tagged, so an
+   * untagged match says so in words instead.
+   */
+  scoreLabel: string
 }
 
 export function outcomeOf(derived: DerivedMatch | null): MatchOutcome | null {
   if (!derived) return null
   const setScores = derived.sets.map(s => `${s.score[0]}–${s.score[1]}`)
+  const decided = [1, 2].map(side => derived.sets.filter(s => s.winnerSide === side).length)
+  const sets = decided.join('–')
 
   if (!derived.complete || !derived.matchWinnerSide) {
-    return { state: 'unfinished', label: 'In progress', setScores }
+    const label = 'In progress'
+    return {
+      state: 'unfinished',
+      label,
+      setScores,
+      sets,
+      scoreLabel: decided[0]! + decided[1]! > 0 ? sets : label,
+    }
   }
   const won = derived.matchWinnerSide === 1
   return {
     state: won ? 'won' : 'lost',
     label: won ? 'Win' : 'Loss',
     setScores,
+    sets,
+    scoreLabel: sets,
   }
 }

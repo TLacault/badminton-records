@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
-import { CircleCheck, CircleDashed, Eye, EyeOff, Loader, RefreshCw, Tag, TriangleAlert, Video } from '@lucide/vue'
-import { LIST_SELECT } from '~/utils/matchSummary'
+import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, Loader, MapPin, RefreshCw, Tag, Timer, TriangleAlert, Video } from '@lucide/vue'
+import { disciplineCode, LIST_SELECT } from '~/utils/matchSummary'
+import { groupBySession } from '~/utils/sessions'
 import { applyFilters, decorate, emptyFilters } from '~/utils/videoFilters'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
@@ -29,6 +30,15 @@ const { data: matches, refresh } = await useAsyncData('admin-matches', async () 
 const filters = ref(emptyFilters())
 const entries = computed(() => decorate(matches.value ?? []))
 const filtered = computed(() => applyFilters(entries.value, filters.value))
+
+/**
+ * The same evenings the public library shows. An admin scanning for "the
+ * Tuesday I have not tagged yet" is looking for a session, not a row, and the
+ * query already comes back ordered by date so this is one pass.
+ */
+const sessions = computed(() => groupBySession(filtered.value, entry => entry.row))
+
+const CHIP = 'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]'
 
 const TAGGING_OPTIONS = [
   { value: 'untagged', label: 'Untagged', icon: CircleDashed },
@@ -156,100 +166,126 @@ async function setTaggingStatus(id: string, next: string) {
       show-status
     />
 
-    <ul class="mt-4 flex flex-col gap-2.5">
-      <li
-        v-for="{ row: m, title, outcome } in filtered"
-        :key="m.id"
-        :data-match-id="m.id"
-        class="relative flex flex-wrap items-center gap-4 rounded-2xl p-3 glass transition-[border-color] duration-200 hover:border-accent/30"
+    <div class="mt-4 flex flex-col gap-8">
+      <section
+        v-for="(session, s) in sessions"
+        :key="session.date ?? `undated-${s}`"
+        data-testid="admin-session"
       >
-        <!--
-          The whole row opens the editor. A stretched link rather than wrapping
-          the row in an anchor, because the row also holds buttons and selects,
-          and an anchor cannot contain them.
-        -->
-        <NuxtLink
-          :to="`/admin/matches/${m.id}`"
-          class="absolute inset-0 rounded-2xl"
-          :aria-label="`Edit ${title}`"
-        />
+        <!-- Sticky, like the public library: on a long evening the date stays
+             overhead while you scan. Offset by the admin header's height. -->
+        <header class="sticky top-14 z-10 -mx-2 mb-3 border-b border-line bg-bg/85 px-2 py-2 backdrop-blur-xl">
+          <h2 class="font-display text-lg font-bold uppercase tracking-wide text-ink">
+            {{ formatDateLong(session.date) }}
+          </h2>
+          <ul class="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+            <li class="inline-flex items-center gap-1.5">
+              <Clapperboard :size="12" class="text-accent" aria-hidden="true" />
+              {{ session.matches.length }} {{ session.matches.length === 1 ? 'match' : 'matches' }}
+            </li>
+            <li v-if="session.totalSeconds" class="inline-flex items-center gap-1.5">
+              <Timer :size="12" class="text-accent" aria-hidden="true" />
+              <span class="tabular-nums">{{ formatSpan(session.totalSeconds) }}</span>
+            </li>
+            <li v-if="session.venue" class="inline-flex items-center gap-1.5">
+              <MapPin :size="12" class="text-accent" aria-hidden="true" />
+              {{ session.venue }}
+            </li>
+          </ul>
+        </header>
 
-        <div class="relative w-32 shrink-0 overflow-hidden rounded-xl border border-line bg-bg-deep">
-          <img
-            v-if="m.youtube_thumbnail_url"
-            :src="m.youtube_thumbnail_url"
-            alt=""
-            width="1280"
-            height="720"
-            loading="lazy"
-            decoding="async"
-            class="aspect-video w-full object-cover"
+        <ul class="flex flex-col gap-2.5">
+          <li
+            v-for="{ row: m, title, outcome, typeLabel } in session.matches"
+            :key="m.id"
+            :data-match-id="m.id"
+            class="relative flex flex-wrap items-center gap-4 rounded-2xl p-3 glass transition-[border-color] duration-200 hover:border-accent/30"
           >
-          <div v-else class="grid aspect-video w-full place-items-center text-ink-subtle">
-            <CircleDashed :size="18" aria-hidden="true" />
-          </div>
-          <span
-            v-if="m.youtube_duration_seconds"
-            class="absolute bottom-1 right-1 rounded bg-black/80 px-1 font-mono text-[10px] tabular-nums text-white"
-          >{{ formatDuration(m.youtube_duration_seconds) }}</span>
-        </div>
+            <!--
+              The whole row opens the editor. A stretched link rather than wrapping
+              the row in an anchor, because the row also holds buttons and selects,
+              and an anchor cannot contain them.
+            -->
+            <NuxtLink
+              :to="`/admin/matches/${m.id}`"
+              class="absolute inset-0 rounded-2xl"
+              :aria-label="`Edit ${title}`"
+            />
 
-        <div class="pointer-events-none min-w-0 flex-1 basis-64">
-          <!-- The fixture from the roster, not the YouTube upload name. -->
-          <p class="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
-            {{ title }}
-          </p>
-          <p class="mt-1 text-sm text-ink-subtle">
-            {{ formatDateShort(m.played_on) }} · <span class="capitalize">{{ m.format }}</span>
-          </p>
-          <div class="mt-2 flex flex-wrap items-center gap-1.5">
-            <VideoStatusBadge :visibility="m.visibility" />
-            <span
-              v-if="outcome"
-              class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]"
-              :class="outcome.state === 'won'
-                ? 'border-transparent bg-brand text-on-brand'
-                : outcome.state === 'lost'
-                  ? 'border-line-strong text-ink-muted'
-                  : 'border-dashed border-line text-ink-subtle'"
-            >{{ outcome.label }}</span>
-            <span
-              v-for="(score, i) in outcome?.setScores ?? []"
-              :key="i"
-              class="rounded-md border border-line px-1.5 py-0.5 font-mono text-[0.6875rem] tabular-nums text-ink-muted"
-            >{{ score }}</span>
-          </div>
-        </div>
+            <div class="relative w-32 shrink-0 overflow-hidden rounded-xl border border-line bg-bg-deep">
+              <img
+                v-if="m.youtube_thumbnail_url"
+                :src="m.youtube_thumbnail_url"
+                alt=""
+                width="1280"
+                height="720"
+                loading="lazy"
+                decoding="async"
+                class="aspect-video w-full object-cover"
+              >
+              <div v-else class="grid aspect-video w-full place-items-center text-ink-subtle">
+                <CircleDashed :size="18" aria-hidden="true" />
+              </div>
+              <span
+                v-if="m.youtube_duration_seconds"
+                class="absolute bottom-1 right-1 rounded bg-black/80 px-1 font-mono text-[10px] tabular-nums text-white"
+              >{{ formatDuration(m.youtube_duration_seconds) }}</span>
+            </div>
 
-        <!-- Controls sit above the stretched link so they stay clickable. -->
-        <div class="relative flex shrink-0 items-center gap-2">
-          <UiSelect
-            data-testid="row-tagging-status"
-            class="w-40"
-            size="sm"
-            :label="`Tagging status for ${title}`"
-            :model-value="m.tagging_status"
-            :options="TAGGING_OPTIONS"
-            @update:model-value="value => setTaggingStatus(m.id, value)"
-          />
+            <div class="pointer-events-none min-w-0 flex-1 basis-64">
+              <!-- The fixture from the roster, not the YouTube upload name. -->
+              <p class="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
+                {{ title }}
+              </p>
+              <!-- No date and no venue: the session header above carries both
+                   for the whole evening, and repeating them per row printed a
+                   dash on every match that has neither. -->
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                <VideoStatusBadge :visibility="m.visibility" />
+                <span v-if="typeLabel" :class="CHIP" class="border-line text-ink-muted">{{ typeLabel }}</span>
+                <span :class="CHIP" class="border-line text-ink-muted">{{ disciplineCode(m.format) }}</span>
+                <span
+                  v-if="outcome"
+                  :class="[CHIP, outcome.state === 'won'
+                    ? 'border-transparent bg-brand text-on-brand'
+                    : outcome.state === 'lost'
+                      ? 'border-line-strong text-ink-muted'
+                      : 'border-dashed border-line text-ink-subtle']"
+                ><span class="tabular-nums">{{ outcome.scoreLabel }}</span></span>
+              </div>
+            </div>
 
-          <button
-            data-testid="toggle-visibility"
-            class="btn btn-sm btn-ghost"
-            :title="m.visibility === 'public' ? 'Make private' : 'Make public'"
-            @click="toggleVisibility(m.id, m.visibility)"
-          >
-            <component :is="m.visibility === 'public' ? EyeOff : Eye" :size="14" aria-hidden="true" />
-            {{ m.visibility === 'public' ? 'Unpublish' : 'Publish' }}
-          </button>
+            <!-- Controls sit above the stretched link so they stay clickable. -->
+            <div class="relative flex shrink-0 items-center gap-2">
+              <UiSelect
+                data-testid="row-tagging-status"
+                class="w-40"
+                size="sm"
+                :label="`Tagging status for ${title}`"
+                :model-value="m.tagging_status"
+                :options="TAGGING_OPTIONS"
+                @update:model-value="value => setTaggingStatus(m.id, value)"
+              />
 
-          <NuxtLink :to="`/admin/matches/${m.id}/tag`" class="btn btn-sm btn-primary">
-            <Tag :size="14" aria-hidden="true" />
-            Tag
-          </NuxtLink>
-        </div>
-      </li>
-    </ul>
+              <button
+                data-testid="toggle-visibility"
+                class="btn btn-sm btn-ghost"
+                :title="m.visibility === 'public' ? 'Make private' : 'Make public'"
+                @click="toggleVisibility(m.id, m.visibility)"
+              >
+                <component :is="m.visibility === 'public' ? EyeOff : Eye" :size="14" aria-hidden="true" />
+                {{ m.visibility === 'public' ? 'Unpublish' : 'Publish' }}
+              </button>
+
+              <NuxtLink :to="`/admin/matches/${m.id}/tag`" class="btn btn-sm btn-primary">
+                <Tag :size="14" aria-hidden="true" />
+                Tag
+              </NuxtLink>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
 
     <p
       v-if="matches?.length && !filtered.length"
