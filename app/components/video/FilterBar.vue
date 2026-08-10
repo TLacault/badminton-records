@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { ListRow, MatchEntry, VideoFilters } from '~/utils/videoFilters'
 import {
   CalendarArrowDown,
@@ -53,25 +54,25 @@ const open = ref(false)
  * filter lists are shared with plain data consumers that have no use for a
  * component reference.
  */
-const SORT_ICONS: Record<string, unknown> = {
+const SORT_ICONS: Record<string, Component> = {
   newest: CalendarArrowDown,
   oldest: CalendarArrowUp,
   longest: Timer,
   shortest: Hourglass,
   points: Target,
 }
-const RESULT_ICONS: Record<string, unknown> = {
+const RESULT_ICONS: Record<string, Component> = {
   all: Layers,
   won: Trophy,
   lost: TrendingDown,
   unfinished: CircleDashed,
 }
-const FORMAT_ICONS: Record<string, unknown> = {
+const FORMAT_ICONS: Record<string, Component> = {
   all: Layers,
   doubles: Users,
   singles: User,
 }
-const STATUS_ICONS: Record<string, unknown> = {
+const STATUS_ICONS: Record<string, Component> = {
   all: Layers,
   tagged: CircleCheck,
   in_progress: Loader,
