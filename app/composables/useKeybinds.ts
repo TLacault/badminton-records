@@ -49,8 +49,10 @@ export const KEYBIND_ACTIONS: KeybindAction[] = [
   { id: 'pointUs', label: 'Point for us', group: 'Scoring' },
   { id: 'pointThem', label: 'Point for them', group: 'Scoring' },
   { id: 'let', label: 'Let (rally replayed)', group: 'Scoring' },
-  { id: 'highlight', label: 'Highlight last point', group: 'Scoring' },
-  { id: 'break', label: 'Start / end a break', group: 'Scoring' },
+  // Both act on the point being watched — the highlighted row in the list —
+  // which past the last one logged is that last one.
+  { id: 'highlight', label: 'Highlight this point', group: 'Scoring' },
+  { id: 'break', label: 'End a break (play resumes)', group: 'Scoring' },
   { id: 'scorer1', label: 'Scorer: slot 1', group: 'Scoring' },
   { id: 'scorer2', label: 'Scorer: slot 2', group: 'Scoring' },
   { id: 'scorer3', label: 'Scorer: slot 3', group: 'Scoring' },

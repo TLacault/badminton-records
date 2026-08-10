@@ -7,6 +7,11 @@ const UNDO_LIMIT = 100
 // during a rally is one write rather than six. There is no save button any
 // more, so this is the only thing standing between a tag and the database.
 const SAVE_DEBOUNCE_MS = 400
+/**
+ * Below this, a break is a double press rather than a pause: nobody leaves the
+ * court for half a second, and the key that ends a break is easy to hit twice.
+ */
+const MIN_BREAK_SECONDS = 1
 
 interface Snapshot {
   rallies: RallyInput[]
@@ -30,27 +35,9 @@ export function useTaggingSession(
 
   const rallies = ref<RallyInput[]>(initial.map(r => ({ ...r })))
 
-  /**
-   * Every match opens in dead time — warm-up, knock-up, camera already
-   * rolling — so an untouched match starts with a break already open at 0 and
-   * the admin's first `M` closes it as the first rally begins.
-   *
-   * Only when there is nothing at all: seeding this onto a match that already
-   * has rallies would drape an unclosed break over work already done.
-   */
-  const breaks = ref<BreakInput[]>(
-    initialBreaks.length === 0 && initial.length === 0
-      ? [{ idx: 0, startsAtSeconds: 0, endsAtSeconds: null }]
-      : initialBreaks.map(b => ({ ...b })),
-  )
+  const breaks = ref<BreakInput[]>(initialBreaks.map(b => ({ ...b })))
   const undoStack = ref<Snapshot[]>([])
   const redoStack = ref<Snapshot[]>([])
-  /**
-   * The rally most recently logged. `P` and the scorer numkeys act on it, and
-   * it is not always the last element: a point inserted to patch a miscount
-   * lands mid-log.
-   */
-  const lastTouchedIdx = ref<number | null>(null)
   const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveError = ref<string | null>(null)
   const dirty = ref(false)
@@ -142,7 +129,6 @@ export function useTaggingSession(
         endedAtSeconds,
       })
     })
-    lastTouchedIdx.value = at
   }
 
   function addLet(endedAtSeconds: number) {
@@ -157,49 +143,54 @@ export function useTaggingSession(
         endedAtSeconds,
       })
     })
-    lastTouchedIdx.value = at
-  }
-
-  /** The rally `P` and the scorer numkeys apply to. */
-  function lastTouched() {
-    if (lastTouchedIdx.value !== null) {
-      const hit = rallies.value[lastTouchedIdx.value]
-      if (hit) return hit
-    }
-    return rallies.value.at(-1)
-  }
-
-  function toggleHighlightOnLast() {
-    const target = lastTouched()
-    if (!target) return
-    mutate(() => {
-      target.isHighlight = !target.isHighlight
-    })
-  }
-
-  function setScorerOnLast(playerId: string | null) {
-    const target = lastTouched()
-    if (!target) return
-    mutate(() => {
-      target.scoredByPlayerId = playerId
-    })
   }
 
   /**
-   * `M` opens a break; the next `M` closes it. Only one can be open at a time,
-   * so the keypress is unambiguous whatever the state.
+   * Where play last stopped before `atSeconds`, which is where the dead time
+   * running up to it began: the end of the last rally or the end of the last
+   * break, whichever is later, and the start of the video if there is neither.
    */
-  function toggleBreak(atSeconds: number) {
+  function lastStopBefore(atSeconds: number) {
+    let stop = 0
+    for (const r of rallies.value) {
+      if (r.endedAtSeconds < atSeconds && r.endedAtSeconds > stop) stop = r.endedAtSeconds
+    }
+    for (const b of breaks.value) {
+      const end = b.endsAtSeconds
+      if (end !== null && end < atSeconds && end > stop) stop = end
+    }
+    return stop
+  }
+
+  /**
+   * One press, as play resumes: this marks where a break ENDED.
+   *
+   * The start needs no keypress of its own — dead time runs from wherever play
+   * last stopped, and the tagger already knows when that was. Asking for two
+   * presses meant tagging the start before the pause, at the one moment nobody
+   * is watching for it, and a forgotten first press left the log lying.
+   *
+   * A break already left open — by older data, tagged when it took two presses
+   * — is closed here instead, so it can still be finished.
+   */
+  function endBreak(atSeconds: number) {
     const open = breaks.value.find(b => b.endsAtSeconds === null)
+    const startsAtSeconds = open ? open.startsAtSeconds : lastStopBefore(atSeconds)
+    if (atSeconds - startsAtSeconds < MIN_BREAK_SECONDS) return
+
     mutate(() => {
-      if (open) open.endsAtSeconds = Math.max(open.startsAtSeconds, atSeconds)
-      else {
-        breaks.value.push({
-          idx: breaks.value.length,
-          startsAtSeconds: atSeconds,
-          endsAtSeconds: null,
-        })
+      if (open) {
+        open.endsAtSeconds = atSeconds
+        return
       }
+      // Breaks stay in video order, like the rally log: `mutate` renumbers from
+      // position, and the timeline draws them in the order it is given.
+      const at = breaks.value.findIndex(b => b.startsAtSeconds > startsAtSeconds)
+      breaks.value.splice(at === -1 ? breaks.value.length : at, 0, {
+        idx: 0,
+        startsAtSeconds,
+        endsAtSeconds: atSeconds,
+      })
     })
   }
 
@@ -319,8 +310,6 @@ export function useTaggingSession(
     canRedo,
     addRally,
     addLet,
-    toggleHighlightOnLast,
-    setScorerOnLast,
     flipWinner,
     toggleLet,
     toggleHighlight,
@@ -328,7 +317,7 @@ export function useTaggingSession(
     setScorer,
     deleteRally,
     insertBefore,
-    toggleBreak,
+    endBreak,
     deleteBreak,
     undo,
     redo,

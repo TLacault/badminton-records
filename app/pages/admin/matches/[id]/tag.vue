@@ -3,6 +3,7 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
 import { Pencil, RotateCcw } from '@lucide/vue'
+import { currentRallyAt } from '~~/shared/badminton'
 import { youtubeTitle } from '~/utils/matchSummary'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
@@ -193,6 +194,13 @@ const currentTime = computed(() => stage.value?.currentTime ?? 0)
 const duration = computed(() => stage.value?.duration ?? 0)
 const playback = useMatchPlayback(session.derived, currentTime)
 
+/**
+ * The point being watched — the one the list highlights and the one every
+ * editing key acts on. Past the last point recorded, which is where tagging
+ * live always sits, that is the last point recorded.
+ */
+const currentRallyIdx = computed(() => playback.value.rally?.idx ?? null)
+
 const { actionFor } = useKeybinds()
 
 const scoreboard = useScoreboardMode()
@@ -296,17 +304,26 @@ function onKeydown(event: KeyboardEvent) {
 
   event.preventDefault()
   const time = stage.value?.getTime() ?? 0
+  // Resolved from the player's own clock rather than from `currentRallyIdx`,
+  // which trails it by up to a frame: the same rally in all but the instant a
+  // point turns over, and that instant is exactly when a key gets pressed.
+  const watched = currentRallyAt(session.derived.value, time)?.idx ?? null
+
+  /** Editing keys act on the point on screen; with none, they do nothing. */
+  function onWatched(fn: (idx: number) => void) {
+    if (watched !== null) fn(watched)
+  }
 
   switch (action) {
     case 'pointUs': session.addRally(1, time); break
     case 'pointThem': session.addRally(2, time); break
     case 'let': session.addLet(time); break
-    case 'highlight': session.toggleHighlightOnLast(); break
-    case 'break': session.toggleBreak(time); break
-    case 'scorer1': session.setScorerOnLast(slotToPlayerId.value[1] ?? null); break
-    case 'scorer2': session.setScorerOnLast(slotToPlayerId.value[2] ?? null); break
-    case 'scorer3': session.setScorerOnLast(slotToPlayerId.value[3] ?? null); break
-    case 'scorer4': session.setScorerOnLast(slotToPlayerId.value[4] ?? null); break
+    case 'highlight': onWatched(idx => session.toggleHighlight(idx)); break
+    case 'break': session.endBreak(time); break
+    case 'scorer1': onWatched(idx => session.setScorer(idx, slotToPlayerId.value[1] ?? null)); break
+    case 'scorer2': onWatched(idx => session.setScorer(idx, slotToPlayerId.value[2] ?? null)); break
+    case 'scorer3': onWatched(idx => session.setScorer(idx, slotToPlayerId.value[3] ?? null)); break
+    case 'scorer4': onWatched(idx => session.setScorer(idx, slotToPlayerId.value[4] ?? null)); break
     case 'undo': session.undo(); break
     case 'redo': session.redo(); break
     case 'save': session.saveNow(); break
@@ -462,8 +479,8 @@ const saveLabel = computed(() => {
           data-testid="break-open"
           class="mt-2 rounded-lg border border-accent/35 bg-accent-soft px-3 py-1.5 text-xs text-accent"
         >
-          Break running since {{ Math.floor(session.openBreak.value.startsAtSeconds / 60) }}m —
-          press the break key again to end it.
+          Break left open since {{ Math.floor(session.openBreak.value.startsAtSeconds / 60) }}m —
+          press the break key where play resumes to close it.
         </p>
         <PlayerMarkerNavigator
           class="mt-4"
@@ -490,6 +507,7 @@ const saveLabel = computed(() => {
         :derived="session.derived.value"
         :names="names"
         :slot-to-player-id="slotToPlayerId"
+        :current-idx="currentRallyIdx"
         @seek="(s: number) => stage?.seekTo(s)"
         @flip="session.flipWinner"
         @toggle-let="session.toggleLet"

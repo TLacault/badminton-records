@@ -36,6 +36,24 @@ export function rallyAtTime(derived: DerivedMatch | null, t: number): RallyState
   return null
 }
 
+/**
+ * The rally on screen at `t`: the last one to have begun.
+ *
+ * Not the same question as `rallyAtTime`, which asks whether `t` falls inside a
+ * rally and answers null past the final one. A timestamp beyond the end of the
+ * log — where tagging lives, a beat after the point was pressed — still resolves
+ * to the last rally recorded here, because that is what is being watched.
+ */
+export function currentRallyAt(derived: DerivedMatch | null, t: number): RallyState | null {
+  if (!derived) return null
+  let current: RallyState | null = null
+  for (const s of derived.rallyStates) {
+    if (s.startsAtSeconds > t) break
+    current = s
+  }
+  return current
+}
+
 /** The break spanning `t`, or null. Half-open [start, end), like rallies. */
 export function breakAtTime(
   breaks: readonly BreakInput[],
@@ -76,16 +94,8 @@ export function playbackAt(derived: DerivedMatch | null, t: number): PlaybackSta
   if (!derived || !derived.rallyStates.length) return { ...EMPTY }
 
   const states = derived.rallyStates
-
-  // Last rally that has already begun.
-  let current: RallyState | null = null
-  let currentPos = -1
-  for (let i = 0; i < states.length; i++) {
-    const s = states[i]!
-    if (s.startsAtSeconds > t) break
-    current = s
-    currentPos = i
-  }
+  const current = currentRallyAt(derived, t)
+  const currentPos = current ? states.indexOf(current) : -1
 
   if (!current) {
     // Defensive: deriveMatch anchors rally 0 at t=0, so with a non-empty log

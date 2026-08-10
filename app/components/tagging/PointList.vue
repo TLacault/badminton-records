@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import type { DerivedMatch, RallyInput, RallyState } from '~~/shared/badminton'
 
-const props = defineProps<{
-  rallies: RallyInput[]
-  derived: DerivedMatch
-  names: Record<number, string>
-  slotToPlayerId: Record<number, string>
-}>()
+const props = withDefaults(
+  defineProps<{
+    rallies: RallyInput[]
+    derived: DerivedMatch
+    names: Record<number, string>
+    slotToPlayerId: Record<number, string>
+    /** The point being watched, and so the one the editing keys act on. */
+    currentIdx?: number | null
+  }>(),
+  { currentIdx: null },
+)
 
 const emit = defineEmits<{
   seek: [seconds: number]
@@ -50,6 +55,28 @@ watch(() => props.rallies.length, (next, previous) => {
 onBeforeUnmount(() => {
   if (flashTimer) clearTimeout(flashTimer)
 })
+
+const list = ref<HTMLElement | null>(null)
+
+/**
+ * Keep the watched row in view — a highlight three hundred points off screen
+ * is no help while scrubbing through a match.
+ *
+ * The list is scrolled by hand rather than with `scrollIntoView`, which walks
+ * every scrollable ancestor and would drag the whole page around under the
+ * video for a row that was only just out of sight.
+ */
+watch(() => props.currentIdx, async (idx) => {
+  if (idx === null) return
+  await nextTick()
+  const container = list.value
+  const row = container?.querySelector<HTMLElement>(`[data-rally-idx="${idx}"]`)
+  if (!container || !row) return
+  const view = container.getBoundingClientRect()
+  const bounds = row.getBoundingClientRect()
+  if (bounds.top < view.top) container.scrollTop -= view.top - bounds.top
+  else if (bounds.bottom > view.bottom) container.scrollTop += bounds.bottom - view.bottom
+})
 </script>
 
 <template>
@@ -66,7 +93,7 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <ul data-testid="pl-rows" class="min-h-0 flex-1 overflow-y-auto px-3">
+    <ul ref="list" data-testid="pl-rows" class="min-h-0 flex-1 overflow-y-auto px-3">
       <TaggingPointRow
         v-for="rally in ordered"
         :key="rally.idx"
@@ -75,6 +102,7 @@ onBeforeUnmount(() => {
         :names="names"
         :slot-to-player-id="slotToPlayerId"
         :flash="flashIdx === rally.idx"
+        :current="currentIdx === rally.idx"
         @seek="(s: number) => emit('seek', s)"
         @flip="(i: number) => emit('flip', i)"
         @toggle-let="(i: number) => emit('toggle-let', i)"

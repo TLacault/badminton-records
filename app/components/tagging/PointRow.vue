@@ -10,8 +10,10 @@ const props = withDefaults(
     slotToPlayerId: Record<number, string>
     /** Briefly highlights a row that was just logged. */
     flash?: boolean
+    /** The point on screen right now, and what the editing keys will change. */
+    current?: boolean
   }>(),
-  { flash: false },
+  { flash: false, current: false },
 )
 
 const emit = defineEmits<{
@@ -56,10 +58,19 @@ function commitTime(event: Event, rally: RallyInput) {
 </script>
 
 <template>
+  <!--
+    The watched row is marked with a bar down its edge as well as a wash of
+    colour: hover already tints a row, and the two had to stay tellable apart
+    while the mouse is somewhere in the list.
+  -->
   <li
     class="flex items-center gap-2 rounded-lg border-b border-line px-1 py-1.5 text-xs transition-colors duration-150 hover:bg-accent-soft"
-    :class="flash ? 'point-flash' : ''"
+    :class="[
+      flash ? 'point-flash' : '',
+      current ? 'bg-accent-soft shadow-[inset_2px_0_0_var(--ui-accent)]' : '',
+    ]"
     :data-rally-idx="rally.idx"
+    :data-current="current ? 'true' : undefined"
   >
     <button
       class="shrink-0 text-ink-subtle transition-colors duration-150 hover:text-accent"
