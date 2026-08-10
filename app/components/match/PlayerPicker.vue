@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { MatchFormat, Slot } from '~~/shared/badminton'
-import { CircleDashed, User } from '@lucide/vue'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -15,7 +14,11 @@ const props = defineProps<{
 // Deriving `{ ...props.modelValue, [slot]: v }` looks equivalent but is not:
 // props do not update synchronously, so two changes in quick succession both
 // build from the same stale object and the first one is silently lost.
-const emit = defineEmits<{ select: [slot: number, playerId: string | null] }>()
+const emit = defineEmits<{
+  select: [slot: number, playerId: string | null]
+  /** A licensee was added to the roster and needs loading into `players`. */
+  created: []
+}>()
 
 // Singles uses slots 1 and 3 only; the numkeys still map slot -> player.
 const slots = computed<Slot[]>(() =>
@@ -29,17 +32,6 @@ const labels: Record<number, string> = {
   4: 'Slot 4 (\') — opponents',
 }
 
-/** The roster, plus an explicit empty choice so a slot can be cleared. */
-const options = computed(() => [
-  { value: null as string | null, label: 'No player', icon: CircleDashed },
-  ...props.players.map(p => ({
-    value: p.id as string | null,
-    label: `${p.first_name} ${p.last_name}`,
-    hint: p.club ?? undefined,
-    icon: User,
-  })),
-])
-
 function set(slot: number, value: string | null) {
   emit('select', slot, value)
 }
@@ -52,13 +44,14 @@ function set(slot: number, value: string | null) {
         class="label"
         :class="slot <= 2 ? 'text-accent' : ''"
       >{{ labels[slot] }}</span>
-      <UiSelect
-        :data-testid="`slot-${slot}`"
+      <PlayerSlotSearch
         class="mt-2"
-        :label="labels[slot]"
+        :testid="`slot-${slot}`"
+        :label="labels[slot]!"
+        :players="players"
         :model-value="modelValue[slot] ?? null"
-        :options="options"
         @update:model-value="value => set(slot, value)"
+        @created="emit('created')"
       />
     </div>
   </div>

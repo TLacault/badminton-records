@@ -21,10 +21,13 @@ const props = defineProps<{ matchId: string | null }>()
 const client = useSupabaseClient<Database>()
 const user = useSupabaseUser()
 
-const { data: players } = await useAsyncData('picker-players', async () => {
-  const { data } = await client.from('players').select('*').order('last_name')
-  return data ?? []
-})
+const { data: players, refresh: refreshPlayers } = await useAsyncData(
+  'picker-players',
+  async () => {
+    const { data } = await client.from('players').select('*').order('last_name')
+    return data ?? []
+  },
+)
 
 const { data: matchTypes } = await useAsyncData('form-match-types', async () => {
   const { data } = await client.from('match_types').select('id, label').order('sort_order')
@@ -302,6 +305,7 @@ const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
         :format="form.format"
         :players="players ?? []"
         @select="(slot, playerId) => { slotMap[slot] = playerId }"
+        @created="refreshPlayers"
       />
 
       <!-- Per match, not per site: a tournament sheet wants ranks and licences
