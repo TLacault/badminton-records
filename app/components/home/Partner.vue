@@ -29,26 +29,26 @@ const rankChips = computed(() =>
         <div>
           <UiReveal>
             <UiSectionHeading
-              eyebrow="Every double, same partner"
+              :eyebrow="$t('home.partner.eyebrow')"
               :icon="Handshake"
-              title="The pair"
+              :title="$t('home.partner.title')"
             />
           </UiReveal>
 
           <UiReveal :delay="60">
             <div class="mt-6 space-y-4 text-[1.0625rem] leading-relaxed text-ink-muted">
               <p v-for="(paragraph, i) in partner.bio" :key="i">
-                {{ paragraph }}
+                {{ $lt(paragraph) }}
               </p>
             </div>
 
             <ul v-if="partner.traits.length" class="mt-6 flex flex-wrap gap-2">
               <li
-                v-for="trait in partner.traits"
-                :key="trait"
+                v-for="(trait, i) in partner.traits"
+                :key="i"
                 class="rounded-full border border-accent/25 bg-accent-soft px-3.5 py-1.5 font-display text-sm font-semibold uppercase tracking-[0.1em] text-accent"
               >
-                {{ trait }}
+                {{ $lt(trait) }}
               </li>
             </ul>
           </UiReveal>
@@ -80,7 +80,7 @@ const rankChips = computed(() =>
                   {{ partner.name }}
                 </p>
                 <p class="mt-0.5 truncate text-sm text-ink-muted">
-                  {{ partner.role }}
+                  {{ $lt(partner.role) }}
                 </p>
               </div>
             </div>

@@ -40,7 +40,7 @@ const rankChips = computed(() =>
               {{ player.name }}
             </p>
             <p class="mt-1.5 text-sm leading-snug text-ink-muted">
-              {{ player.role }}
+              {{ $lt(player.role) }}
             </p>
           </figcaption>
         </figure>
@@ -65,27 +65,32 @@ const rankChips = computed(() =>
       <div>
         <UiReveal>
           <UiSectionHeading
-            eyebrow="Who's playing"
+            :eyebrow="$t('home.about.eyebrow')"
             :icon="UserRound"
-            title="The player"
+            :title="$t('home.about.title')"
           />
         </UiReveal>
 
         <UiReveal :delay="60">
           <div class="mt-6 space-y-4 text-[1.0625rem] leading-relaxed text-ink-muted">
             <p v-for="(paragraph, i) in player.bio" :key="i">
-              {{ paragraph }}
+              {{ $lt(paragraph) }}
             </p>
           </div>
 
           <ul class="mt-6 flex flex-wrap gap-2">
             <li class="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-sm text-ink-muted">
               <Milestone :size="14" class="text-accent" aria-hidden="true" />
-              Playing since {{ player.playingSince }}
+              {{ $t('home.about.playingSince') }} {{ $lt(player.playingSince) }}
             </li>
-            <li class="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-sm text-ink-muted">
+            <!-- Hidden rather than shown as a dangling key while `hand` is
+                 still empty in site.ts. -->
+            <li
+              v-if="player.hand"
+              class="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-sm text-ink-muted"
+            >
               <Hand :size="14" class="text-accent" aria-hidden="true" />
-              {{ player.hand }}-handed
+              {{ $t(`home.about.hand.${player.hand}`) }}
             </li>
           </ul>
         </UiReveal>
@@ -93,7 +98,7 @@ const rankChips = computed(() =>
         <!-- ── Timeline ───────────────────────────────────────────────── -->
         <UiReveal v-if="player.career.length" :delay="120" class="mt-10">
           <h3 class="label">
-            Milestones
+            {{ $t('home.about.milestones') }}
           </h3>
           <ol class="mt-5 space-y-0">
             <li
@@ -117,10 +122,10 @@ const rankChips = computed(() =>
                   {{ entry.year }}
                 </p>
                 <p class="mt-1 font-display text-lg font-semibold uppercase tracking-wide text-ink">
-                  {{ entry.title }}
+                  {{ $lt(entry.title) }}
                 </p>
                 <p class="mt-1 text-[0.9375rem] leading-relaxed text-ink-muted">
-                  {{ entry.detail }}
+                  {{ $lt(entry.detail) }}
                 </p>
               </div>
             </li>

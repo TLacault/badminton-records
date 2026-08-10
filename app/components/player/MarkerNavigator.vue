@@ -9,6 +9,8 @@ import {
 } from "@lucide/vue";
 import { resumeTimeAt } from "~~/shared/badminton";
 
+const { t } = useI18n();
+
 const props = withDefaults(
   defineProps<{
     derived: DerivedMatch | null;
@@ -23,11 +25,11 @@ const emit = defineEmits<{ seek: [seconds: number] }>();
 type Mode = "points" | "sets" | "highlights";
 const mode = ref<Mode>("points");
 
-const modes: Array<{ id: Mode; label: string }> = [
-  { id: "points", label: "Points" },
-  { id: "sets", label: "Sets" },
-  { id: "highlights", label: "Highlights" },
-];
+const modes = computed<Array<{ id: Mode; label: string }>>(() => [
+  { id: "points", label: t("player.points") },
+  { id: "sets", label: t("player.sets") },
+  { id: "highlights", label: t("player.highlights") },
+]);
 
 type Tone = "win" | "loss" | "let" | "neutral";
 interface Marker {
@@ -144,8 +146,8 @@ function next() {
           type="button"
           class="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
           :disabled="activeMarker <= 0"
-          title="Previous"
-          aria-label="Previous marker"
+          :title="$t('player.previous')"
+          :aria-label="$t('player.previousMarker')"
           @click="previous"
         >
           <ChevronLeft :size="16" aria-hidden="true" />
@@ -155,8 +157,8 @@ function next() {
           type="button"
           class="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
           :disabled="activeMarker >= markers.length - 1"
-          title="Next"
-          aria-label="Next marker"
+          :title="$t('player.next')"
+          :aria-label="$t('player.nextMarker')"
           @click="next"
         >
           <ChevronRight :size="16" aria-hidden="true" />

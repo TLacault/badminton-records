@@ -152,8 +152,8 @@ const gridStyle = computed(() => ({
       type="button"
       data-testid="scoreboard-mode"
       class="pointer-events-auto absolute right-1 top-1 grid size-6 place-items-center rounded-md text-white/40 transition-colors duration-200 hover:text-white"
-      :aria-label="mode === 'compact' ? 'Show player names' : 'Show sides only'"
-      :title="mode === 'compact' ? 'Show player names' : 'Show sides only'"
+      :aria-label="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
+      :title="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
       @click="toggle"
     >
       <component :is="mode === 'compact' ? ChevronsUpDown : ChevronsDownUp" :size="13" aria-hidden="true" />

@@ -2,6 +2,8 @@
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
 import { CalendarDays, CircleDashed, Play, Sparkles, Trophy } from '@lucide/vue'
 
+const { t, bcp47 } = useI18n()
+
 const props = withDefaults(
   defineProps<{
     entry: MatchEntry<ListRow>
@@ -14,7 +16,7 @@ const props = withDefaults(
 const match = computed(() => props.entry.row)
 const tagged = computed(() => match.value.tagging_status === 'tagged')
 const meta = computed(() =>
-  [formatDateShort(match.value.played_on), match.value.format, match.value.venue]
+  [formatDateShort(match.value.played_on, bcp47.value, t('common.undated')), match.value.format, match.value.venue]
     .filter(Boolean)
     .join(' · '),
 )
@@ -90,7 +92,7 @@ const resultClass = computed(() => {
         style="box-shadow: var(--ui-glow-soft)"
       >
         <Sparkles :size="11" class="text-accent" aria-hidden="true" />
-        Enhanced
+        {{ $t('card.enhanced') }}
       </span>
     </div>
 
@@ -99,7 +101,7 @@ const resultClass = computed(() => {
         v-if="featured"
         class="mb-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-accent"
       >
-        Latest match
+        {{ $t('card.latest') }}
       </p>
 
       <!-- The fixture, built from the roster. The YouTube upload name is not

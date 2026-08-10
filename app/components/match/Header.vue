@@ -2,6 +2,8 @@
 import type { DerivedMatch } from '~~/shared/badminton'
 import { CalendarDays, Clock, Eye, MapPin, Swords, Trophy, Users } from '@lucide/vue'
 
+const { t, bcp47 } = useI18n()
+
 const props = defineProps<{
   sideNames: Record<number, string>
   derived: DerivedMatch | null
@@ -29,7 +31,7 @@ const heading = computed(() => `${props.sideNames[1]} vs ${props.sideNames[2]}`)
  */
 const facts = computed(() => {
   const out: { key: string, icon: unknown, text: string }[] = []
-  if (props.playedOn) out.push({ key: 'date', icon: CalendarDays, text: formatDateLong(props.playedOn) })
+  if (props.playedOn) out.push({ key: 'date', icon: CalendarDays, text: formatDateLong(props.playedOn, bcp47.value, t('common.undated')) })
   out.push({ key: 'format', icon: Users, text: props.format === 'singles' ? 'Singles' : 'Doubles' })
   if (props.venue) out.push({ key: 'venue', icon: MapPin, text: props.venue })
   if (props.durationSeconds) out.push({ key: 'length', icon: Clock, text: formatDuration(props.durationSeconds) })
@@ -64,7 +66,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
          mistake rather than as emphasis. -->
     <p class="eyebrow">
       <Swords :size="14" aria-hidden="true" />
-      Match
+      {{ $t('match.label') }}
     </p>
 
     <h1
@@ -99,7 +101,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
           @click="emit('reveal')"
         >
           <Eye :size="13" aria-hidden="true" />
-          Result hidden — reveal
+          {{ $t('match.resultHidden') }}
         </button>
         <span
           v-else-if="result.spoiler"

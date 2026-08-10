@@ -38,7 +38,7 @@ import { ArrowLeft } from '@lucide/vue'
         class="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-display text-sm font-semibold uppercase tracking-[0.14em] text-ink-muted transition-colors duration-200 hover:text-accent"
       >
         <ArrowLeft :size="16" aria-hidden="true" />
-        Back to the site
+        {{ $t('login.back') }}
       </NuxtLink>
     </header>
 

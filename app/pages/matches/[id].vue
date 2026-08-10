@@ -8,6 +8,8 @@ import { deriveMatch } from '~~/shared/badminton'
 import { LIST_SELECT } from '~/utils/matchSummary'
 import { decorate } from '~/utils/videoFilters'
 
+const { t, bcp47 } = useI18n()
+
 const route = useRoute()
 const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
@@ -161,8 +163,8 @@ const detailsVisible = computed(() => revealed.value || !spoilable.value)
 const legend = computed(() => [
   { key: 'us', swatch: 'bg-us', label: `Point for ${sideLabels.value[1]}` },
   { key: 'them', swatch: 'bg-them', label: `Point for ${sideLabels.value[2]}` },
-  { key: 'highlight', swatch: 'bg-accent shadow-[0_0_8px_var(--ui-accent)]', label: 'Highlight' },
-  { key: 'break', swatch: 'bg-bg-deep border border-line-strong', label: 'Break' },
+  { key: 'highlight', swatch: 'bg-accent shadow-[0_0_8px_var(--ui-accent)]', label: t('player.highlight') },
+  { key: 'break', swatch: 'bg-bg-deep border border-line-strong', label: t('player.break') },
 ])
 
 /**
@@ -200,7 +202,7 @@ useSeoMeta({
     : 'Match'),
   description: () =>
     match.value
-      ? `${formatDateShort(match.value.played_on)} · ${match.value.format}${match.value.venue ? ` · ${match.value.venue}` : ''}`
+      ? `${formatDateShort(match.value.played_on, bcp47.value, t('common.undated'))} · ${match.value.format}${match.value.venue ? ` · ${match.value.venue}` : ''}`
       : '',
 })
 </script>
@@ -212,7 +214,7 @@ useSeoMeta({
       class="flex w-fit min-h-9 items-center gap-2 rounded-lg font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
     >
       <ArrowLeft :size="14" aria-hidden="true" />
-      All videos
+      {{ $t('match.allVideos') }}
     </NuxtLink>
 
     <MatchHeader
@@ -264,7 +266,7 @@ useSeoMeta({
 
     <div class="mt-8 rounded-2xl p-5 glass sm:p-6">
       <h2 class="label">
-        Jump to
+        {{ $t('match.jumpTo') }}
       </h2>
       <PlayerMarkerNavigator
         class="mt-4"
@@ -291,7 +293,7 @@ useSeoMeta({
 
     <section v-if="upNext.length" class="mt-8">
       <h2 class="label">
-        Up next
+        {{ $t('match.upNext') }}
       </h2>
       <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <li v-for="other in upNext" :key="other.row.id">
@@ -303,14 +305,14 @@ useSeoMeta({
 
   <div v-else class="py-20 text-center">
     <p data-testid="public-notfound" class="font-display text-3xl font-bold uppercase tracking-wide text-ink">
-      Match not found
+      {{ $t('match.notFound') }}
     </p>
     <p class="mt-3 text-ink-muted">
-      It may have been unpublished, or the link is wrong.
+      {{ $t('match.notFoundHint') }}
     </p>
     <NuxtLink to="/videos" class="btn btn-primary mt-7">
       <ArrowLeft :size="16" aria-hidden="true" />
-      Back to the videos
+      {{ $t('match.backToVideos') }}
     </NuxtLink>
   </div>
 </template>

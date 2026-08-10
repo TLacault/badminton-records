@@ -45,12 +45,12 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
     >
       <nav
         class="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:h-18 sm:px-6"
-        aria-label="Main"
+        :aria-label="$t('nav.main')"
       >
         <NuxtLink
           to="/"
           class="group -m-1 rounded-lg p-1"
-          :aria-label="`${site.club.name} — home`"
+          :aria-label="$t('nav.homeAria', { club: site.club.name })"
         >
           <UiBrandLogo
             size="h-8 sm:h-9"
@@ -67,11 +67,11 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
               :aria-current="link.active ? 'page' : undefined"
             >
               <component :is="link.icon" :size="15" aria-hidden="true" />
-              {{ link.label }}
+              {{ $lt(link.label) }}
               <span
                 v-if="!link.ready"
                 class="rounded-full bg-accent-soft px-1.5 py-px text-[0.625rem] tracking-widest text-accent"
-              >SOON</span>
+              >{{ $t('common.soon') }}</span>
               <!-- Lit underline, not a filled pill: the nav stays quiet until
                    you are somewhere, then the crimson does the work. -->
               <span
@@ -90,8 +90,10 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
             class="btn btn-sm btn-ghost hidden sm:inline-flex"
           >
             <ShieldCheck :size="15" aria-hidden="true" />
-            Admin
+            {{ $t('nav.admin') }}
           </NuxtLink>
+
+          <UiLangToggle />
 
           <UiThemeToggle />
 
@@ -100,7 +102,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
             class="grid size-11 place-items-center rounded-xl border border-line text-ink-muted transition-colors duration-200 ease-brand hover:border-accent/50 hover:text-accent md:hidden"
             :aria-expanded="open"
             aria-controls="mobile-nav"
-            :aria-label="open ? 'Close menu' : 'Open menu'"
+            :aria-label="open ? $t('nav.closeMenu') : $t('nav.openMenu')"
             @click="open = !open"
           >
             <component :is="open ? X : Menu" :size="19" aria-hidden="true" />
@@ -128,8 +130,8 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
                 :aria-current="link.active ? 'page' : undefined"
               >
                 <component :is="link.icon" :size="18" aria-hidden="true" />
-                {{ link.label }}
-                <span v-if="!link.ready" class="ml-auto text-[0.6875rem] tracking-widest text-ink-subtle">SOON</span>
+                {{ $lt(link.label) }}
+                <span v-if="!link.ready" class="ml-auto text-[0.6875rem] tracking-widest text-ink-subtle">{{ $t('common.soon') }}</span>
               </NuxtLink>
             </li>
             <li v-if="user">
@@ -138,7 +140,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
                 class="flex min-h-12 items-center gap-3 rounded-xl px-3 font-display text-base font-semibold uppercase tracking-[0.1em] text-ink-muted"
               >
                 <ShieldCheck :size="18" aria-hidden="true" />
-                Admin
+                {{ $t('nav.admin') }}
               </NuxtLink>
             </li>
           </ul>

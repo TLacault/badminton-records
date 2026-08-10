@@ -43,7 +43,7 @@ defineProps<{
     <UiReveal :delay="80" class="mt-12 w-full">
       <div class="rounded-2xl p-6 text-left glass sm:p-8">
         <h2 class="label">
-          What's coming
+          {{ $t('soonPage.whatsComing') }}
         </h2>
         <ul class="mt-5 space-y-3.5">
           <li
@@ -66,7 +66,7 @@ defineProps<{
     <UiReveal :delay="140" class="mt-10">
       <NuxtLink to="/videos" class="btn btn-primary">
         <ArrowLeft :size="16" aria-hidden="true" />
-        Watch the matches meanwhile
+        {{ $t('soonPage.watchMeanwhile') }}
       </NuxtLink>
     </UiReveal>
   </div>

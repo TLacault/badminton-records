@@ -128,7 +128,7 @@ function reset() {
         @click="reset"
       >
         <X :size="13" aria-hidden="true" />
-        Clear
+        {{ $t('filters.clear') }}
       </button>
     </div>
 
@@ -153,28 +153,28 @@ function reset() {
       <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div data-testid="filters-sort">
           <span class="label">Sort by</span>
-          <UiSelect v-model="filters.sort" class="mt-2" label="Sort by" :options="sortOptions" />
+          <UiSelect v-model="filters.sort" class="mt-2" :label="$t('filters.sortBy')" :options="sortOptions" />
         </div>
 
         <div data-testid="filters-result">
           <span class="label">Result</span>
-          <UiSelect v-model="filters.result" class="mt-2" label="Result" :options="resultOptions" />
+          <UiSelect v-model="filters.result" class="mt-2" :label="$t('filters.result')" :options="resultOptions" />
         </div>
 
         <div data-testid="filters-format">
           <span class="label">Format</span>
-          <UiSelect v-model="filters.format" class="mt-2" label="Format" :options="formatOptions" />
+          <UiSelect v-model="filters.format" class="mt-2" :label="$t('filters.format')" :options="formatOptions" />
         </div>
 
         <!-- Only offered when the library actually holds more than one type. -->
         <div v-if="types.length > 1" data-testid="filters-type">
           <span class="label">Type</span>
-          <UiSelect v-model="filters.type" class="mt-2" label="Type" :options="typeOptions" />
+          <UiSelect v-model="filters.type" class="mt-2" :label="$t('filters.type')" :options="typeOptions" />
         </div>
 
         <div v-if="showStatus" data-testid="filters-status">
           <span class="label">Tagging</span>
-          <UiSelect v-model="filters.status" class="mt-2" label="Tagging status" :options="statusOptions" />
+          <UiSelect v-model="filters.status" class="mt-2" :label="$t('filters.tagging')" :options="statusOptions" />
         </div>
       </div>
 
@@ -186,7 +186,7 @@ function reset() {
           class="size-4 accent-[var(--ui-brand)]"
         >
         <Star :size="13" class="text-accent" aria-hidden="true" />
-        Only matches with highlights
+        {{ $t('filters.highlightsOnly') }}
       </label>
     </div>
   </section>

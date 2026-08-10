@@ -2,25 +2,21 @@
 import { Waypoints } from '@lucide/vue'
 import { site } from '~/config/site'
 
+const { t, lt } = useI18n()
 const pillar = site.pillars.find(p => p.id === 'skill-tree')!
 
 useSeoMeta({
-  title: 'Skill Tree — U.S. Talence Badminton',
-  description: pillar.blurb,
+  title: () => t('skillTree.seoTitle'),
+  description: () => lt(pillar.blurb),
 })
 </script>
 
 <template>
   <SiteComingSoon
-    eyebrow="Section three of three"
-    title="Skill Tree"
-    :lede="pillar.blurb"
+    :eyebrow="$t('skillTree.eyebrow')"
+    :title="$lt(pillar.title)"
+    :lede="$lt(pillar.blurb)"
     :icon="Waypoints"
-    :planned="[
-      'A branching map of shots, movement and tactics — what unlocks what.',
-      'Every node wired to the resources that teach it.',
-      'And to the tagged rallies where the skill actually turns up in a match.',
-      'Progress you can see: what is solid, what is shaky, what is next.',
-    ]"
+    :planned="$ta('skillTree.planned')"
   />
 </template>

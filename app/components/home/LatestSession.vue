@@ -3,6 +3,8 @@ import type { Session } from '~/utils/sessions'
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
 import { ArrowRight, CalendarDays, Clapperboard, MapPin, Timer } from '@lucide/vue'
 
+const { bcp47 } = useI18n()
+
 const props = defineProps<{ session: Session<MatchEntry<ListRow>> | null }>()
 
 const rest = computed(() => props.session?.matches.slice(1) ?? [])
@@ -13,13 +15,13 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
     <UiReveal>
       <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <UiSectionHeading
-          eyebrow="Latest training session"
+          :eyebrow="$t('home.latest.eyebrow')"
           :icon="CalendarDays"
-          :title="session ? formatDateLong(session.date) : 'No session yet'"
-          lede="Three to six matches a session, filmed end to end and tagged rally by rally."
+          :title="session ? formatDateLong(session.date, bcp47, $t('common.undated')) : $t('home.latest.none')"
+          :lede="$t('home.latest.lede')"
         />
         <NuxtLink to="/videos" class="btn btn-ghost btn-sm">
-          All sessions
+          {{ $t('home.latest.all') }}
           <ArrowRight :size="15" aria-hidden="true" />
         </NuxtLink>
       </div>
@@ -59,7 +61,7 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
 
     <UiReveal v-else class="mt-8 block">
       <p class="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-ink-muted">
-        Nothing published yet — the next session will land here.
+        {{ $t('home.latest.empty') }}
       </p>
     </UiReveal>
   </section>

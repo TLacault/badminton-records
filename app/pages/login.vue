@@ -45,7 +45,8 @@ async function submit() {
   }
 }
 
-useSeoMeta({ title: 'Sign in — U.S. Talence Badminton', robots: 'noindex' })
+const { t } = useI18n()
+useSeoMeta({ title: () => t('login.seoTitle'), robots: 'noindex' })
 </script>
 
 <template>
@@ -53,17 +54,17 @@ useSeoMeta({ title: 'Sign in — U.S. Talence Badminton', robots: 'noindex' })
     <div class="flex flex-col items-center text-center">
       <UiBrandLogo variant="lockup" size="h-24" :wordmark="false" />
       <h1 class="mt-6 font-display text-4xl font-bold uppercase leading-none tracking-tight">
-        Sign in
+        {{ $t('login.signIn') }}
       </h1>
       <p class="mt-2.5 text-[0.9375rem] text-ink-muted">
-        Admin access only. There is no public sign-up.
+        {{ $t('login.adminOnly') }}
       </p>
     </div>
 
     <form class="mt-8 rounded-2xl p-6 glass sm:p-7" novalidate @submit.prevent="submit">
       <div class="space-y-5">
         <div>
-          <label for="login-email" class="label">Email</label>
+          <label for="login-email" class="label">{{ $t('login.email') }}</label>
           <input
             id="login-email"
             ref="emailRef"
@@ -81,7 +82,7 @@ useSeoMeta({ title: 'Sign in — U.S. Talence Badminton', robots: 'noindex' })
         </div>
 
         <div>
-          <label for="login-password" class="label">Password</label>
+          <label for="login-password" class="label">{{ $t('login.password') }}</label>
           <div class="relative mt-2">
             <input
               id="login-password"
@@ -98,7 +99,7 @@ useSeoMeta({ title: 'Sign in — U.S. Talence Badminton', robots: 'noindex' })
             <button
               type="button"
               class="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-xl text-ink-subtle transition-colors duration-200 hover:text-accent"
-              :aria-label="revealed ? 'Hide password' : 'Show password'"
+              :aria-label="revealed ? $t('login.hidePassword') : $t('login.showPassword')"
               :aria-pressed="revealed"
               @click="revealed = !revealed"
             >
@@ -133,7 +134,7 @@ useSeoMeta({ title: 'Sign in — U.S. Talence Badminton', robots: 'noindex' })
           :class="busy ? 'animate-spin' : ''"
           aria-hidden="true"
         />
-        {{ busy ? 'Signing in…' : 'Sign in' }}
+        {{ busy ? $t('login.busy') : $t('login.signIn') }}
       </button>
     </form>
   </div>

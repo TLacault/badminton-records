@@ -11,10 +11,10 @@ const upcoming = computed(() => site.pillars.filter(pillar => !pillar.ready))
   <section id="soon" class="scroll-mt-28">
     <UiReveal>
       <UiSectionHeading
-        eyebrow="Next up"
+        :eyebrow="$t('home.soon.eyebrow')"
         :icon="Hourglass"
-        title="Two more sections"
-        lede="Videos are only a third of it. The other two are being built now."
+        :title="$t('home.soon.title')"
+        :lede="$t('home.soon.lede')"
         align="center"
         class="mx-auto"
       />
@@ -50,19 +50,19 @@ const upcoming = computed(() => site.pillars.filter(pillar => !pillar.ready))
               class="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-subtle"
             >
               <Hourglass :size="11" aria-hidden="true" />
-              In the works
+              {{ $t('home.soon.inTheWorks') }}
             </span>
           </div>
 
           <h3 class="relative mt-6 font-display text-3xl font-bold uppercase tracking-wide text-ink transition-colors duration-200 group-hover:text-accent">
-            {{ pillar.title }}
+            {{ $lt(pillar.title) }}
           </h3>
           <p class="relative mt-3 flex-1 text-[1.0625rem] leading-relaxed text-ink-muted">
-            {{ pillar.blurb }}
+            {{ $lt(pillar.blurb) }}
           </p>
 
           <p class="relative mt-6 inline-flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-[0.14em] text-accent">
-            Take a look
+            {{ $t('home.soon.takeALook') }}
             <ArrowRight
               :size="15"
               class="transition-transform duration-300 ease-brand group-hover:translate-x-1"

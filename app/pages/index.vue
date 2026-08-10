@@ -5,6 +5,8 @@ import { site } from '~/config/site'
 import { LIST_SELECT } from '~/utils/matchSummary'
 import { decorate } from '~/utils/videoFilters'
 
+const { t, lt } = useI18n()
+
 // The hero bleeds edge to edge, so the layout's measure is applied per section
 // on this page instead of once around the whole outlet.
 definePageMeta({ bleed: true })
@@ -43,17 +45,17 @@ const heroStats = computed(() => {
   if (!all.length) return []
   const seconds = all.reduce((sum, m) => sum + (m.youtube_duration_seconds ?? 0), 0)
   return [
-    { value: String(sessions.value.length), label: 'Sessions filmed' },
-    { value: String(all.length), label: 'Matches online' },
-    { value: `${Math.max(1, Math.round(seconds / 3600))}h`, label: 'Of play' },
+    { value: String(sessions.value.length), label: t('home.stats.sessions') },
+    { value: String(all.length), label: t('home.stats.matches') },
+    { value: `${Math.max(1, Math.round(seconds / 3600))}h`, label: t('home.stats.playtime') },
   ]
 })
 
 useSeoMeta({
-  title: site.seo.title,
-  description: site.seo.description,
-  ogTitle: site.seo.title,
-  ogDescription: site.seo.description,
+  title: () => lt(site.seo.title),
+  description: () => lt(site.seo.description),
+  ogTitle: () => lt(site.seo.title),
+  ogDescription: () => lt(site.seo.description),
   ogType: 'website',
 })
 </script>

@@ -10,13 +10,13 @@ defineProps<{ matches: MatchEntry<ListRow>[] }>()
     <UiReveal>
       <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <UiSectionHeading
-          eyebrow="From the archive"
+          :eyebrow="$t('home.more.eyebrow')"
           :icon="Film"
-          title="Other videos"
-          lede="Earlier sessions, older opponents, and the matches worth going back to."
+          :title="$t('home.more.title')"
+          :lede="$t('home.more.lede')"
         />
         <NuxtLink to="/videos" class="btn btn-ghost btn-sm">
-          Browse everything
+          {{ $t('home.more.browse') }}
           <ArrowRight :size="15" aria-hidden="true" />
         </NuxtLink>
       </div>

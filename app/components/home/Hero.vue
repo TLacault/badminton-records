@@ -94,20 +94,20 @@ defineProps<{
         <h1
           class="font-display text-[clamp(3rem,10vw,7rem)] font-bold uppercase leading-[0.88] tracking-[-0.02em]"
         >
-          <span class="block">{{ site.hero.title[0] }}</span>
+          <span class="block">{{ $ltList(site.hero.title)[0] }}</span>
           <span class="block text-accent text-glow">{{
-            site.hero.title[1]
+            $ltList(site.hero.title)[1]
           }}</span>
         </h1>
 
         <p class="max-w-[52ch] text-lg leading-relaxed text-ink-muted">
-          {{ site.hero.lede }}
+          {{ $lt(site.hero.lede) }}
         </p>
 
         <div class="mt-2 flex flex-wrap items-center gap-3">
           <NuxtLink to="/videos" class="btn btn-primary">
             <Play :size="16" class="fill-current" aria-hidden="true" />
-            Watch the matches
+            {{ $t('home.hero.watch') }}
           </NuxtLink>
           <a
             :href="site.club.youtube"
@@ -116,7 +116,7 @@ defineProps<{
             class="btn btn-ghost"
           >
             <UiYouTubeGlyph :size="16" />
-            The channel
+            {{ $t('home.hero.channel') }}
             <ArrowUpRight :size="15" aria-hidden="true" />
           </a>
         </div>
@@ -144,10 +144,10 @@ defineProps<{
     <a
       href="#about"
       class="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 text-ink-subtle transition-colors duration-200 hover:text-accent sm:flex"
-      aria-label="Skip to the introduction"
+      :aria-label="$t('home.hero.skipAria')"
     >
       <span class="font-display text-[0.6875rem] uppercase tracking-[0.22em]"
-        >Scroll</span
+        >{{ $t('home.hero.scroll') }}</span
       >
       <ArrowDown :size="16" class="animate-bounce" aria-hidden="true" />
     </a>

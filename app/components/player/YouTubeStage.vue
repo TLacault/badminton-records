@@ -106,7 +106,7 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen })
       style="box-shadow: var(--ui-glow-soft)"
       :aria-hidden="!controlVisible"
       :tabindex="videoId ? 0 : -1"
-      :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen with scoreboard'"
+      :aria-label="isFullscreen ? $t('player.exitFullscreen') : $t('player.fullscreen')"
       @focus="focused = true"
       @blur="focused = false"
       @click="toggleFullscreen"
@@ -116,7 +116,7 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen })
     </button>
 
     <p v-if="!videoId" class="absolute inset-0 grid place-items-center px-6 text-center text-sm text-ink-subtle">
-      No YouTube video ID set for this match.
+      {{ $t('player.noVideo') }}
     </p>
   </div>
 </template>

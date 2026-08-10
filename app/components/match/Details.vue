@@ -132,7 +132,7 @@ const STAT_CELL = 'py-1.5 text-right tabular-nums'
       <div :class="revealed ? '' : 'pointer-events-none select-none blur-md'">
         <div v-if="stats?.sets.length" class="border-t border-line pt-4">
           <p class="label text-[0.6875rem]">
-            Sets
+            {{ $t('match.sets') }}
           </p>
           <ul data-testid="set-scores" class="mt-2 flex flex-wrap gap-2">
             <li
@@ -165,7 +165,7 @@ const STAT_CELL = 'py-1.5 text-right tabular-nums'
 
         <div class="mt-6 border-t border-line pt-4">
           <p class="label mb-3 text-[0.6875rem]">
-            Players
+            {{ $t('match.players') }}
           </p>
         <div class="grid gap-5 sm:grid-cols-2 sm:gap-6">
           <div v-for="s in sides" :key="s.side" :data-testid="`side-${s.side}`">
@@ -183,21 +183,21 @@ const STAT_CELL = 'py-1.5 text-right tabular-nums'
               <thead>
                 <tr>
                   <th class="pb-1.5 text-left font-display text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
-                    Player
+                    {{ $t('match.player') }}
                   </th>
-                  <th :class="STAT_HEAD" title="Points scored">
+                  <th :class="STAT_HEAD" :title="$t('match.pointsScored')">
                     <Target :size="12" class="ml-auto" aria-hidden="true" />
                     <span class="sr-only">Points scored</span>
                   </th>
-                  <th :class="STAT_HEAD" title="Share of the side's points">
+                  <th :class="STAT_HEAD" :title="$t('match.pointsShare')">
                     <Percent :size="12" class="ml-auto" aria-hidden="true" />
                     <span class="sr-only">Share of the side's points</span>
                   </th>
-                  <th :class="STAT_HEAD" title="Highlights">
+                  <th :class="STAT_HEAD" :title="$t('match.highlights')">
                     <Star :size="12" class="ml-auto" aria-hidden="true" />
                     <span class="sr-only">Highlights</span>
                   </th>
-                  <th :class="STAT_HEAD" title="Best run of points">
+                  <th :class="STAT_HEAD" :title="$t('match.bestRun')">
                     <Flame :size="12" class="ml-auto" aria-hidden="true" />
                     <span class="sr-only">Best run of points</span>
                   </th>
@@ -234,7 +234,7 @@ const STAT_CELL = 'py-1.5 text-right tabular-nums'
 
             <p v-if="s.totals && s.totals.attributed < s.totals.points" class="mt-2 text-xs text-ink-subtle">
               {{ s.totals.points - s.totals.attributed }} point{{ s.totals.points - s.totals.attributed === 1 ? '' : 's' }}
-              logged without a scorer.
+              {{ $t('match.noScorer') }}
             </p>
             <p v-if="s.totals" class="mt-1 text-xs text-ink-subtle tabular-nums">
               {{ s.totals.wonOnServe }} won on serve · best run {{ s.totals.bestRun }}
@@ -265,7 +265,7 @@ const STAT_CELL = 'py-1.5 text-right tabular-nums'
           @click="emit('reveal')"
         >
           <Eye :size="14" aria-hidden="true" />
-          Reveal the result
+          {{ $t('match.reveal') }}
         </button>
       </div>
     </div>

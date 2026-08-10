@@ -15,7 +15,7 @@ const year = new Date().getFullYear()
       <div>
         <UiBrandLogo variant="lockup" size="h-20" :wordmark="false" />
         <p class="mt-5 max-w-sm text-[0.9375rem] leading-relaxed text-ink-muted">
-          {{ site.seo.description }}
+          {{ $lt(site.seo.description) }}
         </p>
         <p class="mt-4 inline-flex items-center gap-1.5 text-sm text-ink-subtle">
           <MapPin :size="14" aria-hidden="true" />
@@ -23,9 +23,9 @@ const year = new Date().getFullYear()
         </p>
       </div>
 
-      <nav aria-label="Sections">
+      <nav :aria-label="$t('footer.sections')">
         <h2 class="label">
-          Sections
+          {{ $t('footer.sections') }}
         </h2>
         <ul class="mt-4 space-y-2.5">
           <li v-for="pillar in site.pillars" :key="pillar.id">
@@ -33,16 +33,16 @@ const year = new Date().getFullYear()
               :to="pillar.to"
               class="inline-flex items-center gap-2 text-[0.9375rem] text-ink-muted transition-colors duration-200 hover:text-accent"
             >
-              {{ pillar.label }}
-              <span v-if="!pillar.ready" class="text-[0.6875rem] uppercase tracking-widest text-ink-subtle">Soon</span>
+              {{ $lt(pillar.label) }}
+              <span v-if="!pillar.ready" class="text-[0.6875rem] uppercase tracking-widest text-ink-subtle">{{ $t('common.soonShort') }}</span>
             </NuxtLink>
           </li>
         </ul>
       </nav>
 
-      <nav aria-label="Elsewhere">
+      <nav :aria-label="$t('footer.elsewhere')">
         <h2 class="label">
-          Elsewhere
+          {{ $t('footer.elsewhere') }}
         </h2>
         <ul class="mt-4 space-y-2.5">
           <li>
@@ -53,7 +53,7 @@ const year = new Date().getFullYear()
               class="inline-flex items-center gap-2 text-[0.9375rem] text-ink-muted transition-colors duration-200 hover:text-accent"
             >
               <UiYouTubeGlyph :size="16" />
-              YouTube channel
+              {{ $t('footer.youtube') }}
               <ArrowUpRight :size="14" aria-hidden="true" />
             </a>
           </li>
@@ -63,7 +63,7 @@ const year = new Date().getFullYear()
               class="inline-flex items-center gap-2 text-[0.9375rem] text-ink-subtle transition-colors duration-200 hover:text-accent"
             >
               <ShieldCheck :size="15" aria-hidden="true" />
-              Admin sign in
+              {{ $t('footer.adminSignIn') }}
             </NuxtLink>
           </li>
         </ul>
@@ -74,7 +74,7 @@ const year = new Date().getFullYear()
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-5 text-xs text-ink-subtle sm:px-6">
         <p>© {{ year }} {{ site.club.name }}</p>
         <p class="font-display uppercase tracking-[0.2em] text-accent">
-          {{ site.club.tagline }}
+          {{ $lt(site.club.tagline) }}
         </p>
       </div>
     </div>

@@ -5,6 +5,8 @@ import { Clapperboard, MapPin, Timer, Video } from '@lucide/vue'
 import { LIST_SELECT } from '~/utils/matchSummary'
 import { applyFilters, decorate, emptyFilters, isFiltered } from '~/utils/videoFilters'
 
+const { bcp47 } = useI18n()
+
 const client = useSupabaseClient<Database>()
 
 const { data: matches } = await useAsyncData('public-matches', async () => {
@@ -39,11 +41,11 @@ useSeoMeta({
   <div>
     <UiReveal>
       <UiSectionHeading
-        eyebrow="Section one of three"
+        :eyebrow="$t('videos.eyebrow')"
         :icon="Video"
         level="h1"
         title="Videos"
-        lede="Every match we film, grouped by the session it came from. Tagged matches carry a live score overlay and a timeline you can jump around."
+        :lede="$t('videos.lede')"
       />
     </UiReveal>
 
@@ -67,7 +69,7 @@ useSeoMeta({
                offset by the header height so the two never overlap. -->
           <header class="sticky top-16 z-10 -mx-4 mb-6 border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl sm:top-18 sm:-mx-6 sm:px-6">
             <h2 class="font-display text-2xl font-bold uppercase tracking-wide text-ink sm:text-3xl">
-              {{ formatDateLong(session.date) }}
+              {{ formatDateLong(session.date, bcp47, $t('common.undated')) }}
             </h2>
             <ul class="mt-1.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-ink-muted">
               <li class="inline-flex items-center gap-1.5">

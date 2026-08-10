@@ -520,6 +520,23 @@
   animation: point-flash 900ms ease-out;
 }
 
+/*
+  Language swap. Every word on the page changes at once, so it gets a beat of
+  dimming to read as a deliberate change rather than a rendering fault. Scoped
+  to `no-preference` rather than relying on the blanket transition kill below:
+  that kill would keep the opacity change and only remove the easing, turning
+  a fade into a flicker — the opposite of what the preference asks for.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  #main {
+    transition: opacity 120ms var(--ease-brand);
+  }
+
+  .lang-swapping #main {
+    opacity: 0.35;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

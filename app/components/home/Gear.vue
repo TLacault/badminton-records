@@ -22,17 +22,17 @@ const ICONS: Record<GearItem['icon'], typeof Swords> = {
   <section id="gear" class="scroll-mt-28">
     <UiReveal>
       <UiSectionHeading
-        eyebrow="What's in the bag"
+        :eyebrow="$t('home.gear.eyebrow')"
         :icon="Backpack"
-        title="Equipment"
-        lede="The kit behind every rally on this site — and why each piece is in there."
+        :title="$t('home.gear.title')"
+        :lede="$t('home.gear.lede')"
       />
     </UiReveal>
 
     <ul class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <UiReveal
         v-for="(item, i) in site.gear"
-        :key="item.category"
+        :key="item.icon"
         as="li"
         :delay="i * 50"
       >
@@ -54,16 +54,16 @@ const ICONS: Record<GearItem['icon'], typeof Swords> = {
           </span>
 
           <h3 class="mt-4 font-display text-xs font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-            {{ item.category }}
+            {{ $lt(item.category) }}
           </h3>
           <p class="mt-1 font-display text-xl font-bold uppercase leading-tight tracking-wide text-ink">
-            {{ item.name }}
+            {{ $lt(item.name) }}
           </p>
-          <p v-if="item.spec" class="mt-1.5 font-mono text-sm tabular-nums text-accent">
-            {{ item.spec }}
+          <p v-if="$lt(item.spec)" class="mt-1.5 font-mono text-sm tabular-nums text-accent">
+            {{ $lt(item.spec) }}
           </p>
-          <p v-if="item.note" class="mt-3 text-[0.9375rem] leading-relaxed text-ink-muted">
-            {{ item.note }}
+          <p v-if="$lt(item.note)" class="mt-3 text-[0.9375rem] leading-relaxed text-ink-muted">
+            {{ $lt(item.note) }}
           </p>
         </article>
       </UiReveal>

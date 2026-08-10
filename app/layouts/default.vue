@@ -13,7 +13,7 @@ const bleed = computed(() => route.meta.bleed === true)
       href="#main"
       class="btn btn-primary sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[60]"
     >
-      Skip to content
+      {{ $t('a11y.skipToContent') }}
     </a>
 
     <SiteHeader />

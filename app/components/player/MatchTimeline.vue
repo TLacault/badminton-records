@@ -154,7 +154,7 @@ function seekFromPointer(event: MouseEvent) {
         backgroundImage:
           'repeating-linear-gradient(45deg, var(--ui-line) 0 2px, transparent 2px 6px)',
       }"
-      :title="b.open ? 'Break (still open)' : 'Break'"
+      :title="b.open ? $t('player.breakOpen') : $t('player.break')"
     />
 
     <!-- Highlights ride in their own lane above the points so they stay
@@ -166,7 +166,7 @@ function seekFromPointer(event: MouseEvent) {
       data-testid="timeline-highlight"
       class="absolute left-0 top-0 h-2 rounded-b-sm bg-accent shadow-[0_0_10px_var(--ui-accent)]"
       :style="{ left: b.left, width: b.width }"
-      title="Highlight"
+      :title="$t('player.highlight')"
     />
 
     <div
