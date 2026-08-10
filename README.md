@@ -234,31 +234,46 @@ controls whether guests can see it, and `tagging_status` (`untagged` |
 `in_progress` | `tagged`) tracks tagging progress and is set automatically by
 the tagging tool.
 
-## FFBaD player lookup
+## MyFFBaD player lookup
 
-The roster form (`/admin/players`) has a surname search that fills every field
-from the federation's records — licence, club, birth year and the three
-rankings. It goes through the **official** FFBaD web services
-(<https://apitest.ffbad.org/>), not a scraper.
+The roster form (`/admin/players`) has a name search that fills the licence,
+club, category, CPPH and the three rankings from the federation's records. Type
+a full name, pause a second, pick from the dropdown.
 
-Credentials are issued by the federation and must be requested from them:
+The federation's own web services are **not open to the public** — we asked. So
+this reads the public site instead, <https://myffbad.fr/recherche/joueur>, which
+answers anonymously. There is nothing to configure: no API key, no login. Any
+`MYFFBAD_*` variables in your `.env` are not read by the app.
 
+Two things it cannot do:
+
+- **Birth year.** MyFFBaD publishes no birth date, so that field stays manual.
+  `category` ("Senior", "Veteran 2") is the closest public stand-in.
+- **Deep paging.** A bare surname can match thousands. The lookup reads page one
+  and shows ten, then tells you to add a first name.
+
+### When it breaks
+
+It will, eventually — it is a scraper. MyFFBaD is a Next.js app and the results
+arrive in the React Server Components payload rather than the markup, so
+`server/utils/myffbad.ts` reassembles the `self.__next_f.push` chunks and reads
+the `"results"` array out of the stream.
+
+The failure is designed to be legible. A page with no results block *and* no
+"Aucun résultat" notice raises `MyffbadScrapeError`, and the form says the site
+changed rather than claiming nobody matched. To fix it:
+
+```bash
+# 1. See what MyFFBaD sends now.
+curl '/api/myffbad/search?q=<name>&debug=1'      # normalised + raw records
+
+# 2. Refresh the fixtures and re-run the parser tests.
+curl -o server/utils/__fixtures__/myffbad-search-lacault.html \
+  'https://myffbad.fr/recherche/joueur?search=Tim+Lacault'
+pnpm vitest run server/utils/myffbad.test.ts
 ```
-FFBAD_LOGIN=...
-FFBAD_PASSWORD=...
-FFBAD_API_URL=https://apitest.ffbad.org/rest/   # optional; this is the default
-```
 
-Without them `/api/ffbad/search` returns 503 and the form stays fully usable by
-hand. The credentials never reach the browser — the search goes through a
-server route because FFBaD authenticates with a login and password.
-
-The field names inside the API's `Retour` payload are undocumented and could
-not be observed without credentials, so `normalisePlayer` in
-`server/utils/ffbad.ts` matches against several plausible spellings. If a field
-comes back empty once you have access, call
-`/api/ffbad/search?q=<name>&debug=1` to see the raw payload and correct the
-candidate lists — they are all in that one function.
+Field names live in `normalisePlayer`, and only there.
 
 ## Setup
 

@@ -60,11 +60,8 @@ export default defineNuxtConfig({
     // it was issued and stored in .env.
     youtubeApiKey: process.env.YOUTUBE_API_KEY ?? '',
     youtubeChannelHandle: process.env.YOUTUBE_CHANNEL_HANDLE ?? 'timlacault',
-    // FFBaD web services. Credentials are issued by the federation; without
-    // them /api/ffbad/search returns 503 and the roster form stays manual.
-    ffbadApiUrl: process.env.FFBAD_API_URL ?? 'https://apitest.ffbad.org/rest/',
-    ffbadLogin: process.env.FFBAD_LOGIN ?? '',
-    ffbadPassword: process.env.FFBAD_PASSWORD ?? '',
+    // The player lookup scrapes myffbad.fr, which answers anonymously. No
+    // credentials, so nothing to configure here.
   },
   vite: {
     plugins: [tailwindcss()],

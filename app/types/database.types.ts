@@ -260,12 +260,15 @@ export type Database = {
       players: {
         Row: {
           birth_year: number | null
+          category: string | null
           club: string | null
+          cpph: number | null
           created_at: string
           ffbad_license: string | null
           first_name: string
           id: string
           last_name: string
+          myffbad_person_id: string | null
           notes: string | null
           rank_doubles: string | null
           rank_mixed: string | null
@@ -273,12 +276,15 @@ export type Database = {
         }
         Insert: {
           birth_year?: number | null
+          category?: string | null
           club?: string | null
+          cpph?: number | null
           created_at?: string
           ffbad_license?: string | null
           first_name: string
           id?: string
           last_name: string
+          myffbad_person_id?: string | null
           notes?: string | null
           rank_doubles?: string | null
           rank_mixed?: string | null
@@ -286,12 +292,15 @@ export type Database = {
         }
         Update: {
           birth_year?: number | null
+          category?: string | null
           club?: string | null
+          cpph?: number | null
           created_at?: string
           ffbad_license?: string | null
           first_name?: string
           id?: string
           last_name?: string
+          myffbad_person_id?: string | null
           notes?: string | null
           rank_doubles?: string | null
           rank_mixed?: string | null

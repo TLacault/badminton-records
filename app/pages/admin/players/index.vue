@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
-import type { FfbadPlayer } from '~~/server/utils/ffbad'
-import { Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
+import type { MyffbadPlayer } from '~~/server/utils/myffbad'
+import { ExternalLink, Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
+import { myffbadProfileUrl } from '~/utils/players'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -25,6 +26,9 @@ function blank(): PlayerInsert {
     rank_doubles: '',
     rank_mixed: '',
     ffbad_license: '',
+    category: '',
+    cpph: null,
+    myffbad_person_id: '',
     notes: '',
   }
 }
@@ -75,21 +79,27 @@ async function remove(player: PlayerRow) {
 }
 
 /**
- * Fills the form from an FFBaD licensee. It does not save — the admin still
- * reviews and submits, so a bad match is caught before it reaches the roster.
+ * Fills the form from a MyFFBaD licensee. It does not save — the admin still
+ * reviews and submits, so a bad match, or a name the surname rule split wrong,
+ * is caught before it reaches the roster.
+ *
+ * `birth_year` is deliberately left blank: MyFFBaD publishes no birth date, so
+ * anything here would be invented.
  */
-function fillFromFfbad(p: FfbadPlayer) {
+function fillFromMyffbad(p: MyffbadPlayer) {
   editingId.value = null
   form.value = {
     ...blank(),
     first_name: p.firstName,
     last_name: p.lastName,
     club: p.club ?? '',
-    birth_year: p.birthYear,
     rank_singles: p.rankSingles ?? '',
     rank_doubles: p.rankDoubles ?? '',
     rank_mixed: p.rankMixed ?? '',
     ffbad_license: p.licence,
+    category: p.category ?? '',
+    cpph: p.cpph,
+    myffbad_person_id: p.personId,
   }
 }
 
@@ -100,7 +110,7 @@ function age(birthYear: number | null) {
 
 /** Labelled, not placeholder-only: a filled-in field must still say what it is. */
 interface TextField {
-  key: 'first_name' | 'last_name' | 'club' | 'rank_singles' | 'rank_doubles' | 'rank_mixed' | 'ffbad_license'
+  key: 'first_name' | 'last_name' | 'club' | 'rank_singles' | 'rank_doubles' | 'rank_mixed' | 'ffbad_license' | 'category'
   label: string
   testid?: string
   required?: boolean
@@ -115,6 +125,7 @@ const fields: TextField[] = [
   { key: 'rank_doubles', label: 'Rank D', placeholder: 'D8' },
   { key: 'rank_mixed', label: 'Rank Mx', placeholder: 'P10' },
   { key: 'ffbad_license', label: 'FFBaD licence', placeholder: '00000000' },
+  { key: 'category', label: 'Category', placeholder: 'Senior' },
 ]
 </script>
 
@@ -140,7 +151,7 @@ const fields: TextField[] = [
         {{ editingId ? 'Edit player' : 'Add a player' }}
       </h2>
 
-      <PlayerFfbadSearch class="mt-4 max-w-xl" @select="fillFromFfbad" />
+      <PlayerMyffbadSearch class="mt-4 max-w-xl" @select="fillFromMyffbad" />
 
       <form class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="save">
         <label v-for="field in fields" :key="field.key" class="block">
@@ -164,6 +175,19 @@ const fields: TextField[] = [
             type="number"
             inputmode="numeric"
             placeholder="1995"
+            class="field mt-2 tabular-nums"
+          >
+        </label>
+
+        <label class="block">
+          <span class="label">CPPH</span>
+          <input
+            v-model.number="form.cpph"
+            data-testid="p-cpph"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="1470"
             class="field mt-2 tabular-nums"
           >
         </label>
@@ -236,6 +260,17 @@ const fields: TextField[] = [
             </td>
             <td class="px-4 py-3">
               <div class="flex items-center justify-end gap-1">
+                <a
+                  v-if="myffbadProfileUrl(p.ffbad_license)"
+                  :href="myffbadProfileUrl(p.ffbad_license)!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="grid size-9 place-items-center rounded-lg text-ink-muted transition-colors duration-200 hover:bg-panel-strong hover:text-accent"
+                  :aria-label="`Open ${p.first_name} ${p.last_name} on MyFFBaD`"
+                  title="MyFFBaD profile"
+                >
+                  <ExternalLink :size="15" aria-hidden="true" />
+                </a>
                 <button
                   type="button"
                   class="grid size-9 place-items-center rounded-lg text-ink-muted transition-colors duration-200 hover:bg-panel-strong hover:text-accent"

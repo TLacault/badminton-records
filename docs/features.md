@@ -11,7 +11,7 @@ Admin can fill in the match stats and scores for each match, including player na
 
 For practicity, as we often play against the same players, we will have a list of players to select from, and the admin can add new players to the list as needed.
 each player will contain its own infos & stats including rank, name, age.
-maybe even going to connect it to EBad, MyFFBad, FFbad api if they have one to au fetch player's infos.
+Player infos are auto-filled from MyFFBad: the federation's own API turned out not to be open to the public, so the roster form reads myffbad.fr directly. It fills licence, club, category, CPPH and the three rankings — everything but the birth year, which MyFFBad does not publish.
 
 ### Enhanced Video Player
 

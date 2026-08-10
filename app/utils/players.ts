@@ -79,6 +79,19 @@ export function clubTag(club: string | null | undefined): string | null {
   return acronym.toUpperCase()
 }
 
+/**
+ * A player's page on the federation's public site.
+ *
+ * Derived from the licence rather than stored: the licence is already the path
+ * segment MyFFBaD uses, so a second column would only be a copy that can rot.
+ */
+export function myffbadProfileUrl(
+  licence: string | null | undefined,
+): string | null {
+  const trimmed = licence?.trim()
+  return trimmed ? `https://myffbad.fr/joueur/${trimmed}` : null
+}
+
 /** The selected details this player actually has a value for. */
 export function playerInfoChips(
   player: PlayerInfoSource | null | undefined,
