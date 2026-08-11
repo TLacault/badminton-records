@@ -149,12 +149,13 @@ A new match opens with our half of the court already filled in — `HOME_PAIR` i
 `utils/players.ts`, matched by name against the roster so the seed survives a
 database reset — plus Talence, 15 points and a cap of 21.
 
-The tagger's **Reset** clears the rally log, the breaks, the set starts, the
-roster and every scoring rule, then re-seeds the home pair. It keeps only what
-the YouTube import supplied — title, date, video id, thumbnail, duration —
-because re-importing will not bring those back for a video already known. It
-reloads the page afterwards rather than refetching: the tagging session still
-holds the old log in memory, and its next autosave would write it all back.
+The tagger's **Reset** clears the recording and nothing else: the rally log and
+the breaks go, and the roster, venue, type, scoring rules, first server and
+court sides all stay, because they were settled before the first point was
+tagged and re-entering them to fix a mistagged set is a punishment, not a
+feature. Edit those on `/admin/matches/[id]` instead. Reset reloads the page
+afterwards rather than refetching: the tagging session still holds the old log
+in memory, and its next autosave would write it all back.
 
 The video library filters and sorts through `<VideoFilterBar>`, shared with the
 public wall so "longest" cannot come to mean two things. Search covers players,

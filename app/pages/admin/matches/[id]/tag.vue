@@ -238,22 +238,24 @@ const playerKeys = usePlayerKeys({
 })
 
 /**
- * Start the match over.
+ * Throw away the recording and tag the match again from the first point.
  *
- * Everything the YouTube import supplied is kept — title, date, video id,
- * thumbnail, duration — because that is not ours to throw away and re-importing
- * will not bring it back for a video already known. Everything a human entered
- * or tagged goes: the rally log, the breaks, the set starts, the roster, the
- * scoring rules and the type all return to what a fresh match starts with,
- * including our half of the court.
+ * Only what was captured while watching goes: the rally log and the breaks.
+ * The match itself is untouched — roster, venue, type, scoring rules, who
+ * served first and which half of the court is ours were all decided before a
+ * single point was tagged, and having to enter them again to fix a mistagged
+ * first set was the reason this button was frightening to press.
+ *
+ * `tagging_status` is left alone too: a match being re-tagged is being edited,
+ * and the reload below settles it to `in_progress`.
  */
 const resetting = ref(false)
 
 async function resetMatch() {
   const confirmed = confirm(
-    'Clear every tagged point, break and set start on this match, along with '
-    + 'the roster, scoring rules and type? The video, title and date stay. '
-    + 'This cannot be undone.',
+    'Clear every point and break tagged on this match and start the recording '
+    + 'over? The roster, scoring rules, type and video all stay. This cannot '
+    + 'be undone.',
   )
   if (!confirmed) return
 
@@ -261,35 +263,7 @@ async function resetMatch() {
   await Promise.all([
     client.from('rallies').delete().eq('match_id', matchId),
     client.from('match_breaks').delete().eq('match_id', matchId),
-    client.from('match_set_starts').delete().eq('match_id', matchId),
-    client.from('match_players').delete().eq('match_id', matchId),
   ])
-
-  await client.from('matches').update({
-    venue: 'Talence',
-    format: 'doubles',
-    match_type_id: null,
-    player_info_fields: [],
-    best_of: 3,
-    points_to_win: 15,
-    win_by: 2,
-    points_cap: 21,
-    initial_server_side: null,
-    side1_right_court_slot: null,
-    side2_right_court_slot: null,
-    // tagging_status is deliberately left alone: a match that has been worked
-    // on is being edited, not unstarted, and the reload below settles it to
-    // `in_progress` anyway.
-  }).eq('id', matchId)
-
-  const { data: roster } = await client.from('players').select('id, first_name, last_name')
-  const home = homePairSlots(roster ?? [])
-  const rows = Object.entries(home).map(([slot, playerId]) => ({
-    match_id: matchId,
-    slot: Number(slot),
-    player_id: playerId,
-  }))
-  if (rows.length) await client.from('match_players').insert(rows)
 
   // A full reload rather than a refetch: the tagging session still holds the
   // old rally log in memory, and its next autosave would write it all back.
@@ -410,7 +384,7 @@ const saveLabel = computed(() => {
           type="button"
           class="btn btn-sm btn-ghost"
           :disabled="resetting"
-          title="Clear every tag and start this match over"
+          title="Clear every point and break tagged, and record this match again"
           @click="resetMatch"
         >
           <RotateCcw :size="14" :class="resetting ? 'animate-spin' : ''" aria-hidden="true" />
