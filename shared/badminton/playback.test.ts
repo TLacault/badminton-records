@@ -118,4 +118,35 @@ describe('highlightSpans', () => {
       { from: 60, to: 70 },
     ])
   })
+
+  // Deleting or retiming a point moves the boundary a break was tagged
+  // against, leaving it stranded inside a rally rather than in front of it.
+  it('cuts a break stranded in the middle of a highlight', () => {
+    const derived = deriveMatch(CONFIG, log([10, 70], [1]))
+    expect(highlightSpans(derived.rallyStates, breaksAt([20, 60]))).toEqual([
+      { from: 10, to: 20 },
+      { from: 60, to: 70 },
+    ])
+  })
+
+  // The timeline paints an open break to the end of the video, so a band over
+  // it would be a highlight over dead time that is still running.
+  it('cuts everything after an open break', () => {
+    const derived = deriveMatch(CONFIG, log([10, 70], [1]))
+    expect(highlightSpans(derived.rallyStates, breaksAt([20, null]))).toEqual([
+      { from: 10, to: 20 },
+    ])
+  })
+
+  it('drops a passage a break covers outright', () => {
+    const derived = deriveMatch(CONFIG, log([10, 20, 70], [1]))
+    expect(highlightSpans(derived.rallyStates, breaksAt([5, 30]))).toEqual([])
+  })
+
+  it('is untouched by breaks that fall outside it', () => {
+    const derived = deriveMatch(CONFIG, log([10, 20, 30], [1]))
+    expect(highlightSpans(derived.rallyStates, breaksAt([0, 5], [30, 90]))).toEqual([
+      { from: 10, to: 20 },
+    ])
+  })
 })

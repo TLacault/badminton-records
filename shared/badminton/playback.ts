@@ -98,40 +98,63 @@ export interface Span {
 }
 
 /**
+ * `span` with every break cut out of it — nothing, one piece, or several.
+ *
+ * A break is not only ever at the front of the span it touches. Deleting or
+ * retiming a point moves the rally boundary the break was tagged against and
+ * leaves it stranded mid-rally, and an open break covers everything after it,
+ * which is how the timeline paints one. So the only reliable answer is to
+ * subtract them all rather than to push the start past the first.
+ */
+function withoutBreaks(span: Span, breaks: readonly BreakInput[]): Span[] {
+  let pieces: Span[] = [span]
+
+  for (const b of breaks) {
+    // An open break has no end: it runs to wherever the video does.
+    const from = b.startsAtSeconds
+    const to = b.endsAtSeconds ?? Number.POSITIVE_INFINITY
+    const kept: Span[] = []
+    for (const piece of pieces) {
+      if (to <= piece.from || from >= piece.to) kept.push(piece)
+      else {
+        if (from > piece.from) kept.push({ from: piece.from, to: from })
+        if (to < piece.to) kept.push({ from: to, to: piece.to })
+      }
+    }
+    pieces = kept
+  }
+
+  return pieces
+}
+
+/**
  * The passages worth watching twice: runs of highlighted rallies, as play time.
  *
- * Two corrections to the raw rally spans, both because rallies are contiguous
- * and so reach back across any break in front of them. A highlight tagged after
- * a pause would otherwise begin where the players walked off the court, putting
- * dead time inside the passage; and a break between two highlighted points
- * would be swallowed by the merge, joining them into one passage that is mostly
- * an interval. Neither is a thing anyone tagged.
+ * Rallies are contiguous, so a rally's span reaches back over any break in
+ * front of it and covers any break left inside it. Drawn or replayed raw, a
+ * passage tagged after a pause would begin where the players walked off the
+ * court, and a break between two highlighted points would be swallowed by the
+ * merge into one passage that is mostly interval. Nobody tagged the dead time,
+ * so it is cut out — which can leave a single point as two passages, with the
+ * pause that interrupted it between them.
  *
- * Adjacent highlights with nothing between them still merge, so a great
+ * Adjacent highlights with no break between them still merge, so a great
  * exchange tagged across three points reads as one passage rather than three.
  */
 export function highlightSpans(
   states: readonly RallyState[],
   breaks: readonly BreakInput[] = [],
 ): Span[] {
-  const spans: Span[] = []
-  let run: Span | null = null
+  const runs: Span[] = []
 
   for (const s of states) {
     if (!s.isHighlight) continue
-    const from = resumeTimeAt(breaks, s.startsAtSeconds)
-    // Continues the run only if this rally follows the last one directly and
-    // no break was trimmed off its front.
-    if (run && run.to === s.startsAtSeconds && from === s.startsAtSeconds) {
-      run.to = s.endsAtSeconds
-      continue
-    }
-    if (run) spans.push(run)
-    run = { from, to: s.endsAtSeconds }
+    const open = runs.at(-1)
+    if (open && open.to === s.startsAtSeconds) open.to = s.endsAtSeconds
+    else runs.push({ from: s.startsAtSeconds, to: s.endsAtSeconds })
   }
-  if (run) spans.push(run)
 
-  return spans
+  return runs.flatMap(run => withoutBreaks(run, breaks))
 }
 
 /**
