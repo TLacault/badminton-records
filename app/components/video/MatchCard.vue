@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
-import { CalendarDays, CircleDashed, Flame, Play, Trophy } from '@lucide/vue'
+import { CalendarDays, CircleDashed, Flame, Play, Scissors, Trophy } from '@lucide/vue'
 
 const { t, bcp47 } = useI18n()
 
@@ -31,6 +31,9 @@ const badgeClass = computed(() =>
 const badgeGlow = computed(() =>
   editing.value ? 'var(--ui-glow-soft)' : 'var(--ui-glow-strong)',
 )
+// Scissors are drawn as line work — filling them the way the flame is filled
+// collapses the blades into a blob at 14px.
+const badgeIcon = computed(() => (editing.value ? Scissors : Flame))
 const discipline = computed(() => disciplineCode(match.value.format))
 
 // The format has moved up into its own chip as DH/SH, so it would read twice
@@ -120,7 +123,12 @@ const resultClass = computed(() => {
         :class="badgeClass"
         :style="{ boxShadow: badgeGlow }"
       >
-        <Flame :size="14" fill="currentColor" aria-hidden="true" />
+        <component
+          :is="badgeIcon"
+          :size="14"
+          :fill="editing ? 'none' : 'currentColor'"
+          aria-hidden="true"
+        />
         {{ badgeLabel }}
       </span>
 
