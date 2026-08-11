@@ -124,6 +124,13 @@ export default {
     highlightsOnly: "Seulement les matchs avec temps forts",
   },
 
+  share: {
+    action: "Partager",
+    copy: "Copier le lien",
+    copied: "Lien copié",
+    failed: "Copie impossible",
+  },
+
   card: {
     edited: "Monté",
     editing: "En montage",

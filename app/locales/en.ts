@@ -127,6 +127,13 @@ export default {
     highlightsOnly: "Only matches with highlights",
   },
 
+  share: {
+    action: "Share",
+    copy: "Copy link",
+    copied: "Link copied",
+    failed: "Could not copy",
+  },
+
   card: {
     edited: "Edited",
     editing: "Editing",

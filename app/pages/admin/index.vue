@@ -268,6 +268,13 @@ async function setTaggingStatus(id: string, next: string) {
                 @update:model-value="value => setTaggingStatus(m.id, value)"
               />
 
+              <!-- The public link, not the admin one: what you send someone is
+                   the page they can actually open. -->
+              <UiShareButton
+                :to="`/matches/${m.id}`"
+                class="btn btn-sm btn-ghost !px-2.5"
+              />
+
               <button
                 data-testid="toggle-visibility"
                 class="btn btn-sm btn-ghost"

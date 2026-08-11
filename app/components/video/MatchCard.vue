@@ -69,11 +69,20 @@ const resultClass = computed(() => {
 </script>
 
 <template>
-  <NuxtLink
-    :to="`/matches/${match.id}`"
-    class="group relative block overflow-hidden rounded-2xl glass transition-[transform,box-shadow,border-color] duration-300 ease-brand hover:-translate-y-1 hover:border-accent/40 focus-visible:-translate-y-1"
+  <article
+    class="group relative overflow-hidden rounded-2xl glass transition-[transform,box-shadow,border-color] duration-300 ease-brand hover:-translate-y-1 hover:border-accent/40 has-[a:focus-visible]:-translate-y-1"
     :class="featured ? 'sm:grid sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] sm:items-center sm:rounded-3xl' : ''"
   >
+    <!--
+      The whole card opens the match. A stretched link rather than a card
+      wrapped in one, because the card now also holds the share button, and a
+      link cannot contain a button.
+    -->
+    <NuxtLink
+      :to="`/matches/${match.id}`"
+      class="absolute inset-0 z-10 rounded-2xl"
+      :aria-label="entry.title"
+    />
     <!-- The lead card splits sideways rather than stacking: a full-width 16:9
          still is over 700px tall on a laptop, which buries everything after
          it under one thumbnail. -->
@@ -106,7 +115,7 @@ const resultClass = computed(() => {
         aria-hidden="true"
       >
         <span
-          class="grid size-14 place-items-center rounded-full border border-white/25 bg-black/45 text-white opacity-0 backdrop-blur-md transition-[opacity,transform] duration-300 ease-brand group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100"
+          class="grid size-14 place-items-center rounded-full border border-white/25 bg-black/45 text-white opacity-0 backdrop-blur-md transition-[opacity,transform] duration-300 ease-brand group-hover:scale-100 group-hover:opacity-100 group-has-[a:focus-visible]:scale-100 group-has-[a:focus-visible]:opacity-100"
           :class="featured ? 'scale-90' : 'scale-75'"
           style="box-shadow: var(--ui-glow-strong)"
         >
@@ -145,13 +154,26 @@ const resultClass = computed(() => {
       </span>
 
       <!-- The opposite corner from the badge, and the same corner YouTube puts
-           its own quality mark in. -->
-      <span
-        v-if="match.is_4k"
-        data-testid="card-4k"
-        class="absolute right-2 top-2 rounded-md border border-white/25 bg-black/70 px-1.5 py-0.5 font-display text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm"
-        :title="$t('card.fourKTitle')"
-      >{{ $t('card.fourK') }}</span>
+           its own quality mark in. The share button joins them rather than
+           taking a corner of its own: three occupied corners and a play glyph
+           is as much as a still can carry. -->
+      <!--
+        Above the stretched link, or the link would swallow the click — but
+        only the button takes clicks back. A chip that reads as a label should
+        not be a hole in a card you can otherwise click anywhere.
+      -->
+      <div class="pointer-events-none absolute right-2 top-2 z-20 flex items-center gap-1.5">
+        <UiShareButton
+          :to="`/matches/${match.id}`"
+          class="pointer-events-auto grid size-6 place-items-center rounded-md border border-white/25 bg-black/70 text-white backdrop-blur-sm transition-colors duration-200 hover:border-accent hover:text-accent"
+        />
+        <span
+          v-if="match.is_4k"
+          data-testid="card-4k"
+          class="rounded-md border border-white/25 bg-black/70 px-1.5 py-0.5 font-display text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm"
+          :title="$t('card.fourKTitle')"
+        >{{ $t('card.fourK') }}</span>
+      </div>
     </div>
 
     <div class="p-4" :class="featured ? 'sm:p-7' : ''">
@@ -194,5 +216,5 @@ const resultClass = computed(() => {
         {{ meta }}
       </p>
     </div>
-  </NuxtLink>
+  </article>
 </template>

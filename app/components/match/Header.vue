@@ -5,6 +5,7 @@ import { CalendarDays, Clock, Eye, MapPin, Swords, Trophy, Users } from '@lucide
 const { t, bcp47 } = useI18n()
 
 const props = defineProps<{
+  matchId: string
   sideNames: Record<number, string>
   derived: DerivedMatch | null
   typeLabel: string | null
@@ -69,12 +70,22 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
       {{ $t('match.label') }}
     </p>
 
-    <h1
-      data-testid="match-heading"
-      class="relative mt-2.5 font-display text-[clamp(1.5rem,3.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-tight"
-    >
-      {{ heading }}
-    </h1>
+    <!-- The button rides with the title rather than with the tags below: it
+         acts on the match as a whole, which is what the title names. -->
+    <div class="relative mt-2.5 flex items-start justify-between gap-4">
+      <h1
+        data-testid="match-heading"
+        class="font-display text-[clamp(1.5rem,3.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-tight"
+      >
+        {{ heading }}
+      </h1>
+
+      <UiShareButton
+        :to="`/matches/${matchId}`"
+        :label="$t('share.action')"
+        class="btn btn-sm btn-ghost shrink-0"
+      />
+    </div>
 
     <ul class="relative mt-4 flex flex-wrap items-center gap-2">
       <li v-if="typeLabel">

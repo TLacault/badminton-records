@@ -265,6 +265,7 @@ useSeoMeta({
 
     <MatchHeader
       class="mt-4"
+      :match-id="match.id"
       :side-names="sideNames"
       :derived="derived"
       :type-label="typeLabel"
