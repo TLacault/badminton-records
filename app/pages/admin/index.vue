@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
-import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, Loader, MapPin, RefreshCw, Tag, Timer, TriangleAlert, Video } from '@lucide/vue'
+import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, Loader, MapPin, RefreshCw, SlidersHorizontal, Timer, TriangleAlert, Video } from '@lucide/vue'
 import { disciplineCode, LIST_SELECT } from '~/utils/matchSummary'
 import { groupBySession } from '~/utils/sessions'
 import { applyFilters, decorate, emptyFilters } from '~/utils/videoFilters'
@@ -202,14 +202,15 @@ async function setTaggingStatus(id: string, next: string) {
             class="relative flex flex-wrap items-center gap-4 rounded-2xl p-3 glass transition-[border-color] duration-200 hover:border-accent/30"
           >
             <!--
-              The whole row opens the editor. A stretched link rather than wrapping
-              the row in an anchor, because the row also holds buttons and selects,
-              and an anchor cannot contain them.
+              The whole row opens the tagger — the work this page exists for,
+              and the reason a row is here at all. A stretched link rather than
+              wrapping the row in an anchor, because the row also holds buttons
+              and selects, and an anchor cannot contain them.
             -->
             <NuxtLink
-              :to="`/admin/matches/${m.id}`"
+              :to="`/admin/matches/${m.id}/tag`"
               class="absolute inset-0 rounded-2xl"
-              :aria-label="`Edit ${title}`"
+              :aria-label="`Tag ${title}`"
             />
 
             <div class="relative w-32 shrink-0 overflow-hidden rounded-xl border border-line bg-bg-deep">
@@ -277,9 +278,11 @@ async function setTaggingStatus(id: string, next: string) {
                 {{ m.visibility === 'public' ? 'Unpublish' : 'Publish' }}
               </button>
 
-              <NuxtLink :to="`/admin/matches/${m.id}/tag`" class="btn btn-sm btn-primary">
-                <Tag :size="14" aria-hidden="true" />
-                Tag
+              <!-- Who played, which format, how it is scored: the once-per-match
+                   setup, kept out of the way of the tagging the row leads to. -->
+              <NuxtLink :to="`/admin/matches/${m.id}`" class="btn btn-sm btn-ghost">
+                <SlidersHorizontal :size="14" aria-hidden="true" />
+                Setup
               </NuxtLink>
             </div>
           </li>
