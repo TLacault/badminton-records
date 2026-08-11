@@ -23,17 +23,12 @@ const props = withDefaults(
   { scope: 'all' },
 )
 
-const { bindings, rebind, unbind, reset, isDefaultFor } = useKeybinds()
+const { bindings, rebind, addSlot, unbind, reset, isDefaultFor } = useKeybinds()
 
 const open = ref(false)
 
-/**
- * The slot waiting for a keypress: an action, and which of its keys is being
- * replaced. `at: null` means the next press is added alongside the existing
- * ones rather than replacing any of them.
- */
-const capturing = ref<{ id: KeybindActionId, at: number | null } | null>(null)
-const notice = ref<string | null>(null)
+/** The slot waiting for a keypress: an action, and which of its keys. */
+const capturing = ref<{ id: KeybindActionId, at: number } | null>(null)
 
 /** In player scope, PLAYER_ACTIONS also fixes the order the rows read in. */
 const shown = computed<KeybindActionId[]>(() =>
@@ -52,36 +47,22 @@ const groups = computed(() => {
     .filter(group => group.actions.length)
 })
 
-function labelOf(id: KeybindActionId): string {
-  return KEYBIND_ACTIONS.find(a => a.id === id)?.label ?? id
-}
-
-function isCapturing(id: KeybindActionId, at: number | null): boolean {
+function isCapturing(id: KeybindActionId, at: number): boolean {
   return capturing.value?.id === id && capturing.value.at === at
 }
 
-function startCapture(id: KeybindActionId, at: number | null) {
+function startCapture(id: KeybindActionId, at: number) {
   capturing.value = isCapturing(id, at) ? null : { id, at }
-  notice.value = null
 }
 
 /**
- * Says what the key was taken from, naming only actions this reader can see.
- * A viewer who lands a playback key on a scoring one has still taken it, and
- * is told so — but the scoring key is not introduced to them by name.
+ * `+` opens an empty slot and aims the next keypress at it. The slot appears
+ * straight away rather than only once a key lands, so the button visibly does
+ * something even if the press that follows is a key already in use — which,
+ * before, took the key from elsewhere and left this row looking untouched.
  */
-function conflictNotice(takenFrom: KeybindActionId[]): string | null {
-  if (!takenFrom.length) return null
-  const named = takenFrom.filter(id => shown.value.includes(id))
-  if (!named.length) {
-    return takenFrom.length > 1
-      ? 'Taken from other shortcuts of yours.'
-      : 'Taken from another shortcut of yours.'
-  }
-  const rest = takenFrom.length - named.length
-  const list = named.map(labelOf).join(', ')
-  const tail = rest ? `${list} and ${rest} other` : list
-  return `Taken from ${tail} — rebind ${takenFrom.length > 1 ? 'those' : 'that'} too.`
+function addAndCapture(id: KeybindActionId) {
+  capturing.value = { id, at: addSlot(id) }
 }
 
 /**
@@ -103,9 +84,8 @@ function onCapture(event: KeyboardEvent) {
   // Modifier-only presses are the way to Ctrl+S, not a binding of their own.
   if (['Control', 'Meta', 'Shift', 'Alt'].includes(event.key)) return
 
-  const takenFrom = rebind(target.id, event, target.at ?? undefined)
+  rebind(target.id, event, target.at)
   capturing.value = null
-  notice.value = conflictNotice(takenFrom)
 }
 
 onMounted(() => window.addEventListener('keydown', onCapture, true))
@@ -138,15 +118,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
     </h2>
 
     <div v-show="open" id="keyhelp-body" class="border-t border-line px-4 pb-4 pt-3">
-      <p
-        v-if="notice"
-        role="status"
-        data-testid="keyhelp-notice"
-        class="mb-3 rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-xs text-accent"
-      >
-        {{ notice }}
-      </p>
-
       <div v-for="group in groups" :key="group.name" class="mt-3 first:mt-0">
         <p class="label text-[0.6875rem]">
           {{ group.name }}
@@ -167,23 +138,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
                 :key="i"
                 class="group/key relative inline-flex"
               >
+                <!--
+                  An empty slot is drawn as a gap waiting to be filled — dashed
+                  and dimmed — so a shortcut that lost its key to another one
+                  is visibly missing it rather than merely absent.
+                -->
                 <button
                   type="button"
                   :data-testid="i === 0 ? `keybind-${action.id}` : undefined"
                   class="kbd transition-[border-color,color] duration-200 hover:border-accent/60 hover:text-accent"
-                  :class="isCapturing(action.id, i) ? 'animate-pulse border-accent text-accent' : ''"
+                  :class="[
+                    isCapturing(action.id, i) ? 'animate-pulse border-accent text-accent' : '',
+                    binding ? '' : 'border-dashed text-ink-subtle',
+                  ]"
                   :aria-label="isCapturing(action.id, i)
                     ? `Press a key for ${action.label}, or Escape to cancel`
-                    : `Rebind ${action.label}`"
+                    : binding ? `Rebind ${action.label}` : `Set a key for ${action.label}`"
                   @click="startCapture(action.id, i)"
                 >
-                  {{ isCapturing(action.id, i) ? 'Press…' : bindingLabel(binding) }}
+                  {{ isCapturing(action.id, i) ? 'Press…' : binding ? bindingLabel(binding) : 'Set key' }}
                 </button>
                 <button
                   v-if="(bindings[action.id]?.length ?? 0) > 1"
                   type="button"
                   class="absolute -right-1 -top-1 hidden size-3.5 place-items-center rounded-full border border-line bg-panel-solid text-ink-subtle hover:text-accent group-hover/key:grid"
-                  :aria-label="`Remove ${bindingLabel(binding)} from ${action.label}`"
+                  :aria-label="binding
+                    ? `Remove ${bindingLabel(binding)} from ${action.label}`
+                    : `Remove the empty key from ${action.label}`"
                   @click="unbind(action.id, i)"
                 >
                   <X :size="9" aria-hidden="true" />
@@ -194,10 +175,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
                 type="button"
                 :data-testid="`keybind-add-${action.id}`"
                 class="grid size-5 place-items-center rounded text-ink-subtle transition-colors duration-200 hover:text-accent"
-                :class="isCapturing(action.id, null) ? 'animate-pulse text-accent' : ''"
                 :aria-label="`Add another key for ${action.label}`"
                 :title="`Add another key for ${action.label}`"
-                @click="startCapture(action.id, null)"
+                @click="addAndCapture(action.id)"
               >
                 <Plus :size="12" aria-hidden="true" />
               </button>
@@ -213,7 +193,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
         data-testid="keybind-reset"
         class="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-subtle transition-colors duration-200 hover:text-accent disabled:opacity-40"
         :disabled="isDefaultFor(shown)"
-        @click="reset(shown); notice = null"
+        @click="reset(shown)"
       >
         <RotateCcw :size="12" aria-hidden="true" />
         Restore defaults

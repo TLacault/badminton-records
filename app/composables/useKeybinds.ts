@@ -38,6 +38,17 @@ export interface Binding {
   ctrl?: boolean
 }
 
+/**
+ * A slot in an action's list. `null` is a slot with no key in it yet — shown
+ * in the panel as an empty key waiting to be pressed.
+ *
+ * Empty slots exist so that losing a key is visible. A key belongs to one
+ * action at a time, so binding it here takes it from there; the action it left
+ * keeps an empty slot in its place rather than quietly ending up with nothing,
+ * which is how a shortcut used to go dead without anything saying so.
+ */
+export type BindingSlot = Binding | null
+
 export interface KeybindAction {
   id: KeybindActionId
   label: string
@@ -170,6 +181,14 @@ export function bindingLabel(binding: Binding): string {
   return binding.ctrl ? `Ctrl+${base}` : base
 }
 
+/**
+ * Keeps a row on screen. An action with nothing left holds one empty slot, so
+ * a shortcut that needs a key says so rather than vanishing from the panel.
+ */
+function withSlot(list: BindingSlot[]): BindingSlot[] {
+  return list.length ? list : [null]
+}
+
 function matches(binding: Binding, event: KeyboardEvent): boolean {
   const held = event.ctrlKey || event.metaKey
   if (held !== Boolean(binding.ctrl)) return false
@@ -195,7 +214,7 @@ export function bindingFromEvent(event: KeyboardEvent): Binding | null {
 }
 
 export function useKeybinds() {
-  const bindings = useState<Record<KeybindActionId, Binding[]>>(
+  const bindings = useState<Record<KeybindActionId, BindingSlot[]>>(
     'tagging-keybinds',
     () => structuredClone(DEFAULT_BINDINGS),
   )
@@ -211,11 +230,11 @@ export function useKeybinds() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) return
-      const stored = JSON.parse(raw) as Partial<Record<KeybindActionId, Binding[]>>
-      const next = structuredClone(DEFAULT_BINDINGS)
+      const stored = JSON.parse(raw) as Partial<Record<KeybindActionId, BindingSlot[]>>
+      const next: Record<KeybindActionId, BindingSlot[]> = structuredClone(DEFAULT_BINDINGS)
       for (const action of KEYBIND_ACTIONS) {
         const override = stored[action.id]
-        if (Array.isArray(override)) next[action.id] = override
+        if (Array.isArray(override)) next[action.id] = withSlot(override)
       }
       bindings.value = next
     }
@@ -226,7 +245,7 @@ export function useKeybinds() {
 
   function persist() {
     if (!import.meta.client) return
-    const overrides: Partial<Record<KeybindActionId, Binding[]>> = {}
+    const overrides: Partial<Record<KeybindActionId, BindingSlot[]>> = {}
     for (const action of KEYBIND_ACTIONS) {
       const mine = bindings.value[action.id]
       if (JSON.stringify(mine) !== JSON.stringify(DEFAULT_BINDINGS[action.id])) {
@@ -244,53 +263,70 @@ export function useKeybinds() {
   /** The action this keypress triggers, or null. */
   function actionFor(event: KeyboardEvent): KeybindActionId | null {
     for (const action of KEYBIND_ACTIONS) {
-      if (bindings.value[action.id]?.some(b => matches(b, event))) return action.id
+      if (bindings.value[action.id]?.some(b => b !== null && matches(b, event))) return action.id
     }
     return null
   }
 
   /**
    * Assigns a keypress to an action, taking the key off whoever held it.
-   * Returns the actions that lost a binding, so the UI can say so instead of
-   * leaving a silently dead key.
    *
-   * `at` replaces one of the action's existing keys; leaving it out appends,
-   * which is how an action ends up answering to two keys.
+   * There is no warning to answer and nothing to confirm: a key means one
+   * thing, so it simply moves, and the action it left is shown holding an
+   * empty slot. That reads better than the notice this used to raise, which
+   * named an action and then asked the reader to go and fix it themselves.
+   *
+   * `at` replaces one of the action's existing slots — including an empty one,
+   * which is how the `+` button works; leaving it out appends.
    */
-  function rebind(id: KeybindActionId, event: KeyboardEvent, at?: number): KeybindActionId[] {
+  function rebind(id: KeybindActionId, event: KeyboardEvent, at?: number) {
     const binding = bindingFromEvent(event)
-    if (!binding) return []
+    if (!binding) return
 
-    const takenFrom: KeybindActionId[] = []
     const next = { ...bindings.value }
-    for (const action of KEYBIND_ACTIONS) {
-      const own = action.id === id
-      const kept = (next[action.id] ?? []).filter((b, i) =>
-        // Within the action being edited, only the slot under the cursor gives
-        // way; a duplicate elsewhere in its own list is still a conflict.
-        !matches(b, event) || (own && i === at),
-      )
-      if (kept.length !== (next[action.id] ?? []).length) {
-        if (!own) takenFrom.push(action.id)
-        next[action.id] = kept
-      }
-    }
 
+    // Place it first, then sweep. Stripping the old holders first would shift
+    // the indices out from under `at`, which is how adding a key an action
+    // already had used to leave a stray empty slot behind.
     const list = [...(next[id] ?? [])]
     if (at !== undefined && at < list.length) list[at] = binding
     else list.push(binding)
     next[id] = list
 
+    // A key means one thing, so every other holder gives it up — the edited
+    // action included, which is what stops it appearing twice in one row. The
+    // slot just written is spared by identity rather than by index.
+    for (const action of KEYBIND_ACTIONS) {
+      next[action.id] = withSlot(
+        (next[action.id] ?? []).filter(b => b === null || b === binding || !matches(b, event)),
+      )
+    }
+
     bindings.value = next
     persist()
-    return takenFrom
   }
 
-  /** Drops one key from an action. The last one can go: unbound is a choice. */
+  /**
+   * Opens an empty slot on an action and says where it landed, so the panel can
+   * point the next keypress at it. Reuses one that is already empty rather than
+   * stacking blanks up.
+   */
+  function addSlot(id: KeybindActionId): number {
+    const list = [...(bindings.value[id] ?? [])]
+    const empty = list.indexOf(null)
+    if (empty !== -1) return empty
+
+    list.push(null)
+    bindings.value = { ...bindings.value, [id]: list }
+    persist()
+    return list.length - 1
+  }
+
+  /** Drops one key from an action, leaving an empty slot if it was the last. */
   function unbind(id: KeybindActionId, at: number) {
     bindings.value = {
       ...bindings.value,
-      [id]: (bindings.value[id] ?? []).filter((_, i) => i !== at),
+      [id]: withSlot((bindings.value[id] ?? []).filter((_, i) => i !== at)),
     }
     persist()
   }
@@ -323,5 +359,5 @@ export function useKeybinds() {
 
   onMounted(load)
 
-  return { bindings, actionFor, rebind, unbind, reset, isDefault, isDefaultFor }
+  return { bindings, actionFor, rebind, addSlot, unbind, reset, isDefault, isDefaultFor }
 }
