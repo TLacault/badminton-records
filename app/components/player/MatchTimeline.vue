@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BreakInput, DerivedMatch } from "~~/shared/badminton";
-import { rallyAtTime, resumeTimeAt } from "~~/shared/badminton";
+import { highlightSpans, rallyAtTime, resumeTimeAt } from "~~/shared/badminton";
 
 const props = withDefaults(
   defineProps<{
@@ -45,33 +45,19 @@ const segments = computed(() =>
   })),
 );
 
-/** Adjacent highlighted rallies merge into one band, so a great exchange
- *  tagged across three points reads as a single passage rather than stripes. */
-const highlightBands = computed(() => {
-  const bands: Array<{ left: string; width: string; start: number }> = [];
-  let run: { from: number; to: number } | null = null;
-  for (const s of states.value) {
-    if (s.isHighlight) {
-      if (run && run.to === s.startsAtSeconds) run.to = s.endsAtSeconds;
-      else {
-        if (run)
-          bands.push({
-            left: pct(run.from),
-            width: pct(run.to - run.from),
-            start: run.from,
-          });
-        run = { from: s.startsAtSeconds, to: s.endsAtSeconds };
-      }
-    }
-  }
-  if (run)
-    bands.push({
-      left: pct(run.from),
-      width: pct(run.to - run.from),
-      start: run.from,
-    });
-  return bands;
-});
+/**
+ * Adjacent highlighted rallies merge into one band, so a great exchange tagged
+ * across three points reads as a single passage rather than stripes. Breaks are
+ * trimmed off — see `highlightSpans`: a rally's own span reaches back over any
+ * pause before it, and a glowing band over dead time reads as tagged when it
+ * never was.
+ */
+const highlightBands = computed(() =>
+  highlightSpans(states.value, props.breaks).map((s) => ({
+    left: pct(s.from),
+    width: pct(s.to - s.from),
+  })),
+);
 
 /**
  * Dead time, drawn over the rally lane. Rallies are contiguous, so the rally

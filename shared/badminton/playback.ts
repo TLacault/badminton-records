@@ -78,8 +78,60 @@ export function breakAtTime(
  * An open break has no resume point, so `t` is returned unchanged.
  */
 export function resumeTimeAt(breaks: readonly BreakInput[], t: number): number {
-  const during = breakAtTime(breaks, t)
-  return during?.endsAtSeconds ?? t
+  let at = t
+  // Breaks can abut — a second one tagged with no rally between it and the
+  // first starts exactly where the first ended — so clearing one break can
+  // land inside the next. Each pass moves strictly forwards, past a break it
+  // will never meet again, so the log's length bounds the walk.
+  for (let hops = 0; hops <= breaks.length; hops++) {
+    const during = breakAtTime(breaks, at)
+    if (!during || during.endsAtSeconds === null) return at
+    at = during.endsAtSeconds
+  }
+  return at
+}
+
+/** A stretch of video, in seconds. Half-open [from, to), like rallies. */
+export interface Span {
+  from: number
+  to: number
+}
+
+/**
+ * The passages worth watching twice: runs of highlighted rallies, as play time.
+ *
+ * Two corrections to the raw rally spans, both because rallies are contiguous
+ * and so reach back across any break in front of them. A highlight tagged after
+ * a pause would otherwise begin where the players walked off the court, putting
+ * dead time inside the passage; and a break between two highlighted points
+ * would be swallowed by the merge, joining them into one passage that is mostly
+ * an interval. Neither is a thing anyone tagged.
+ *
+ * Adjacent highlights with nothing between them still merge, so a great
+ * exchange tagged across three points reads as one passage rather than three.
+ */
+export function highlightSpans(
+  states: readonly RallyState[],
+  breaks: readonly BreakInput[] = [],
+): Span[] {
+  const spans: Span[] = []
+  let run: Span | null = null
+
+  for (const s of states) {
+    if (!s.isHighlight) continue
+    const from = resumeTimeAt(breaks, s.startsAtSeconds)
+    // Continues the run only if this rally follows the last one directly and
+    // no break was trimmed off its front.
+    if (run && run.to === s.startsAtSeconds && from === s.startsAtSeconds) {
+      run.to = s.endsAtSeconds
+      continue
+    }
+    if (run) spans.push(run)
+    run = { from, to: s.endsAtSeconds }
+  }
+  if (run) spans.push(run)
+
+  return spans
 }
 
 /**

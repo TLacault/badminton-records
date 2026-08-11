@@ -1,5 +1,5 @@
 import type { BreakInput, DerivedMatch } from '~~/shared/badminton'
-import { resumeTimeAt } from '~~/shared/badminton'
+import { highlightSpans, resumeTimeAt } from '~~/shared/badminton'
 
 /**
  * Jumping between the things a match is made of: points, sets, and the bits
@@ -32,22 +32,15 @@ export function useMatchNavigation(
       .filter((s): s is number => s !== undefined)
   })
 
-  /** The first rally of each run of highlights, not every highlighted rally. */
-  const highlightStarts = computed(() => {
-    const out: number[] = []
-    let previousEnd: number | null = null
-    for (const state of derived.value?.rallyStates ?? []) {
-      if (!state.isHighlight) {
-        previousEnd = null
-        continue
-      }
-      if (previousEnd === null || previousEnd !== state.startsAtSeconds) {
-        out.push(state.startsAtSeconds)
-      }
-      previousEnd = state.endsAtSeconds
-    }
-    return out
-  })
+  /**
+   * The start of each highlighted passage, not every highlighted rally — and
+   * the start of play, not of the break in front of it. A break also ends a
+   * passage, so the point after one is a stop of its own rather than more of
+   * what was already being watched.
+   */
+  const highlightStarts = computed(() =>
+    highlightSpans(derived.value?.rallyStates ?? [], breaks.value).map(s => s.from),
+  )
 
   function go(marks: number[], direction: 1 | -1): number | null {
     const now = currentTime.value
