@@ -18,17 +18,19 @@ export const HOME_PAIR = [
 ]
 
 /**
- * Player ids for slots 1 and 2, for whichever of the pair the roster holds.
- *
- * Matched case-insensitively: the MyFFBaD lookup normalises `LACAULT` to
- * `Lacault`, but a row typed by hand — or imported before that normalisation
- * existed — can be cased any way at all, and an exact compare would silently
- * stop pre-filling our own side of the court.
+ * Names compare folded: the MyFFBaD lookup normalises `LACAULT` to `Lacault`,
+ * but a row typed by hand — or imported before that normalisation existed —
+ * can be cased and spaced any way at all, and an exact compare would silently
+ * stop matching the people this file exists to find.
  */
+function fold(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fr-FR')
+}
+
+/** Player ids for slots 1 and 2, for whichever of the pair the roster holds. */
 export function homePairSlots(
   roster: { id: string, first_name: string, last_name: string }[],
 ): Record<number, string> {
-  const fold = (value: string) => value.trim().toLocaleLowerCase('fr-FR')
   const out: Record<number, string> = {}
   HOME_PAIR.forEach((wanted, index) => {
     const found = roster.find(
@@ -38,6 +40,21 @@ export function homePairSlots(
     if (found) out[index + 1] = found.id
   })
   return out
+}
+
+/**
+ * The stand-in for someone whose name we do not have — a fourth player who
+ * turned up once, an opponent nobody wrote down. A real roster row, so the
+ * slot can be filled and the match tagged, named rather than seeded by id for
+ * the same reason the home pair is.
+ */
+export const PLACEHOLDER_NAME = 'place holder'
+
+/** The stand-in, if the roster holds one. Any casing, any spacing. */
+export function findPlaceholder<T extends { first_name: string, last_name: string }>(
+  roster: readonly T[],
+): T | null {
+  return roster.find(p => fold(`${p.first_name} ${p.last_name}`) === PLACEHOLDER_NAME) ?? null
 }
 
 export interface PlayerInfoSource {

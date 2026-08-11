@@ -38,11 +38,25 @@ function name(player: PlayerRow) {
   return `${player.first_name} ${player.last_name}`.trim()
 }
 
-/** The roster, filtered on every keystroke. No request, so no debounce. */
+/**
+ * The stand-in, kept at the top of the list whatever is typed. It is the
+ * answer to "I cannot name this person", which is a thing you know before you
+ * start typing and still know after a search has found nobody — so it is
+ * pinned rather than left to be found by name among the real players.
+ */
+const placeholder = computed(() => findPlaceholder(props.players))
+
+/**
+ * The roster, filtered on every keystroke. No request, so no debounce.
+ *
+ * Without the stand-in, which sits above: listing it twice is noise, and
+ * counting it as a hit would mean the MyFFBaD fallback below never runs.
+ */
 const matches = computed(() => {
+  const roster = props.players.filter(p => p.id !== placeholder.value?.id)
   const needle = term.value.trim().toLocaleLowerCase('fr')
-  if (!needle) return props.players
-  return props.players.filter(p =>
+  if (!needle) return roster
+  return roster.filter(p =>
     `${p.first_name} ${p.last_name} ${p.club ?? ''}`
       .toLocaleLowerCase('fr')
       .includes(needle),
@@ -220,6 +234,22 @@ function ranks(p: MyffbadPlayer) {
         <CircleDashed :size="15" aria-hidden="true" />
         No player
       </button>
+
+      <!-- The two ways of not naming somebody, together and above the rule:
+           leave the slot empty, or fill it with the stand-in. -->
+      <button
+        v-if="placeholder"
+        type="button"
+        data-testid="slot-placeholder"
+        class="flex w-full items-baseline gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+        :class="placeholder.id === modelValue ? 'text-accent' : 'text-ink'"
+        @click="choose(placeholder.id)"
+      >
+        <span class="font-medium">{{ name(placeholder) }}</span>
+        <span v-if="placeholder.club" class="truncate text-xs text-ink-subtle">{{ placeholder.club }}</span>
+      </button>
+
+      <div v-if="placeholder" class="mx-3 my-1 border-t border-line" aria-hidden="true" />
 
       <button
         v-for="p in matches"
