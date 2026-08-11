@@ -126,6 +126,7 @@ export default {
 
   card: {
     edited: "Monté",
+    editing: "En montage",
     fourK: "4K",
     fourKTitle: "Filmé et publié en 4K à 60 i/s",
     latest: "Dernier match",

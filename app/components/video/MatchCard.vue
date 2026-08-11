@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
-import { CalendarDays, CircleDashed, Flame, Play, Trophy } from '@lucide/vue'
+import { CalendarDays, CircleDashed, Flame, Play, Scissors, Trophy } from '@lucide/vue'
 
 const { t, bcp47 } = useI18n()
 
@@ -15,6 +15,7 @@ const props = withDefaults(
 
 const match = computed(() => props.entry.row)
 const tagged = computed(() => match.value.tagging_status === 'tagged')
+const editing = computed(() => match.value.tagging_status === 'in_progress')
 const discipline = computed(() => disciplineCode(match.value.format))
 
 // The format has moved up into its own chip as DH/SH, so it would read twice
@@ -101,6 +102,17 @@ const resultClass = computed(() => {
       >
         <Flame :size="14" fill="currentColor" aria-hidden="true" />
         {{ $t('card.edited') }}
+      </span>
+
+      <!-- The same corner, deliberately quieter: work under way is a promise,
+           not a payoff, so it stays glass and outlined rather than filled —
+           only the finished cut earns the crimson. -->
+      <span
+        v-else-if="editing"
+        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/40 bg-black/70 px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm"
+      >
+        <Scissors :size="14" class="motion-safe:animate-pulse" aria-hidden="true" />
+        {{ $t('card.editing') }}
       </span>
 
       <!-- The opposite corner from the badge, and the same corner YouTube puts
