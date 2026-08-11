@@ -154,26 +154,13 @@ const resultClass = computed(() => {
       </span>
 
       <!-- The opposite corner from the badge, and the same corner YouTube puts
-           its own quality mark in. The share button joins them rather than
-           taking a corner of its own: three occupied corners and a play glyph
-           is as much as a still can carry. -->
-      <!--
-        Above the stretched link, or the link would swallow the click — but
-        only the button takes clicks back. A chip that reads as a label should
-        not be a hole in a card you can otherwise click anywhere.
-      -->
-      <div class="pointer-events-none absolute right-2 top-2 z-20 flex items-center gap-1.5">
-        <UiShareButton
-          :to="`/matches/${match.id}`"
-          class="pointer-events-auto grid size-6 place-items-center rounded-md border border-white/25 bg-black/70 text-white backdrop-blur-sm transition-colors duration-200 hover:border-accent hover:text-accent"
-        />
-        <span
-          v-if="match.is_4k"
-          data-testid="card-4k"
-          class="rounded-md border border-white/25 bg-black/70 px-1.5 py-0.5 font-display text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm"
-          :title="$t('card.fourKTitle')"
-        >{{ $t('card.fourK') }}</span>
-      </div>
+           its own quality mark in. -->
+      <span
+        v-if="match.is_4k"
+        data-testid="card-4k"
+        class="absolute right-2 top-2 rounded-md border border-white/25 bg-black/70 px-1.5 py-0.5 font-display text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm"
+        :title="$t('card.fourKTitle')"
+      >{{ $t('card.fourK') }}</span>
     </div>
 
     <div class="p-4" :class="featured ? 'sm:p-7' : ''">
@@ -211,10 +198,20 @@ const resultClass = computed(() => {
         </li>
       </ul>
 
-      <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
-        <CalendarDays :size="13" class="shrink-0" aria-hidden="true" />
-        {{ meta }}
-      </p>
+      <!-- The last line of the card, read from both ends: when and where on
+           the left, the one thing you can do with it other than open it on the
+           right. Raised above the stretched link, which covers everything. -->
+      <div class="mt-2 flex items-center justify-between gap-3">
+        <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+          <CalendarDays :size="13" class="shrink-0" aria-hidden="true" />
+          {{ meta }}
+        </p>
+
+        <UiShareButton
+          :to="`/matches/${match.id}`"
+          class="relative z-20 grid size-8 shrink-0 place-items-center rounded-lg border border-line text-ink-subtle transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent"
+        />
+      </div>
     </div>
   </article>
 </template>
