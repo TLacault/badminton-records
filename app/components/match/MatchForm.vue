@@ -237,19 +237,53 @@ const taggingOptions = [
   { value: 'tagged' as const, label: 'Tagged', icon: CircleCheck },
 ]
 
-const serverOptions = [
-  { value: 1 as 1 | 2, label: 'Our side', icon: Users },
-  { value: 2 as 1 | 2, label: 'Their side', icon: Users },
-]
+/*
+ * The serve pickers name people, not slots. "Slot 3" is an implementation
+ * detail of the schema, and nobody setting up a match thinks in it — they think
+ * "Adrien served first". A slot with nobody in it yet keeps its number, so the
+ * dropdown still has something to say before the roster is filled.
+ */
+function playerIn(slot: number) {
+  const id = slotMap[slot]
+  return id ? (players.value ?? []).find(p => p.id === id) ?? null : null
+}
 
-const rightCourt1 = [
-  { value: 1 as 1 | 2, label: 'Slot 1', icon: User },
-  { value: 2 as 1 | 2, label: 'Slot 2', icon: User },
-]
-const rightCourt2 = [
-  { value: 3 as 3 | 4, label: 'Slot 3', icon: User },
-  { value: 4 as 3 | 4, label: 'Slot 4', icon: User },
-]
+function slotLabel(slot: number): string {
+  const player = playerIn(slot)
+  return player ? `${player.first_name} ${player.last_name}` : `Slot ${slot}`
+}
+
+/** First names, joined: a full pair of full names does not fit a dropdown. */
+function sideLabel(slots: number[], fallback: string): string {
+  const names = slots.map(playerIn).filter(Boolean).map(p => p!.first_name)
+  return names.length ? names.join(' & ') : fallback
+}
+
+const serverOptions = computed(() => {
+  const singles = form.format === 'singles'
+  return [
+    { value: 1 as 1 | 2, label: sideLabel(singles ? [1] : [1, 2], 'Our side'), icon: Users },
+    { value: 2 as 1 | 2, label: sideLabel(singles ? [3] : [3, 4], 'Their side'), icon: Users },
+  ]
+})
+
+const rightCourt1 = computed(() => [
+  { value: 1 as 1 | 2, label: slotLabel(1), icon: User },
+  { value: 2 as 1 | 2, label: slotLabel(2), icon: User },
+])
+const rightCourt2 = computed(() => [
+  { value: 3 as 3 | 4, label: slotLabel(3), icon: User },
+  { value: 4 as 3 | 4, label: slotLabel(4), icon: User },
+])
+
+/** Every detail or none — the checkboxes are rarely wanted one at a time. */
+const allInfoFields = computed(
+  () => form.player_info_fields.length === PLAYER_INFO_FIELDS.length,
+)
+
+function toggleAllInfoFields() {
+  form.player_info_fields = allInfoFields.value ? [] : PLAYER_INFO_FIELDS.map(f => f.id)
+}
 
 const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
 </script>
@@ -342,9 +376,19 @@ const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
       <!-- Per match, not per site: a tournament sheet wants ranks and licences
            where a Tuesday evening wants a first name and nothing else. -->
       <div class="mt-5 border-t border-line pt-4">
-        <p class="label">
-          Show beside each player
-        </p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="label">
+            Show beside each player
+          </p>
+          <button
+            type="button"
+            data-testid="m-info-toggle-all"
+            class="btn btn-sm btn-ghost"
+            @click="toggleAllInfoFields"
+          >
+            {{ allInfoFields ? 'Uncheck all' : 'Check all' }}
+          </button>
+        </div>
         <div class="mt-2.5 flex flex-wrap gap-x-5 gap-y-2">
           <label
             v-for="field in PLAYER_INFO_FIELDS"

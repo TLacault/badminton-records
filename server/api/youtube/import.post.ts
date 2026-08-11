@@ -49,6 +49,14 @@ export default defineEventHandler(async (event) => {
 
   const fresh = videos.filter(v => !known.has(v.videoId))
 
+  // Almost every recording is a free-play session, and a video that arrives
+  // without a type prints nothing above the player and has to be fixed by hand.
+  const { data: freePlay } = await client
+    .from('match_types')
+    .select('id')
+    .eq('slug', 'free-play')
+    .maybeSingle()
+
   if (fresh.length) {
     const { error } = await client.from('matches').insert(
       fresh.map(v => ({
@@ -66,6 +74,7 @@ export default defineEventHandler(async (event) => {
         // untagged; the admin hides the odd one by hand.
         visibility: 'public',
         tagging_status: 'untagged',
+        match_type_id: freePlay?.id ?? null,
         created_by: userId,
       })),
     )
