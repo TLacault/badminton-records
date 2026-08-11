@@ -220,7 +220,9 @@ admin out of band:
 `POST /api/youtube/import` pulls the channel's uploads into `matches`, one row
 per video, and is safe to re-run: it only inserts video ids it does not already
 hold, so retitled or part-tagged matches are never clobbered. The admin video
-list has an "Import / refresh from YouTube" button for it.
+list has an "Import / refresh from YouTube" button for it. Imported rows land
+`public` and `untagged` — the video is already public on the channel — so hiding
+one is a deliberate act in the admin list.
 
 It needs a YouTube Data API v3 key in `.env`:
 

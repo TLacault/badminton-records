@@ -61,9 +61,10 @@ export default defineEventHandler(async (event) => {
         youtube_thumbnail_url: v.thumbnailUrl,
         youtube_duration_seconds: v.durationSeconds,
         imported_at: new Date().toISOString(),
-        // Imports start invisible and untouched; the admin opens the tagger and
-        // publishes deliberately.
-        visibility: 'private',
+        // The video is already public on YouTube, so hiding it here protected
+        // nothing and made every import a two-step chore. It lands visible and
+        // untagged; the admin hides the odd one by hand.
+        visibility: 'public',
         tagging_status: 'untagged',
         created_by: userId,
       })),
