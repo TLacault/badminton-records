@@ -17,6 +17,20 @@ const match = computed(() => props.entry.row)
 const tagged = computed(() => match.value.tagging_status === 'tagged')
 const editing = computed(() => match.value.tagging_status === 'in_progress')
 const badgeLabel = computed(() => (editing.value ? t('card.editing') : t('card.edited')))
+
+/*
+ * Same chip, two weights. The finished cut is solid crimson; a match still
+ * being edited keeps the hue but lets the still show through it, so the corner
+ * reads at a glance as "nearly" rather than competing with the real thing.
+ */
+const badgeClass = computed(() =>
+  editing.value
+    ? 'border border-white/25 bg-accent/35 text-white backdrop-blur-md'
+    : 'bg-accent text-on-brand',
+)
+const badgeGlow = computed(() =>
+  editing.value ? 'var(--ui-glow-soft)' : 'var(--ui-glow-strong)',
+)
 const discipline = computed(() => disciplineCode(match.value.format))
 
 // The format has moved up into its own chip as DH/SH, so it would read twice
@@ -97,13 +111,14 @@ const resultClass = computed(() => {
            on the card worth crossing the wall for, and an outline chip beside
            the duration read as another piece of metadata.
 
-           A match under way wears the same chip reading "Editing": the work is
-           worth announcing before it lands, and a quieter second style would
-           only have muddied the corner. -->
+           A match under way wears the same chip reading "Editing", in the same
+           crimson but translucent — the work is worth announcing before it
+           lands, without pulling the eye off the ones that are done. -->
       <span
         v-if="tagged || editing"
-        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em] text-on-brand"
-        style="box-shadow: var(--ui-glow-strong)"
+        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em]"
+        :class="badgeClass"
+        :style="{ boxShadow: badgeGlow }"
       >
         <Flame :size="14" fill="currentColor" aria-hidden="true" />
         {{ badgeLabel }}
