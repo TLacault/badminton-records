@@ -46,6 +46,18 @@ const meta = computed(() =>
 
 const CHIP = 'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]'
 
+/*
+ * The result chip carries a score, nothing else. A match tagged up to the
+ * middle of the first set has no set to show and falls back to the words "In
+ * progress" — which the crimson "Editing" badge on the thumbnail already says,
+ * louder and in the right place. Once a set is decided the chip has a real
+ * score to carry and comes back.
+ */
+const showResult = computed(() => {
+  const outcome = props.entry.outcome
+  return !!outcome && outcome.scoreLabel !== outcome.label
+})
+
 /** Weight, not hue: a win is the filled chip, a loss the plain outline. */
 const resultClass = computed(() => {
   switch (props.entry.outcome?.state) {
@@ -169,7 +181,7 @@ const resultClass = computed(() => {
         <li>
           <span :class="CHIP" class="border-line text-ink-muted">{{ discipline }}</span>
         </li>
-        <li v-if="entry.outcome">
+        <li v-if="showResult && entry.outcome">
           <span :class="[CHIP, resultClass]" :data-result="entry.outcome.state">
             <Trophy v-if="entry.outcome.state === 'won'" :size="10" aria-hidden="true" />
             <span class="tabular-nums">{{ entry.outcome.scoreLabel }}</span>
