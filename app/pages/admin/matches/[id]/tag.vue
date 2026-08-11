@@ -179,6 +179,7 @@ const stage = ref<{
   seekBy: (d: number) => void
   seekTo: (s: number) => void
   play: () => void
+  pause: () => void
   changeVolume: (delta: number) => number
   stepRate: (direction: 1 | -1) => number
   setRate: (rate: number) => number
@@ -221,6 +222,7 @@ const nav = useMatchNavigation(
 )
 const playerKeys = usePlayerKeys({
   toggle: () => stage.value?.toggle(),
+  pause: () => stage.value?.pause(),
   seekBy: delta => stage.value?.seekBy(delta),
   seekTo: seconds => seekAndPlay(seconds),
   changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,

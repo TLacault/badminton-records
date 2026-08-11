@@ -22,7 +22,8 @@
 
 export type KeybindActionId =
   | 'pointUs' | 'pointThem' | 'let' | 'highlight' | 'break'
-  | 'playPause' | 'seekBack' | 'seekForward' | 'volumeUp' | 'volumeDown'
+  | 'playPause' | 'seekBack' | 'seekForward' | 'prevFrame' | 'nextFrame'
+  | 'volumeUp' | 'volumeDown'
   | 'speedDown' | 'speedUp'
   | 'prevPoint' | 'nextPoint' | 'prevSet' | 'nextSet'
   | 'prevHighlight' | 'nextHighlight'
@@ -72,6 +73,8 @@ export const KEYBIND_ACTIONS: KeybindAction[] = [
   { id: 'playPause', label: 'Play / pause', group: 'Playback', player: true },
   { id: 'seekBack', label: 'Back 5 seconds', group: 'Playback', player: true },
   { id: 'seekForward', label: 'Forward 5 seconds', group: 'Playback', player: true },
+  { id: 'prevFrame', label: 'Previous frame', group: 'Playback', player: true },
+  { id: 'nextFrame', label: 'Next frame', group: 'Playback', player: true },
   { id: 'volumeUp', label: 'Volume up', group: 'Playback', player: true },
   { id: 'volumeDown', label: 'Volume down', group: 'Playback', player: true },
   { id: 'speedDown', label: 'Slower', group: 'Playback', player: true },
@@ -117,6 +120,11 @@ export const DEFAULT_BINDINGS: Record<KeybindActionId, Binding[]> = {
   playPause: [physical('Space', ' ')],
   seekBack: [physical('ArrowLeft', 'arrowleft')],
   seekForward: [physical('ArrowRight', 'arrowright')],
+  // Matched on the character, like the letters below: , and ; sit side by side
+  // on the bottom row of an AZERTY keyboard, which is where the hand already
+  // is, and they read left-then-right the way the two frames run.
+  prevFrame: [letter(',', 'Comma')],
+  nextFrame: [letter(';', 'Semicolon')],
   volumeUp: [physical('ArrowUp', 'arrowup')],
   volumeDown: [physical('ArrowDown', 'arrowdown')],
   // Letters, matched on the character rather than the position, so AZERTY and

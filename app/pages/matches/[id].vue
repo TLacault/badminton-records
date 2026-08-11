@@ -132,6 +132,7 @@ const stage = ref<{
   isFullscreen: boolean
   seekTo: (s: number) => void
   play: () => void
+  pause: () => void
   toggle: () => void
   seekBy: (delta: number) => void
   changeVolume: (delta: number) => number
@@ -166,6 +167,7 @@ const timeline = usePlayerTimeline()
 const nav = useMatchNavigation(derived, computed(() => breaks.value ?? []), currentTime)
 const playerKeys = usePlayerKeys({
   toggle: () => stage.value?.toggle(),
+  pause: () => stage.value?.pause(),
   seekBy: delta => stage.value?.seekBy(delta),
   seekTo: seconds => seekAndPlay(seconds),
   changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,

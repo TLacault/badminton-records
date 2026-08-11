@@ -3,6 +3,8 @@ import type { KeybindActionId } from './useKeybinds'
 /** What a page hands over so the shared shortcuts can drive its player. */
 export interface PlayerKeyTargets {
   toggle: () => void
+  /** Stepping a frame stops the video first; a frame is meaningless in motion. */
+  pause: () => void
   seekBy: (delta: number) => void
   seekTo: (seconds: number) => void
   changeVolume: (delta: number) => number
@@ -16,6 +18,14 @@ export interface PlayerKeyTargets {
 
 const SEEK_SECONDS = 5
 const VOLUME_STEP = 5
+
+/**
+ * One frame at 60fps, which is what the rig films and uploads. YouTube gives
+ * no way to ask a video for its frame rate, so this is a constant rather than
+ * a reading: on a 30fps upload it steps half a frame, and the picture moves on
+ * every second press instead of every one.
+ */
+const FRAME_SECONDS = 1 / 60
 
 /**
  * The shortcuts every player answers to, public page and tagger alike.
@@ -64,6 +74,13 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
     flash(jumpFlash, label)
   }
 
+  /** Pauses, then nudges by a frame — the way a video editor scrubs. */
+  function stepFrame(direction: 1 | -1, label: string) {
+    targets.pause()
+    targets.seekBy(direction * FRAME_SECONDS)
+    flash(jumpFlash, label, 700)
+  }
+
   /** True when the press was ours, so the caller stops looking. */
   function handle(event: KeyboardEvent): boolean {
     const action = actionFor(event) as KeybindActionId | null
@@ -73,6 +90,10 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
       case 'playPause': targets.toggle(); break
       case 'seekBack': targets.seekBy(-SEEK_SECONDS); flash(seekFlash, -1, 700); break
       case 'seekForward': targets.seekBy(SEEK_SECONDS); flash(seekFlash, 1, 700); break
+      // The toast, not the seek arrows beside it: those are drawn with "5s" on
+      // them. A frame moves the picture too little to be sure the key landed.
+      case 'prevFrame': stepFrame(-1, 'Frame back'); break
+      case 'nextFrame': stepFrame(1, 'Frame forward'); break
       case 'volumeUp': flash(volumeFlash, targets.changeVolume(VOLUME_STEP), 1200); break
       case 'volumeDown': flash(volumeFlash, targets.changeVolume(-VOLUME_STEP), 1200); break
       case 'speedDown': flash(rateFlash, targets.stepRate(-1), 1200); break
