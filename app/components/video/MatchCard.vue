@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
-import { CalendarDays, CircleDashed, Flame, Play, Scissors, Trophy } from '@lucide/vue'
+import { CalendarDays, CircleDashed, Flame, Play, Trophy } from '@lucide/vue'
 
 const { t, bcp47 } = useI18n()
 
@@ -16,6 +16,7 @@ const props = withDefaults(
 const match = computed(() => props.entry.row)
 const tagged = computed(() => match.value.tagging_status === 'tagged')
 const editing = computed(() => match.value.tagging_status === 'in_progress')
+const badgeLabel = computed(() => (editing.value ? t('card.editing') : t('card.edited')))
 const discipline = computed(() => disciplineCode(match.value.format))
 
 // The format has moved up into its own chip as DH/SH, so it would read twice
@@ -94,25 +95,18 @@ const resultClass = computed(() => {
 
            Filled crimson rather than outlined over black — it is the one thing
            on the card worth crossing the wall for, and an outline chip beside
-           the duration read as another piece of metadata. -->
+           the duration read as another piece of metadata.
+
+           A match under way wears the same chip reading "Editing": the work is
+           worth announcing before it lands, and a quieter second style would
+           only have muddied the corner. -->
       <span
-        v-if="tagged"
+        v-if="tagged || editing"
         class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em] text-on-brand"
         style="box-shadow: var(--ui-glow-strong)"
       >
         <Flame :size="14" fill="currentColor" aria-hidden="true" />
-        {{ $t('card.edited') }}
-      </span>
-
-      <!-- The same corner, deliberately quieter: work under way is a promise,
-           not a payoff, so it stays glass and outlined rather than filled —
-           only the finished cut earns the crimson. -->
-      <span
-        v-else-if="editing"
-        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/40 bg-black/70 px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm"
-      >
-        <Scissors :size="14" class="motion-safe:animate-pulse" aria-hidden="true" />
-        {{ $t('card.editing') }}
+        {{ badgeLabel }}
       </span>
 
       <!-- The opposite corner from the badge, and the same corner YouTube puts
