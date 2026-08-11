@@ -87,6 +87,15 @@ if (props.matchId) {
   const { data: mp } = await client
     .from('match_players').select('slot, player_id').eq('match_id', props.matchId)
   for (const row of mp ?? []) slotMap[row.slot] = row.player_id
+
+  // A match imported from YouTube arrives with nobody in it, and it is nearly
+  // always the two of us on this half of the court — so it starts filled in,
+  // exactly as a match created by hand does.
+  //
+  // Only when the match has no participants at all: one slot already set means
+  // the roster has been thought about, and the empty slot beside it may well be
+  // empty on purpose.
+  if (!mp?.length) Object.assign(slotMap, homePairSlots(players.value ?? []))
 }
 else {
   // A new match starts with our half of the court already filled in, and as
