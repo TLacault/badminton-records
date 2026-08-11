@@ -142,11 +142,19 @@ const session = useTaggingSession(matchId, config, initialRallies, initialBreaks
 
 /**
  * Tagging progress is derived from the rally log, never tracked by hand: the
- * match is `tagged` once the scoring engine says it is complete.
+ * first point recorded makes the match `in_progress`, and it turns `tagged` the
+ * moment the scoring engine says a side has won the sets it needed — two of
+ * three, three of five, whatever the match's own rules say.
+ *
+ * `untagged` is a starting state, not one a match returns to. Undoing back to
+ * an empty log, or wiping the match with Reset, leaves it `in_progress`: the
+ * edit is under way, it just has nothing to show yet. Anything else would flip
+ * the public chip off and on as the admin works.
  */
 const taggingStatus = computed<'untagged' | 'in_progress' | 'tagged'>(() => {
   if (session.derived.value.complete) return 'tagged'
-  return session.rallies.value.length ? 'in_progress' : 'untagged'
+  if (session.rallies.value.length) return 'in_progress'
+  return match.value?.tagging_status === 'untagged' ? 'untagged' : 'in_progress'
 })
 
 async function persistTaggingStatus(next: string) {
@@ -269,7 +277,9 @@ async function resetMatch() {
     initial_server_side: null,
     side1_right_court_slot: null,
     side2_right_court_slot: null,
-    tagging_status: 'untagged',
+    // tagging_status is deliberately left alone: a match that has been worked
+    // on is being edited, not unstarted, and the reload below settles it to
+    // `in_progress` anyway.
   }).eq('id', matchId)
 
   const { data: roster } = await client.from('players').select('id, first_name, last_name')
