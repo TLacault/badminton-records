@@ -26,8 +26,18 @@ export default defineNuxtConfig({
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600;700&display=swap',
         },
-        { rel: 'icon', type: 'image/png', sizes: '96x96', href: withBase('/favicon-96.png') },
-        { rel: 'apple-touch-icon', href: withBase('/favicon-96.png') },
+        // The .ico carries the 16 and 32 for older browsers; the PNGs are what
+        // anything current actually picks. The mark is white on transparent,
+        // so it reads on a dark tab strip and washes out on a light one; the
+        // manifest's background_color is dark for the same reason, so the
+        // standalone splash does not put white on white.
+        { rel: 'icon', type: 'image/x-icon', href: withBase('/favicon.ico') },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: withBase('/favicon-32x32.png') },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: withBase('/favicon-16x16.png') },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: withBase('/apple-touch-icon.png') },
+        // Icon `src`s inside the manifest are relative to the manifest's own
+        // URL, so they follow baseURL without needing withBase applied to them.
+        { rel: 'manifest', href: withBase('/site.webmanifest') },
       ],
       meta: [
         { name: 'theme-color', content: '#08070a', media: '(prefers-color-scheme: dark)' },
