@@ -78,11 +78,11 @@ defineProps<{
       <UiReveal class="flex flex-col items-start gap-6">
         <!-- The emblem alone, not the lockup: the club's set text is only
              legible above ~140px tall, and the kicker below already says it. -->
-        <UiBrandLogo
+        <!-- <UiBrandLogo
           size="h-14 sm:h-16"
           :wordmark="false"
           class="drop-shadow-[0_0_24px_color-mix(in_oklab,var(--ui-accent)_45%,transparent)]"
-        />
+        /> -->
 
         <p class="eyebrow">
           <span
@@ -116,13 +116,13 @@ defineProps<{
             <Video :size="14" aria-hidden="true" />
             {{ site.hero.quality.badge }}
           </span>
-          {{ $lt(site.hero.quality.note) }}
+          <!-- {{ $lt(site.hero.quality.note) }} -->
         </p>
 
         <div class="mt-2 flex flex-wrap items-center gap-3">
           <NuxtLink to="/videos" class="btn btn-primary">
             <Play :size="16" class="fill-current" aria-hidden="true" />
-            {{ $t('home.hero.watch') }}
+            {{ $t("home.hero.watch") }}
           </NuxtLink>
           <a
             :href="site.club.youtube"
@@ -131,7 +131,7 @@ defineProps<{
             class="btn btn-ghost"
           >
             <UiYouTubeGlyph :size="16" />
-            {{ $t('home.hero.channel') }}
+            {{ $t("home.hero.channel") }}
             <ArrowUpRight :size="15" aria-hidden="true" />
           </a>
         </div>
@@ -161,9 +161,9 @@ defineProps<{
       class="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 text-ink-subtle transition-colors duration-200 hover:text-accent sm:flex"
       :aria-label="$t('home.hero.skipAria')"
     >
-      <span class="font-display text-[0.6875rem] uppercase tracking-[0.22em]"
-        >{{ $t('home.hero.scroll') }}</span
-      >
+      <span class="font-display text-[0.6875rem] uppercase tracking-[0.22em]">{{
+        $t("home.hero.scroll")
+      }}</span>
       <ArrowDown :size="16" class="animate-bounce" aria-hidden="true" />
     </a>
   </section>
