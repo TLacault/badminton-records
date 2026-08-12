@@ -244,9 +244,10 @@ const typeLabel = computed(() =>
 
 useSeoMeta({
   // The fixture, like every other place the match is named — the browser tab
-  // was the last hiding place of the YouTube upload title.
+  // was the last hiding place of the YouTube upload title. The brand half is
+  // added by the titleTemplate in app.vue.
   title: () => (match.value
-    ? `${sideNames.value[1]} vs ${sideNames.value[2]} — U.S. Talence Badminton`
+    ? `${sideNames.value[1]} vs ${sideNames.value[2]}`
     : 'Match'),
   description: () =>
     match.value

@@ -44,7 +44,7 @@ export interface Milestone {
 
 export const site = {
   club: {
-    name: "U.S. Talence Badminton",
+    name: "Tim Lacault",
     short: "UST Badminton",
     town: "Talence, Bordeaux",
     tagline: {
@@ -57,9 +57,20 @@ export const site = {
 
   /** Meta description and social preview text. */
   seo: {
+    /**
+     * The first half of every browser tab title. `app.vue` composes
+     * `<brand> · <page>`, so pages set only their own half and this word is
+     * written once rather than repeated at the end of a dozen page titles.
+     */
+    brand: "Bad Records",
+    /**
+     * The landing page's half — the one page whose subject is the site
+     * itself. Composed the same way as any other, giving
+     * "Bad Records · Tim Lacault".
+     */
     title: {
-      fr: "U.S. Talence Badminton — les matchs, annotés point par point",
-      en: "U.S. Talence Badminton — matches, tagged point by point",
+      fr: "Tim Lacault",
+      en: "Tim Lacault",
     },
     description: {
       fr: "Chaque séance filmée, annotée et rejouable point par point. Le double de l'U.S. Talence, avec des ressources et un arbre de compétences à venir.",
@@ -68,7 +79,7 @@ export const site = {
   },
 
   hero: {
-    kicker: "U.S. Talence Badminton",
+    kicker: "Badminton Records · Tim Lacault",
     /** Two lines: the second one gets the crimson. */
     title: {
       fr: ["Chaque point", "enregistré"],
@@ -201,7 +212,10 @@ export const site = {
       category: { fr: "Grip", en: "Grip" },
       name: { fr: "TODO — marque et modèle", en: "" },
       spec: { fr: "TODO — surgrip / grip de remplacement", en: "" },
-      note: { fr: "TODO — épaisseur, sens d'enroulement, ce qui compte pour toi.", en: "" },
+      note: {
+        fr: "TODO — épaisseur, sens d'enroulement, ce qui compte pour toi.",
+        en: "",
+      },
     },
     {
       icon: "bag",

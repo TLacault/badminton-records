@@ -54,7 +54,9 @@ const heroStats = computed(() => {
 useSeoMeta({
   title: () => lt(site.seo.title),
   description: () => lt(site.seo.description),
-  ogTitle: () => lt(site.seo.title),
+  // og:title is read on its own in a shared link, with no tab to carry the
+  // brand, so it spells out what the titleTemplate would have prefixed.
+  ogTitle: () => `${site.seo.brand} · ${lt(site.seo.title)}`,
   ogDescription: () => lt(site.seo.description),
   ogType: 'website',
 })

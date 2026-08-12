@@ -5,7 +5,7 @@ import { Clapperboard, MapPin, Timer, Video } from '@lucide/vue'
 import { LIST_SELECT } from '~/utils/matchSummary'
 import { applyFilters, decorate, emptyFilters, isFiltered } from '~/utils/videoFilters'
 
-const { bcp47 } = useI18n()
+const { t, bcp47 } = useI18n()
 
 const client = useSupabaseClient<Database>()
 
@@ -32,8 +32,8 @@ const searching = computed(() => isFiltered(filters.value))
 const sessions = computed(() => groupBySession(filtered.value, entry => entry.row))
 
 useSeoMeta({
-  title: 'Videos — U.S. Talence Badminton',
-  description: 'Every filmed match, grouped by training session and tagged rally by rally.',
+  title: () => t('videos.seoTitle'),
+  description: () => t('videos.lede'),
 })
 </script>
 

@@ -85,12 +85,13 @@ export default {
 
   videos: {
     eyebrow: "Section une sur trois",
+    seoTitle: "Vidéos",
     lede: "Tous les matchs qu'on filme, regroupés par séance. Les matchs annotés affichent le score en direct et une timeline dans laquelle on peut sauter d'un point à l'autre.",
   },
 
   resources: {
     eyebrow: "Section deux sur trois",
-    seoTitle: "Ressources — U.S. Talence Badminton",
+    seoTitle: "Ressources",
     planned: [
       "Les exercices qu'on fait vraiment à l'entraînement, avec l'objectif de chacun écrit noir sur blanc.",
       "Les schémas de déplacement et de placement, filmés assez lentement pour être copiés.",
@@ -100,7 +101,7 @@ export default {
   },
   skillTree: {
     eyebrow: "Section trois sur trois",
-    seoTitle: "Arbre de compétences — U.S. Talence Badminton",
+    seoTitle: "Arbre de compétences",
     planned: [
       "Une carte ramifiée des coups, des déplacements et de la tactique — ce qui débloque quoi.",
       "Chaque nœud relié aux ressources qui l'enseignent.",
@@ -185,7 +186,7 @@ export default {
     email: "E-mail",
     password: "Mot de passe",
     busy: "Connexion…",
-    seoTitle: "Connexion — U.S. Talence Badminton",
+    seoTitle: "Connexion",
     showPassword: "Afficher le mot de passe",
     hidePassword: "Masquer le mot de passe",
     back: "Retour au site",
