@@ -16,7 +16,6 @@ export interface PlayerKeyTargets {
   wake?: () => void
 }
 
-const SEEK_SECONDS = 5
 const VOLUME_STEP = 5
 
 /**
@@ -42,6 +41,9 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
   const { actionFor } = useKeybinds()
   const scoreboard = useScoreboardMode()
   const timeline = usePlayerTimeline()
+  // How far a jump goes is the viewer's, set in the settings menu: reviewing a
+  // rally and watching a match through want very different distances.
+  const { skipSeconds } = usePlayerSettings()
 
   /** Transient readouts, the way a television acknowledges a button. */
   const volumeFlash = ref<number | null>(null)
@@ -74,6 +76,19 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
     flash(jumpFlash, label)
   }
 
+  /**
+   * Jump by the configured distance, and say so.
+   *
+   * Shared with the stage's double-tap zones rather than duplicated there: one
+   * place decides how far a jump goes and what it looks like when it lands, so
+   * the edge of the video and the seek key can never disagree.
+   */
+  function nudge(direction: -1 | 1) {
+    targets.seekBy(direction * skipSeconds.value)
+    flash(seekFlash, direction, 700)
+    targets.wake?.()
+  }
+
   /** Pauses, then nudges by a frame — the way a video editor scrubs. */
   function stepFrame(direction: 1 | -1, label: string) {
     targets.pause()
@@ -88,8 +103,8 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
 
     switch (action) {
       case 'playPause': targets.toggle(); break
-      case 'seekBack': targets.seekBy(-SEEK_SECONDS); flash(seekFlash, -1, 700); break
-      case 'seekForward': targets.seekBy(SEEK_SECONDS); flash(seekFlash, 1, 700); break
+      case 'seekBack': nudge(-1); break
+      case 'seekForward': nudge(1); break
       // The toast, not the seek arrows beside it: those are drawn with "5s" on
       // them. A frame moves the picture too little to be sure the key landed.
       case 'prevFrame': stepFrame(-1, 'Frame back'); break
@@ -118,7 +133,7 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
     return true
   }
 
-  return { handle, volumeFlash, rateFlash, seekFlash, jumpFlash }
+  return { handle, nudge, volumeFlash, rateFlash, seekFlash, jumpFlash }
 }
 
 /**

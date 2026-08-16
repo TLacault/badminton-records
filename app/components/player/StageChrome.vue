@@ -72,6 +72,10 @@ function clock(seconds: number) {
     : `${m}:${String(s).padStart(2, '0')}`
 }
 
+// The nudge arrows are drawn with their distance on them, and that distance is
+// now the viewer's rather than a constant.
+const { skipSeconds } = usePlayerSettings()
+
 const rateOpen = ref(false)
 function pickRate(value: number) {
   emit('setRate', value)
@@ -323,7 +327,7 @@ function handOver() {
         fill="currentColor"
         aria-hidden="true"
       />
-      <span class="font-mono text-xs tabular-nums text-white">5s</span>
+      <span class="font-mono text-xs tabular-nums text-white">{{ skipSeconds }}s</span>
     </div>
   </Transition>
 

@@ -137,9 +137,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
           {{ group.name }}
         </p>
         <!-- Two columns: a shortcut row is a short label and a small key, and
-             one per line left most of the panel empty. Inside the settings
-             menu there is only ever room for one. -->
-        <ul class="mt-1.5 grid gap-x-6" :class="embedded ? '' : 'sm:grid-cols-2'">
+             one per line left most of the panel empty — and inside the settings
+             menu it also halves how many shortcuts fit on screen at once. -->
+        <ul class="mt-1.5 grid gap-x-6 sm:grid-cols-2">
           <li
             v-for="action in group.actions"
             :key="action.id"

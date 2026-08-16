@@ -408,6 +408,7 @@ const saveLabel = computed(() => {
       <div>
         <PlayerYouTubeStage
           ref="stage"
+          @nudge="playerKeys.nudge"
           :video-id="match.youtube_video_id"
           restore-focus
         >

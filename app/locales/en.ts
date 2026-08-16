@@ -192,6 +192,8 @@ export default {
     qualityAuto: "Auto",
     speed: "Speed",
     untagged: "Untagged",
+    skipBy: "Skip by",
+    shieldHint: "Play or pause; double-click an edge to skip",
   },
 
   login: {

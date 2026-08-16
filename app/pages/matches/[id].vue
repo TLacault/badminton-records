@@ -211,14 +211,7 @@ const detailsVisible = computed(() => revealed.value || !spoilable.value)
 const legend = computed(() => [
   { key: 'us', swatch: 'bg-us', label: `Point for ${sideLabels.value[1]}` },
   { key: 'them', swatch: 'bg-them', label: `Point for ${sideLabels.value[2]}` },
-  // A highlight is no longer a colour of its own — it is a point wearing a ring
-  // and a glow — so the swatch has to be one too, or the key describes a mark
-  // the timeline stopped drawing.
-  {
-    key: 'highlight',
-    swatch: 'bg-us ring-1 ring-accent shadow-[0_0_8px_var(--ui-accent)]',
-    label: t('player.highlight'),
-  },
+  { key: 'highlight', swatch: 'bg-accent shadow-[0_0_8px_var(--ui-accent)]', label: t('player.highlight') },
   { key: 'break', swatch: 'bg-bg-deep border border-line-strong', label: t('player.break') },
 ])
 
@@ -290,6 +283,7 @@ useSeoMeta({
     <div class="mt-6">
       <PlayerYouTubeStage
         ref="stage"
+        @nudge="playerKeys.nudge"
         :video-id="match.youtube_video_id"
       >
         <template #overlay="{ chromeVisible, isFullscreen }">

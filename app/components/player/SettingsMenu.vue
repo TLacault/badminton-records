@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Check, EyeOff, Gauge, Keyboard, MonitorCog, SlidersHorizontal } from '@lucide/vue'
-import { AUTO_HIDE_STOPS } from '~/composables/usePlayerSettings'
+import { EyeOff, Gauge, Keyboard, MonitorCog, Redo2, SlidersHorizontal } from '@lucide/vue'
+import { NEVER_STOP, RANGE_STOPS } from '~/composables/usePlayerSettings'
 
 const props = defineProps<{
   rate: number
@@ -19,11 +19,12 @@ const emit = defineEmits<{
 }>()
 
 const {
-  autoHideSeconds,
+  autoHideStop,
   autoHide,
+  skipSeconds,
   chromeHeld,
-  setAutoHideSeconds,
-  setAutoHide,
+  setAutoHideStop,
+  setSkipSeconds,
 } = usePlayerSettings()
 
 // The chrome's idle timer counts pointer movement, and reading a list of
@@ -41,9 +42,15 @@ const section = ref<SectionId>('options')
 
 const { t } = useI18n()
 
+/**
+ * The keyboard section is desktop only. Thirty rebindable shortcuts on a device
+ * with no keyboard is a section that can never be used, taking half the tab
+ * strip on the screen with the least room for one — so its tab is hidden below
+ * `sm`, and with the tab gone the section is unreachable there.
+ */
 const sections = computed(() => [
-  { id: 'options' as const, label: t('player.settingsPlayer'), icon: SlidersHorizontal },
-  { id: 'keyboard' as const, label: t('player.settingsKeyboard'), icon: Keyboard },
+  { id: 'options' as const, label: t('player.settingsPlayer'), icon: SlidersHorizontal, desktopOnly: false },
+  { id: 'keyboard' as const, label: t('player.settingsKeyboard'), icon: Keyboard, desktopOnly: true },
 ])
 
 /** `1×` reads better than `1x`, and `0.5×` needs no trailing zero. */
@@ -58,6 +65,11 @@ function rateLabel(value: number) {
 function secondsLabel(value: number) {
   return `${value}s`
 }
+
+const RANGE_LAST = RANGE_STOPS[RANGE_STOPS.length - 1]!
+
+/** The auto-hide scale, plus the "never" stop that sits one step past its top. */
+const hideStops = [...RANGE_STOPS, NEVER_STOP]
 
 const rateOpen = ref(false)
 function pickRate(value: number) {
@@ -86,11 +98,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
   <!--
     Anchored to the bar it opened from, and sized to the frame rather than to
     its contents: the keyboard section is thirty rows long and would otherwise
-    run off the top of a windowed player.
+    run off the top of the player.
+
+    `--stage-h` is published by the stage, so the menu can take nearly the whole
+    height of whatever player it is drawn in — the frame clips to its rounded
+    corners, and a menu taller than the video is a menu with its top cut off.
+    The fallback covers the fullscreen case, where there is room to spare.
   -->
   <div
     data-testid="settings-menu"
-    class="pointer-events-auto absolute bottom-full right-2 z-30 mb-1 flex sm:right-3 max-h-[min(17rem,45vh)] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl glass-menu"
+    class="settings-panel pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl glass-menu sm:right-3 sm:w-[32rem]"
     role="dialog"
     :aria-label="$t('player.settings')"
   >
@@ -100,8 +117,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
         :key="s.id"
         type="button"
         :data-testid="`settings-tab-${s.id}`"
-        class="inline-flex min-h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
-        :class="section === s.id ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink'"
+        class="min-h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
+        :class="[
+          s.desktopOnly ? 'hidden sm:inline-flex' : 'inline-flex',
+          section === s.id ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink',
+        ]"
         :aria-pressed="section === s.id"
         @click="section = s.id"
       >
@@ -113,70 +133,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3">
       <template v-if="section === 'options'">
         <!--
-          Auto-hide. A range rather than a set of chips: ten stops is too many
-          to click through, and the thing being chosen is a duration, which is
-          what a slider is for. Off sits beside it rather than at the bottom of
-          the scale — "never" is not a shorter wait, it is a different answer.
+          Picture first: quality and speed are what a viewer reaches for during
+          a match. The two durations below are set once and then left alone.
         -->
         <div>
-          <div class="flex items-baseline justify-between gap-2">
-            <p class="label text-[0.6875rem]">
-              {{ $t('player.hideAfter') }}
-            </p>
-            <span
-              data-testid="autohide-value"
-              class="font-mono text-xs tabular-nums"
-              :class="autoHide ? 'text-accent' : 'text-ink-subtle'"
-            >{{ autoHide ? secondsLabel(autoHideSeconds) : $t('player.never') }}</span>
-          </div>
-
-          <input
-            data-testid="autohide-range"
-            type="range"
-            class="player-range mt-2 w-full"
-            :min="AUTO_HIDE_STOPS[0]"
-            :max="AUTO_HIDE_STOPS[AUTO_HIDE_STOPS.length - 1]"
-            :step="0.5"
-            :value="autoHide ? autoHideSeconds : AUTO_HIDE_STOPS[0]"
-            :disabled="!autoHide"
-            aria-label="Seconds before the controls hide"
-            @input="setAutoHideSeconds(Number(($event.target as HTMLInputElement).value))"
-          >
-
-          <!-- The stops, drawn under the track so the steps are visible rather
-               than merely felt. Only the ends are labelled: ten numbers under a
-               slider this wide is a ruler, not a control. -->
-          <div class="mt-1 flex items-center justify-between" :class="autoHide ? '' : 'opacity-40'">
-            <span
-              v-for="stop in AUTO_HIDE_STOPS"
-              :key="stop"
-              class="h-1 w-px"
-              :class="stop <= autoHideSeconds && autoHide ? 'bg-accent/70' : 'bg-line-strong'"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
-            <span>{{ secondsLabel(AUTO_HIDE_STOPS[0]!) }}</span>
-            <span>{{ secondsLabel(AUTO_HIDE_STOPS[AUTO_HIDE_STOPS.length - 1]!) }}</span>
-          </div>
-
-          <button
-            type="button"
-            data-testid="autohide-off"
-            class="mt-2 inline-flex min-h-8 items-center gap-2 rounded-lg border px-2.5 text-xs transition-colors duration-150"
-            :class="autoHide
-              ? 'border-line text-ink-muted hover:border-line-strong hover:text-ink'
-              : 'border-accent/50 bg-accent-soft text-accent'"
-            :aria-pressed="!autoHide"
-            @click="setAutoHide(!autoHide)"
-          >
-            <EyeOff :size="13" aria-hidden="true" />
-            {{ $t('player.neverHide') }}
-            <Check v-if="!autoHide" :size="13" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div class="mt-4 border-t border-line pt-3">
           <p class="label text-[0.6875rem]">
             {{ $t('player.picture') }}
           </p>
@@ -190,7 +150,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
           <button
             type="button"
             data-testid="settings-quality"
-            class="mt-2 flex w-full min-h-9 items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
+            class="mt-2 flex min-h-9 w-full items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
             :title="$t('player.qualityHint')"
             @click="emit('nativeControls')"
           >
@@ -199,11 +159,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
             <span class="ml-auto font-mono tabular-nums text-accent">{{ qualityLabel ?? $t('player.qualityAuto') }}</span>
           </button>
 
-          <div class="relative mt-1.5">
+          <div class="mt-1.5">
             <button
               type="button"
               data-testid="settings-rate"
-              class="flex w-full min-h-9 items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
+              class="flex min-h-9 w-full items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
               :aria-expanded="rateOpen"
               @click="rateOpen = !rateOpen"
             >
@@ -214,7 +174,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 
             <!-- Inline rather than floating: a menu inside a menu that escapes
                  its scroll container is a menu that lands off the frame. -->
-            <ul v-if="rateOpen" class="mt-1 grid grid-cols-4 gap-1" role="listbox">
+            <ul v-if="rateOpen" class="mt-1 grid grid-cols-4 gap-1 sm:grid-cols-8" role="listbox">
               <li v-for="value in rates" :key="value">
                 <button
                   type="button"
@@ -232,6 +192,99 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
             </ul>
           </div>
         </div>
+
+        <!--
+          Two durations on the same scale and the same control, because they are
+          the same kind of choice. A range rather than a row of chips: ten stops
+          is too many to click through, and what is being picked is a length of
+          time, which is what a slider is for.
+        -->
+        <div class="mt-4 border-t border-line pt-3">
+          <div class="flex items-baseline justify-between gap-2">
+            <p class="label inline-flex items-center gap-1.5 text-[0.6875rem]">
+              <Redo2 :size="12" aria-hidden="true" />
+              {{ $t('player.skipBy') }}
+            </p>
+            <span
+              data-testid="skip-value"
+              class="font-mono text-xs tabular-nums text-accent"
+            >{{ secondsLabel(skipSeconds) }}</span>
+          </div>
+
+          <input
+            data-testid="skip-range"
+            type="range"
+            class="player-range mt-2 w-full"
+            :min="RANGE_STOPS[0]"
+            :max="RANGE_LAST"
+            :step="0.5"
+            :value="skipSeconds"
+            :aria-label="$t('player.skipBy')"
+            @input="setSkipSeconds(Number(($event.target as HTMLInputElement).value))"
+          >
+
+          <div class="mt-1 flex items-center justify-between">
+            <span
+              v-for="stop in RANGE_STOPS"
+              :key="stop"
+              class="h-1 w-px"
+              :class="stop <= skipSeconds ? 'bg-accent/70' : 'bg-line-strong'"
+              aria-hidden="true"
+            />
+          </div>
+          <div class="flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
+            <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
+            <span>{{ secondsLabel(RANGE_LAST) }}</span>
+          </div>
+        </div>
+
+        <!--
+          "Never" is the last stop rather than a button beside the slider. It is
+          an answer to the same question — how long should the chrome stay? —
+          and the longest possible answer belongs at the long end of the scale.
+        -->
+        <div class="mt-4 border-t border-line pt-3">
+          <div class="flex items-baseline justify-between gap-2">
+            <p class="label inline-flex items-center gap-1.5 text-[0.6875rem]">
+              <EyeOff :size="12" aria-hidden="true" />
+              {{ $t('player.hideAfter') }}
+            </p>
+            <span
+              data-testid="autohide-value"
+              class="font-mono text-xs tabular-nums"
+              :class="autoHide ? 'text-accent' : 'text-ink-subtle'"
+            >{{ autoHide ? secondsLabel(autoHideStop) : $t('player.never') }}</span>
+          </div>
+
+          <input
+            data-testid="autohide-range"
+            type="range"
+            class="player-range mt-2 w-full"
+            :min="RANGE_STOPS[0]"
+            :max="NEVER_STOP"
+            :step="0.5"
+            :value="autoHideStop"
+            :aria-label="$t('player.hideAfter')"
+            @input="setAutoHideStop(Number(($event.target as HTMLInputElement).value))"
+          >
+
+          <div class="mt-1 flex items-center justify-between">
+            <span
+              v-for="stop in hideStops"
+              :key="stop"
+              class="w-px"
+              :class="[
+                stop === NEVER_STOP ? 'h-1.5' : 'h-1',
+                stop <= autoHideStop ? 'bg-accent/70' : 'bg-line-strong',
+              ]"
+              aria-hidden="true"
+            />
+          </div>
+          <div class="flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
+            <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
+            <span>{{ $t('player.never') }}</span>
+          </div>
+        </div>
       </template>
 
       <PlayerKeyHelp v-else embedded :scope="props.keybindScope" />
@@ -240,6 +293,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 </template>
 
 <style scoped>
+/*
+ * The panel is bounded by the player it is drawn in, because the frame clips to
+ * its rounded corners and a menu taller than the video is a menu with its top
+ * cut off. `--stage-h` is published by the stage, since how tall the video is
+ * depends on the column it was given and no media query can name that.
+ *
+ * On a phone the video is barely two hundred pixels tall, so the panel is
+ * anchored over the control bar rather than above it — that bar is a third of
+ * the height available, and the menu covering it while it is open costs
+ * nothing. On a desktop there is room, and sitting above the bar leaves the
+ * controls readable while the menu is up.
+ */
+.settings-panel {
+  bottom: 0.25rem;
+  max-height: min(calc(var(--stage-h, 40rem) - 1.25rem), 34rem);
+}
+
+@media (min-width: 640px) {
+  .settings-panel {
+    bottom: 100%;
+    margin-bottom: 0.25rem;
+    max-height: min(calc(var(--stage-h, 40rem) - 4.5rem), 34rem);
+  }
+}
+
 /*
  * A range that matches the rest of the chrome rather than the operating
  * system's. Written out per engine because a range input has no single
@@ -251,11 +329,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
   height: 1.25rem;
   background: transparent;
   cursor: pointer;
-}
-
-.player-range:disabled {
-  cursor: default;
-  opacity: 0.4;
 }
 
 .player-range::-webkit-slider-runnable-track {

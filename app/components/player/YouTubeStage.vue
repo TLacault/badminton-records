@@ -14,9 +14,46 @@ const props = withDefaults(
   { restoreFocus: true },
 )
 
+/** A double tap on an edge. The page seeks and flashes; the stage only asks. */
+const emit = defineEmits<{ nudge: [direction: -1 | 1] }>()
+
 const host = ref<HTMLElement | null>(null)
 const frame = ref<HTMLElement | null>(null)
 const videoId = toRef(props, 'videoId')
+
+/**
+ * The frame's own height, published as a CSS variable for anything drawn inside
+ * it to size against.
+ *
+ * The frame clips to its rounded corners, so a panel in the overlay that is
+ * taller than the video is a panel with its top cut off — and how tall the
+ * video is depends on the column it was given, which no media query can name.
+ * The settings menu reads this to take as much height as the player allows.
+ */
+const frameHeight = ref(0)
+let frameObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (!frame.value) return
+  frameHeight.value = frame.value.getBoundingClientRect().height
+  frameObserver = new ResizeObserver(([entry]) => {
+    frameHeight.value = entry?.contentRect.height ?? 0
+  })
+  frameObserver.observe(frame.value)
+})
+onBeforeUnmount(() => frameObserver?.disconnect())
+
+/**
+ * Left unset until it has been measured, never published as `0px`.
+ *
+ * A CSS variable falls back only when it is missing; `0px` is a value, and a
+ * panel sizing itself with `calc(var(--stage-h) - 4.5rem)` against it collapses
+ * to nothing. The first render always has a height of zero, so writing it out
+ * would hand every consumer a broken number before the real one arrives.
+ */
+const stageHeightVar = computed(() =>
+  frameHeight.value ? `${frameHeight.value}px` : undefined,
+)
 
 /**
  * The handover. Quality is the one thing YouTube will not let us set — the API
@@ -73,7 +110,58 @@ function sleep() {
 
 onBeforeUnmount(() => {
   if (idleTimer) clearTimeout(idleTimer)
+  if (tapTimer) clearTimeout(tapTimer)
 })
+
+/**
+ * Tap the middle to play or pause; tap either edge twice to jump.
+ *
+ * The zones are the phone convention, and they earn their place on a desktop
+ * too — the video is the biggest target on the page and the seek keys are not
+ * reachable from a couch. The centre still toggles on the first click with no
+ * delay: waiting a quarter of a second to find out whether a second click is
+ * coming is a lag on the one control that is pressed constantly, and nothing
+ * is bound to a double click there to make the wait worth paying.
+ *
+ * The edges do wait, because there a single click and a double click mean
+ * different things and the first cannot be run before the second is ruled out.
+ */
+const DOUBLE_TAP_MS = 260
+const EDGE_FRACTION = 0.3
+let tapTimer: ReturnType<typeof setTimeout> | null = null
+
+function zoneAt(clientX: number): -1 | 0 | 1 {
+  const rect = frame.value?.getBoundingClientRect()
+  if (!rect || !rect.width) return 0
+  const ratio = (clientX - rect.left) / rect.width
+  if (ratio < EDGE_FRACTION) return -1
+  if (ratio > 1 - EDGE_FRACTION) return 1
+  return 0
+}
+
+function onShieldClick(event: MouseEvent) {
+  const zone = zoneAt(event.clientX)
+
+  if (tapTimer) {
+    clearTimeout(tapTimer)
+    tapTimer = null
+    if (zone !== 0) {
+      emit('nudge', zone)
+      wake()
+      return
+    }
+  }
+
+  if (zone === 0) {
+    api.toggle()
+    return
+  }
+
+  tapTimer = setTimeout(() => {
+    tapTimer = null
+    api.toggle()
+  }, DOUBLE_TAP_MS)
+}
 
 /**
  * Everything ours goes: the bar, but the scrim above all, since that is what
@@ -148,7 +236,10 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen, wake, nativeMode, enterNa
     ref="frame"
     class="group relative aspect-video w-full overflow-hidden bg-black"
     :class="isFullscreen ? 'rounded-none border-0' : 'rounded-2xl border border-line'"
-    :style="isFullscreen ? undefined : 'box-shadow: var(--ui-glow-soft), var(--ui-shadow)'"
+    :style="{
+      '--stage-h': stageHeightVar,
+      'boxShadow': isFullscreen ? undefined : 'var(--ui-glow-soft), var(--ui-shadow)',
+    }"
     @pointerenter="wake"
     @pointermove="wake"
     @pointerleave="sleep"
@@ -173,9 +264,9 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen, wake, nativeMode, enterNa
       type="button"
       data-testid="stage-shield"
       class="absolute inset-0 h-full w-full cursor-default"
-      aria-label="Play or pause"
+      :aria-label="$t('player.shieldHint')"
       tabindex="-1"
-      @click="api.toggle()"
+      @click="onShieldClick"
       @pointermove="wake"
     />
 

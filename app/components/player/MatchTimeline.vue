@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { BreakInput, DerivedMatch, RallyState } from "~~/shared/badminton";
 import { Pause, Star } from "@lucide/vue";
-import { breakAtTime, rallyAtTime, resumeTimeAt } from "~~/shared/badminton";
+import {
+  breakAtTime,
+  highlightSpans,
+  rallyAtTime,
+  resumeTimeAt,
+} from "~~/shared/badminton";
 
 const props = withDefaults(
   defineProps<{
@@ -12,7 +17,7 @@ const props = withDefaults(
     breaks?: BreakInput[];
     /** Drawn over the video: translucent, so the play still reads through it. */
     overlay?: boolean;
-    /** Enables the frame in the hover preview. Without it the card is text only. */
+    /** Enables the frame in the preview card. Without it the card is text only. */
     videoId?: string | null;
   }>(),
   { breaks: () => [], overlay: false, videoId: null },
@@ -34,11 +39,8 @@ function pct(seconds: number) {
 const track = ref<HTMLElement | null>(null);
 
 /**
- * The track's width in pixels, watched rather than measured once.
- *
- * Needed because a decision that only a percentage can express — is this point
- * wide enough to hold a star? — has to be answered in the unit the star is
- * drawn in. A match of three hundred points at 360px gives each one a pixel.
+ * The track's width in pixels, watched rather than measured once. The preview
+ * card is positioned and clamped in pixels, so it needs the real width.
  */
 const trackWidth = ref(0);
 let observer: ResizeObserver | null = null;
@@ -53,33 +55,35 @@ onMounted(() => {
 
 onBeforeUnmount(() => observer?.disconnect());
 
-/** The narrowest a point can be and still read as a shape rather than a line. */
-const STAR_MIN_PX = 13;
-
 const segments = computed(() =>
-  states.value.map((s) => {
-    const span = s.endsAtSeconds - s.startsAtSeconds;
-    return {
-      idx: s.idx,
-      left: pct(s.startsAtSeconds),
-      width: pct(span),
-      start: s.startsAtSeconds,
-      highlight: s.isHighlight,
-      // Two colours, no third: crimson is ours, ink is theirs. Lets stay
-      // colourless because no point was scored, so neither side "owns" them.
-      class: s.isLet
-        ? "bg-neutral"
-        : s.scoreAfter[0] > s.scoreBefore[0]
-        ? "bg-us"
-        : "bg-them",
-      // Only where the point is wide enough to hold one. A star crammed into a
-      // two-pixel sliver is a smudge, and the glow marks the passage anyway.
-      star:
-        s.isHighlight &&
-        (span / total.value) * trackWidth.value >= STAR_MIN_PX,
-      title: `Point ${s.idx + 1} · ${s.scoreAfter[0]}–${s.scoreAfter[1]}`,
-    };
-  }),
+  states.value.map((s) => ({
+    idx: s.idx,
+    left: pct(s.startsAtSeconds),
+    width: pct(s.endsAtSeconds - s.startsAtSeconds),
+    start: s.startsAtSeconds,
+    // Two colours, no third: crimson is ours, ink is theirs. Lets stay
+    // colourless because no point was scored, so neither side "owns" them.
+    class: s.isLet
+      ? "bg-neutral"
+      : s.scoreAfter[0] > s.scoreBefore[0]
+      ? "bg-us"
+      : "bg-them",
+    title: `Point ${s.idx + 1} · ${s.scoreAfter[0]}–${s.scoreAfter[1]}`,
+  })),
+);
+
+/**
+ * Adjacent highlighted rallies merge into one band, so a great exchange tagged
+ * across three points reads as a single passage rather than stripes. Breaks are
+ * trimmed off — see `highlightSpans`: a rally's own span reaches back over any
+ * pause before it, and a glowing band over dead time reads as tagged when it
+ * never was.
+ */
+const highlightBands = computed(() =>
+  highlightSpans(states.value, props.breaks).map((s) => ({
+    left: pct(s.from),
+    width: pct(s.to - s.from),
+  })),
 );
 
 /**
@@ -128,23 +132,21 @@ function timeFromPointer(event: PointerEvent | MouseEvent) {
 }
 
 /**
- * What the cursor is over: the point, the score it ends on, and whether the
- * shuttle was even in play.
+ * What the pointer is over: the point, the score it is being played for, and
+ * whether the shuttle was even in play.
  *
- * `rallyAtTime` rather than `currentRallyAt`: hovering past the final point is
- * hovering over untagged video, and inventing a score for it would be worse
- * than saying nothing.
+ * `rallyAtTime` rather than `currentRallyAt`: past the final point is untagged
+ * video, and inventing a score for it would be worse than saying nothing.
  */
-const hoverTime = ref<number | null>(null);
+const previewTime = ref<number | null>(null);
 
-const hovered = computed(() => {
-  const t = hoverTime.value;
+const preview = computed(() => {
+  const t = previewTime.value;
   if (t === null) return null;
   const during = breakAtTime(props.breaks, t);
   const rally: RallyState | null = rallyAtTime(props.derived, t);
   return {
     time: t,
-    rally,
     onBreak: Boolean(during),
     // Mid-rally the board reads `scoreBefore`, the way a real scoreboard does
     // while a point is being played out. Preview the point, not its outcome.
@@ -155,7 +157,7 @@ const hovered = computed(() => {
 });
 
 /**
- * A frame from roughly where the cursor is.
+ * A frame from roughly where the pointer is.
  *
  * YouTube's real scrub storyboards live behind a signature that only its own
  * player response carries, and an embed never sees one. What every video does
@@ -165,7 +167,7 @@ const hovered = computed(() => {
  * the parts that are exact.
  */
 const previewFrame = computed(() => {
-  const t = hoverTime.value;
+  const t = previewTime.value;
   if (!props.videoId || t === null || !total.value) return null;
   const nth = Math.min(3, Math.max(1, Math.ceil((t / total.value) * 3) || 1));
   return `https://i.ytimg.com/vi/${props.videoId}/${nth}.jpg`;
@@ -175,7 +177,7 @@ const previewFrame = computed(() => {
 const PREVIEW_WIDTH = 148;
 
 const previewLeft = computed(() => {
-  const t = hoverTime.value;
+  const t = previewTime.value;
   if (t === null || !trackWidth.value) return "0px";
   const x = (t / total.value) * trackWidth.value;
   const margin = PREVIEW_WIDTH / 2 + 4;
@@ -187,90 +189,97 @@ const previewLeft = computed(() => {
 });
 
 /**
- * Hover is a mouse idea. On a touch screen a "hover" is the first half of a
- * tap, and a card that flashes up under the thumb and then seeks is worse than
- * no card at all.
+ * Press, drag, release — the way a phone scrubs a video.
+ *
+ * A touch screen has no hover, so the preview has to hang off the finger rather
+ * than off a cursor that never arrives. Holding shows the card, dragging moves
+ * it, and letting go is the seek. Nothing is committed until the finger lifts,
+ * so a scrub that started by accident can be dragged back rather than jumping
+ * the video the instant it was touched.
+ *
+ * The same handlers serve a mouse, which makes drag-scrubbing work there too.
+ * `setPointerCapture` keeps the drag alive once the pointer leaves the track —
+ * a finger wanders off a 32px bar constantly — and `touch-none` stops the page
+ * scrolling out from under it.
  */
-function onPointerMove(event: PointerEvent) {
-  if (event.pointerType !== "mouse") return;
-  hoverTime.value = timeFromPointer(event);
+const dragging = ref(false);
+
+function onPointerDown(event: PointerEvent) {
+  const at = timeFromPointer(event);
+  if (at === null) return;
+  dragging.value = true;
+  previewTime.value = at;
+  (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
 }
 
-function onPointerLeave() {
-  hoverTime.value = null;
+function onPointerMove(event: PointerEvent) {
+  // Off a drag, only a real cursor previews: on touch, a move with no finger
+  // down is not a hover, it is nothing at all.
+  if (!dragging.value && event.pointerType !== "mouse") return;
+  previewTime.value = timeFromPointer(event);
 }
 
 /**
- * Clicking inside a point jumps to where that point STARTS, not to the exact
- * spot clicked — landing mid-rally is never what you want. Clicks outside any
- * tagged rally fall back to the raw position.
- *
- * The target is then pushed past any break covering it, so clicking the first
- * point of a match or of a set lands on play resuming rather than on dead
- * time.
+ * Release seeks. Where a point is under the pointer the target is that point's
+ * START, not the exact spot — landing mid-rally is never what you want — and it
+ * is then pushed past any break covering it, so releasing on the first point of
+ * a set lands on play resuming rather than on the interval.
  */
-function seekFromPointer(event: MouseEvent) {
-  const time = timeFromPointer(event);
-  if (time === null) return;
-  const hit = rallyAtTime(props.derived, time);
-  emit("seek", resumeTimeAt(props.breaks, hit ? hit.startsAtSeconds : time));
+function onPointerUp(event: PointerEvent) {
+  if (!dragging.value) return;
+  dragging.value = false;
+  const at = timeFromPointer(event) ?? previewTime.value;
+  // The card leaves with the finger. A mouse keeps it, since the cursor is
+  // still over the track and hovering is what it was doing before the press.
+  if (event.pointerType !== "mouse") previewTime.value = null;
+  if (at === null) return;
+  const hit = rallyAtTime(props.derived, at);
+  emit("seek", resumeTimeAt(props.breaks, hit ? hit.startsAtSeconds : at));
+}
+
+function onPointerLeave() {
+  if (!dragging.value) previewTime.value = null;
+}
+
+function onPointerCancel() {
+  dragging.value = false;
+  previewTime.value = null;
 }
 </script>
 
 <template>
   <!--
-    `relative` on a wrapper rather than on the track: the hover card hangs above
-    the track and would be clipped by the track's own overflow-hidden, which is
-    what keeps the segments inside its rounded corners.
+    `relative` on a wrapper rather than on the track: the preview card hangs
+    above the track and would be clipped by the track's own overflow-hidden,
+    which is what keeps the segments inside its rounded corners.
   -->
   <div class="relative">
     <div
       ref="track"
       data-testid="match-timeline"
-      class="relative w-full cursor-pointer overflow-hidden rounded-lg border transition-[border-color] duration-200 sm:rounded-xl"
-      :class="[
-        overlay
-          ? 'h-9 border-white/20 bg-black/85 backdrop-blur-sm hover:border-white/40 sm:h-11'
-          : 'h-8 border-line bg-bg-deep hover:border-line-strong sm:h-10',
-      ]"
-      @click="seekFromPointer"
+      class="relative w-full cursor-pointer touch-none select-none overflow-hidden rounded-lg border transition-[border-color] duration-200 sm:rounded-xl"
+      :class="overlay
+        ? 'h-9 border-white/20 bg-black/85 backdrop-blur-sm hover:border-white/40 sm:h-11'
+        : 'h-8 border-line bg-bg-deep hover:border-line-strong sm:h-10'"
+      @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerCancel"
       @pointerleave="onPointerLeave"
     >
       <!--
         border-r in the track colour separates consecutive points: a run of five
         won in a row would otherwise read as one long block. box-sizing keeps the
         border inside the segment, so positions stay exact.
-
-        Full height now that the highlight lane is gone. That lane was a second
-        row saying the same thing as the points below it, in a stripe too thin
-        to be read as anything but decoration — and it stole the height that
-        makes a dense match legible.
       -->
       <div
         v-for="s in segments"
         :key="s.idx"
-        class="absolute inset-y-0 border-r transition-opacity duration-150 hover:opacity-100"
-        :class="[
-          s.class,
-          overlay ? 'border-black/60' : 'border-bg-deep',
-          s.highlight ? 'timeline-highlight opacity-100' : 'opacity-85',
-        ]"
-        :data-testid="s.highlight ? 'timeline-highlight' : undefined"
+        class="absolute bottom-0 top-2.5 border-r opacity-85 transition-opacity duration-150 hover:opacity-100"
+        :class="[s.class, overlay ? 'border-black/60' : 'border-bg-deep']"
         :style="{ left: s.left, width: s.width }"
-        :title="s.highlight ? `${s.title} · ${$t('player.highlight')}` : s.title"
-      >
-        <!--
-          The star sits in the point rather than above it, which is the whole
-          point of dropping the lane: a highlight is a point with something
-          extra, not a separate kind of mark that happens to line up.
-        -->
-        <Star
-          v-if="s.star"
-          class="absolute left-1/2 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 fill-white text-white drop-shadow-[0_0_3px_rgba(0,0,0,0.9)] sm:size-3"
-          aria-hidden="true"
-        />
-      </div>
+        :title="s.title"
+      />
 
       <!-- Dead time is drawn, not left blank: a gap would read as missing data
            rather than as the shuttle being off the court. -->
@@ -278,7 +287,7 @@ function seekFromPointer(event: MouseEvent) {
         v-for="b in breakBands"
         :key="`b${b.idx}`"
         data-testid="timeline-break"
-        class="absolute inset-y-0 z-10 border-x border-line-strong"
+        class="absolute bottom-0 top-2.5 border-x border-line-strong"
         :class="[b.open ? 'opacity-70' : '', overlay ? 'bg-black/70' : 'bg-bg-deep']"
         :style="{
           left: b.left,
@@ -287,6 +296,18 @@ function seekFromPointer(event: MouseEvent) {
             'repeating-linear-gradient(45deg, var(--ui-line) 0 2px, transparent 2px 6px)',
         }"
         :title="b.open ? $t('player.breakOpen') : $t('player.break')"
+      />
+
+      <!-- Highlights ride in their own lane above the points so they stay
+           legible when a match is dense enough that segments are hairline. The
+           glow is what separates them from a won rally of the same colour. -->
+      <div
+        v-for="(b, i) in highlightBands"
+        :key="`h${i}`"
+        data-testid="timeline-highlight"
+        class="absolute left-0 top-0 h-2 rounded-b-sm bg-accent shadow-[0_0_10px_var(--ui-accent)]"
+        :style="{ left: b.left, width: b.width }"
+        :title="$t('player.highlight')"
       />
 
       <!--
@@ -298,39 +319,20 @@ function seekFromPointer(event: MouseEvent) {
         v-for="g in gameMarks"
         :key="`g${g.number}`"
         data-testid="timeline-set-mark"
-        class="absolute bottom-0 z-10 h-2 w-px bg-ink-muted"
+        class="absolute bottom-0 h-2 w-px bg-ink-muted"
         :style="{ left: g.left }"
         :title="`Set ${g.number}`"
       />
 
-      <!--
-        The playhead. A gradient rather than a bar: a hard line over a dense
-        match is one more stripe among three hundred, and the eye loses it. The
-        falloff is symmetrical and tight, so the exact frame is still the most
-        saturated column in it — precision by intensity rather than by edge.
-      -->
-      <div
-        class="pointer-events-none absolute inset-y-0 z-20 w-8 -translate-x-1/2 opacity-30 blur-[3px]"
-        :style="{
-          left: pct(currentTime),
-          background:
-            'linear-gradient(90deg, transparent, var(--ui-accent) 50%, transparent)',
-        }"
-        aria-hidden="true"
-      />
       <div
         data-testid="timeline-playhead"
-        class="pointer-events-none absolute inset-y-0 z-20 w-2.5 -translate-x-1/2"
-        :style="{
-          left: pct(currentTime),
-          background:
-            'linear-gradient(90deg, transparent, var(--ui-accent) 50%, transparent)',
-        }"
+        class="pointer-events-none absolute inset-y-0 w-0.5 bg-ink shadow-[0_0_8px_var(--ui-ink)]"
+        :style="{ left: pct(currentTime) }"
       />
     </div>
 
     <!--
-      The hover card. Above the track and clamped to it, so a point at either
+      The preview card. Above the track and clamped to it, so a point at either
       end previews without half the card hanging off the player.
     -->
     <Transition
@@ -340,7 +342,7 @@ function seekFromPointer(event: MouseEvent) {
       leave-to-class="opacity-0"
     >
       <div
-        v-if="hovered"
+        v-if="preview"
         data-testid="timeline-preview"
         class="pointer-events-none absolute bottom-full z-20 mb-2 -translate-x-1/2 overflow-hidden rounded-lg border border-line-strong bg-panel-solid shadow-[var(--ui-shadow)]"
         :style="{ left: previewLeft, width: `${PREVIEW_WIDTH}px` }"
@@ -357,57 +359,34 @@ function seekFromPointer(event: MouseEvent) {
           <!-- The star rides the frame rather than the text row: it is about
                the passage on screen, and it has room to glow up here. -->
           <Star
-            v-if="hovered.highlight"
+            v-if="preview.highlight"
             class="absolute right-1 top-1 size-3.5 fill-accent text-accent drop-shadow-[0_0_5px_var(--ui-accent)]"
             aria-hidden="true"
           />
         </div>
 
         <div class="flex items-center gap-1.5 px-2 py-1.5">
-          <template v-if="hovered.onBreak">
+          <template v-if="preview.onBreak">
             <Pause :size="11" class="shrink-0 text-ink-subtle" aria-hidden="true" />
             <span class="truncate text-[0.6875rem] text-ink-subtle">{{ $t('player.break') }}</span>
           </template>
-          <template v-else-if="hovered.score">
+          <template v-else-if="preview.score">
             <span class="shrink-0 font-display text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
-              S{{ hovered.setNumber }}
+              S{{ preview.setNumber }}
             </span>
             <span
               data-testid="preview-score"
               class="font-display text-sm font-bold tabular-nums leading-none text-ink"
-            >{{ hovered.score[0] }}–{{ hovered.score[1] }}</span>
+            >{{ preview.score[0] }}–{{ preview.score[1] }}</span>
           </template>
           <span v-else class="truncate text-[0.6875rem] text-ink-subtle">{{ $t('player.untagged') }}</span>
 
           <span
             data-testid="preview-time"
             class="ml-auto shrink-0 font-mono text-[0.6875rem] tabular-nums text-ink-muted"
-          >{{ clock(hovered.time) }}</span>
+          >{{ clock(preview.time) }}</span>
         </div>
       </div>
     </Transition>
   </div>
 </template>
-
-<style scoped>
-/*
- * A highlighted point, without a lane of its own. The inset ring lifts it off
- * its neighbours and the glow carries it at widths where the star cannot fit,
- * so the same mark works for a five-second rally and for a dense match where
- * every point is a hairline.
- */
-.timeline-highlight {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 85%, transparent),
-    0 0 10px -1px var(--ui-accent);
-  filter: saturate(1.35) brightness(1.12);
-  /*
-   * Lifted one layer so the glow is not painted over by the point that follows
-   * it — a box-shadow spills outside the element, and a later sibling would
-   * clip the right-hand half of it. One layer only: breaks and the playhead sit
-   * above, because dead time inside a highlight is still dead time, and a
-   * playhead the eye cannot find is not a playhead.
-   */
-  z-index: 1;
-}
-</style>

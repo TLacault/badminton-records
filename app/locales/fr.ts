@@ -189,6 +189,8 @@ export default {
     qualityAuto: "Auto",
     speed: "Vitesse",
     untagged: "Non taggé",
+    skipBy: "Saut de",
+    shieldHint: "Lecture ou pause ; double-cliquez sur un bord pour sauter",
   },
 
   login: {

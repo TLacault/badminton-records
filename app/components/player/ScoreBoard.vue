@@ -68,7 +68,7 @@ const sides = computed(() => {
  * the width the desktop board always had.
  */
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `minmax(0,1fr) repeat(${columns.value.length}, clamp(1.5rem, 5.5vw, 2.5rem))`,
+  gridTemplateColumns: `minmax(0,1fr) repeat(${columns.value.length}, clamp(1.25rem, 5vw, 2.5rem))`,
 }))
 </script>
 
@@ -94,7 +94,7 @@ const gridStyle = computed(() => ({
     @keydown.enter.prevent="toggle"
     @keydown.space.prevent="toggle"
   >
-    <div class="relative px-2 py-1.5 sm:px-3 sm:py-2">
+    <div class="relative px-1.5 py-1 sm:px-3 sm:py-2">
       <!-- Set numbers. Only earns its line once a second set exists. -->
       <div
         v-if="columns.length > 1"
@@ -105,7 +105,7 @@ const gridStyle = computed(() => ({
         <span
           v-for="column in columns"
           :key="column.number"
-          class="text-center font-display text-[0.5625rem] font-semibold uppercase tracking-[0.12em] sm:text-[0.625rem]"
+          class="text-center font-display text-[0.5rem] font-semibold uppercase tracking-[0.12em] sm:text-[0.625rem]"
           :class="column.live ? 'text-[var(--ui-accent)]' : 'text-white/45'"
         >S{{ column.number }}</span>
       </div>
@@ -119,9 +119,9 @@ const gridStyle = computed(() => ({
         <!-- Compact: one line per side. Expanded: the names that make it up. -->
         <div class="min-w-0 pr-1 sm:pr-2">
           <template v-if="mode === 'compact'">
-            <p class="flex items-center gap-1 truncate font-display text-xs font-semibold uppercase tracking-[0.06em] sm:gap-1.5 sm:text-sm">
+            <p class="flex items-center gap-1 truncate font-display text-[0.6875rem] font-semibold uppercase tracking-[0.06em] sm:gap-1.5 sm:text-sm">
               <Circle
-                :size="7"
+                :size="6"
                 class="shrink-0 transition-[color,filter] duration-200"
                 :class="s.serving
                   ? 'fill-[var(--ui-accent)] text-[var(--ui-accent)] drop-shadow-[0_0_6px_var(--ui-accent)]'
@@ -135,12 +135,12 @@ const gridStyle = computed(() => ({
             <p
               v-for="p in s.players"
               :key="p.slot"
-              class="flex items-center gap-1 text-[0.6875rem] leading-tight sm:gap-1.5 sm:text-[0.8125rem]"
+              class="flex items-center gap-1 text-[0.625rem] leading-tight sm:gap-1.5 sm:text-[0.8125rem]"
             >
               <!-- Shuttle marks the server; the space is reserved either way so
                    the rows never shift as service changes. -->
               <Circle
-                :size="7"
+                :size="6"
                 class="shrink-0 transition-[color,filter] duration-200"
                 :class="p.serving
                   ? 'fill-[var(--ui-accent)] text-[var(--ui-accent)] drop-shadow-[0_0_6px_var(--ui-accent)]'
@@ -162,7 +162,7 @@ const gridStyle = computed(() => ({
           v-for="column in columns"
           :key="column.number"
           :data-testid="column.live ? 'scoreboard-live' : undefined"
-          class="text-center font-display text-base font-bold tabular-nums leading-none sm:text-xl"
+          class="text-center font-display text-sm font-bold tabular-nums leading-none sm:text-xl"
           :class="column.live ? 'text-accent' : 'text-white/60'"
         >{{ column.score[s.side - 1] }}</span>
       </div>
@@ -173,7 +173,7 @@ const gridStyle = computed(() => ({
          decoration and must not swallow the event or double-toggle it. -->
     <span
       data-testid="scoreboard-mode"
-      class="pointer-events-none absolute right-1 top-1 grid size-6 place-items-center rounded-md text-white/40"
+      class="pointer-events-none absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-md text-white/40 sm:right-1 sm:top-1 sm:size-6"
       aria-hidden="true"
     >
       <component :is="mode === 'compact' ? ChevronsUpDown : ChevronsDownUp" :size="13" />
