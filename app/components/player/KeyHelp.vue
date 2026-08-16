@@ -19,13 +19,23 @@ const props = withDefaults(
      * belong to the tagger, and a match page is not the place to learn them.
      */
     scope?: 'all' | 'player'
+    /**
+     * Drop the panel and the disclosure, and render the rows alone.
+     *
+     * The keyboard block used to be a card of its own under the video. It is a
+     * section of the player's settings menu now, and a card nested inside a
+     * menu — with its own frame, its own heading and its own chevron — reads as
+     * a panel that escaped rather than as part of the menu it is in.
+     */
+    embedded?: boolean
   }>(),
-  { scope: 'all' },
+  { scope: 'all', embedded: false },
 )
 
 const { bindings, rebind, addSlot, unbind, reset, isDefaultFor } = useKeybinds()
 
-const open = ref(false)
+/** Embedded, the section is already the disclosure: it opens with the menu. */
+const open = ref(props.embedded)
 
 /** The slot waiting for a keypress: an action, and which of its keys. */
 const capturing = ref<{ id: KeybindActionId, at: number } | null>(null)
@@ -93,8 +103,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-2xl glass">
-    <h2>
+  <component :is="embedded ? 'div' : 'section'" :class="embedded ? '' : 'overflow-hidden rounded-2xl glass'">
+    <h2 v-if="!embedded">
       <button
         type="button"
         data-testid="keyhelp-toggle"
@@ -117,14 +127,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
       </button>
     </h2>
 
-    <div v-show="open" id="keyhelp-body" class="border-t border-line px-4 pb-4 pt-3">
+    <div
+      v-show="open"
+      id="keyhelp-body"
+      :class="embedded ? '' : 'border-t border-line px-4 pb-4 pt-3'"
+    >
       <div v-for="group in groups" :key="group.name" class="mt-3 first:mt-0">
         <p class="label text-[0.6875rem]">
           {{ group.name }}
         </p>
         <!-- Two columns: a shortcut row is a short label and a small key, and
-             one per line left most of the panel empty. -->
-        <ul class="mt-1.5 grid gap-x-6 sm:grid-cols-2">
+             one per line left most of the panel empty. Inside the settings
+             menu there is only ever room for one. -->
+        <ul class="mt-1.5 grid gap-x-6" :class="embedded ? '' : 'sm:grid-cols-2'">
           <li
             v-for="action in group.actions"
             :key="action.id"
@@ -199,5 +214,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onCapture, true))
         Restore defaults
       </button>
     </div>
-  </section>
+  </component>
 </template>

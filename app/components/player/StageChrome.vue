@@ -3,6 +3,7 @@ import {
   Gauge,
   Maximize,
   Minimize,
+  MonitorCog,
   Pause,
   Play,
   Rewind,
@@ -12,7 +13,7 @@ import {
   VolumeX,
 } from '@lucide/vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** Fades with the rest of the video chrome. */
   chromeVisible: boolean
   isFullscreen: boolean
@@ -28,7 +29,9 @@ const props = defineProps<{
   rateFlash: number | null
   seekFlash: -1 | 1 | null
   jumpFlash: string | null
-}>()
+  /** `player` hides the tagger's scoring and session keys in the settings menu. */
+  keybindScope?: 'all' | 'player'
+}>(), { keybindScope: 'player' })
 
 const emit = defineEmits<{
   toggle: []
@@ -79,6 +82,30 @@ function pickRate(value: number) {
 function rateLabel(value: number) {
   return `${value}×`
 }
+
+/**
+ * The settings menu, and the one rule that keeps it usable: it closes when the
+ * chrome goes.
+ *
+ * The bar fades on an idle timer, and a menu left hanging over the video with
+ * its trigger gone is furniture nobody asked for. Handing the player to YouTube
+ * closes it too, since our layer is standing down.
+ */
+const settingsOpen = ref(false)
+
+watch(() => props.chromeVisible, (visible) => {
+  if (!visible) settingsOpen.value = false
+})
+
+function toggleSettings() {
+  settingsOpen.value = !settingsOpen.value
+  if (settingsOpen.value) rateOpen.value = false
+}
+
+function handOver() {
+  settingsOpen.value = false
+  emit('nativeControls')
+}
 </script>
 
 <template>
@@ -121,22 +148,44 @@ function rateLabel(value: number) {
       <slot name="timeline" />
     </div>
 
-    <div class="relative flex items-center gap-3 px-3 pb-2 pt-6">
+    <!--
+      Tighter on a phone throughout: gap-1.5 rather than gap-3, smaller glyphs,
+      and the speed chip drops its number. A control bar sized for a desktop
+      wraps to two lines at 360px, and a wrapped bar covers the rally.
+    -->
+    <div class="relative flex items-center gap-1.5 px-2 pb-2 pt-6 sm:gap-3 sm:px-3">
       <button
         type="button"
         data-testid="control-play"
-        class="grid size-9 shrink-0 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent"
+        class="grid size-8 shrink-0 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent sm:size-9"
         :aria-label="isPlaying ? 'Pause' : 'Play'"
         @click="emit('toggle')"
       >
-        <component :is="isPlaying ? Pause : Play" :size="20" :fill="isPlaying ? 'none' : 'currentColor'" aria-hidden="true" />
+        <component :is="isPlaying ? Pause : Play" :size="18" :fill="isPlaying ? 'none' : 'currentColor'" aria-hidden="true" class="sm:size-5" />
       </button>
 
-      <p data-testid="control-time" class="shrink-0 font-mono text-xs tabular-nums text-white/90">
+      <p data-testid="control-time" class="shrink-0 font-mono text-[0.6875rem] tabular-nums text-white/90 sm:text-xs">
         {{ clock(currentTime) }} <span class="text-white/50">/ {{ clock(duration) }}</span>
       </p>
 
-      <div class="ml-auto flex shrink-0 items-center gap-1">
+      <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+        <!--
+          The settings button, immediately left of the quality chip: the two
+          neighbouring things that change how the player behaves rather than
+          what it is doing.
+        -->
+        <button
+          type="button"
+          data-testid="control-settings"
+          class="grid size-8 place-items-center rounded-lg text-white transition-[color,transform] duration-150 hover:text-accent sm:size-9"
+          :class="settingsOpen ? 'rotate-45 text-accent' : ''"
+          :aria-expanded="settingsOpen"
+          :aria-label="$t('player.settings')"
+          @click="toggleSettings"
+        >
+          <Settings :size="17" aria-hidden="true" class="sm:size-[18px]" />
+        </button>
+
         <!--
           The chip is the trigger, because it already names the thing you came
           for. Clicking it stands our whole layer down and gives the frame back
@@ -148,26 +197,28 @@ function rateLabel(value: number) {
         <button
           type="button"
           data-testid="control-quality"
-          class="inline-grid min-h-9 min-w-9 place-items-center rounded border border-white/25 px-1.5 font-mono text-[0.625rem] tabular-nums text-white/70 transition-colors duration-150 hover:border-accent/60 hover:text-white"
+          class="inline-grid min-h-8 min-w-8 place-items-center rounded border border-white/25 px-1 font-mono text-[0.5625rem] tabular-nums text-white/70 transition-colors duration-150 hover:border-accent/60 hover:text-white sm:min-h-9 sm:min-w-9 sm:px-1.5 sm:text-[0.625rem]"
           :title="$t('player.qualityHint')"
           :aria-label="$t('player.qualityHint')"
           @click="emit('nativeControls')"
         >
           <template v-if="qualityLabel">{{ qualityLabel }}</template>
-          <Settings v-else :size="13" aria-hidden="true" />
+          <MonitorCog v-else :size="13" aria-hidden="true" />
         </button>
 
         <div class="relative">
           <button
             type="button"
             data-testid="control-rate"
-            class="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 font-mono text-xs tabular-nums text-white transition-colors duration-150 hover:text-accent"
+            class="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-1.5 font-mono text-xs tabular-nums text-white transition-colors duration-150 hover:text-accent sm:min-h-9 sm:px-2"
             :aria-expanded="rateOpen"
             aria-label="Playback speed"
             @click="rateOpen = !rateOpen"
           >
             <Gauge :size="15" aria-hidden="true" />
-            {{ rateLabel(rate) }}
+            <!-- The number is the label; on a phone the glyph carries it alone
+                 unless the speed is not 1×, which is worth saying. -->
+            <span :class="rate === 1 ? 'hidden sm:inline' : ''">{{ rateLabel(rate) }}</span>
           </button>
 
           <ul
@@ -193,13 +244,29 @@ function rateLabel(value: number) {
         <button
           type="button"
           data-testid="control-fullscreen"
-          class="grid size-9 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent"
+          class="grid size-8 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent sm:size-9"
           :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
           @click="emit('toggleFullscreen')"
         >
-          <component :is="isFullscreen ? Minimize : Maximize" :size="18" aria-hidden="true" />
+          <component :is="isFullscreen ? Minimize : Maximize" :size="17" aria-hidden="true" class="sm:size-[18px]" />
         </button>
       </div>
+
+      <!--
+        Anchored to the bar rather than to the gear it opens from: measured
+        from the gear's own right edge, a menu wider than the space left of it
+        runs off the side of the player and into the frame's clip.
+      -->
+      <PlayerSettingsMenu
+        v-if="settingsOpen"
+        :rate="rate"
+        :rates="rates"
+        :quality-label="qualityLabel"
+        :keybind-scope="keybindScope"
+        @set-rate="value => emit('setRate', value)"
+        @native-controls="handOver"
+        @close="settingsOpen = false"
+      />
     </div>
   </div>
 

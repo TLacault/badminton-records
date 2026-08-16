@@ -178,6 +178,17 @@ export default {
     noVideo: "Aucun identifiant de vidéo YouTube pour ce match.",
     qualityHint: "Qualité actuelle. Cliquez pour ouvrir les réglages YouTube, où elle se change.",
     nativeControls: "Commandes YouTube",
+    settings: "Réglages du lecteur",
+    settingsPlayer: "Lecteur",
+    settingsKeyboard: "Clavier",
+    hideAfter: "Masquer les commandes après",
+    neverHide: "Ne jamais masquer les commandes",
+    never: "Jamais",
+    picture: "Image",
+    quality: "Qualité",
+    qualityAuto: "Auto",
+    speed: "Vitesse",
+    untagged: "Non taggé",
   },
 
   login: {

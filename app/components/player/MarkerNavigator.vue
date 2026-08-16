@@ -50,13 +50,6 @@ const TONE_CLASS: Record<Tone, string> = {
 
 const open = ref(true);
 
-function formatClock(seconds: number) {
-  const s = Math.max(0, Math.floor(seconds));
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(
-    s % 60,
-  ).padStart(2, "0")}`;
-}
-
 /** What the prev/next buttons and the list step through, per mode. */
 const markers = computed<Marker[]>(() => {
   const states = props.derived?.rallyStates ?? [];
@@ -118,7 +111,7 @@ function next() {
 
 <template>
   <div>
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
       <div
         data-testid="mode-switch"
         class="inline-flex rounded-xl border border-line p-1"
@@ -127,7 +120,7 @@ function next() {
           v-for="m in modes"
           :key="m.id"
           type="button"
-          class="min-h-9 rounded-lg px-3.5 font-display text-sm font-semibold uppercase tracking-[0.1em] transition-[color,background-color] duration-200 ease-brand"
+          class="min-h-8 rounded-lg px-2.5 font-display text-xs font-semibold uppercase tracking-[0.1em] transition-[color,background-color] duration-200 ease-brand sm:min-h-9 sm:px-3.5 sm:text-sm"
           :class="
             mode === m.id
               ? 'bg-accent-soft text-accent'
@@ -144,7 +137,7 @@ function next() {
         <button
           data-testid="marker-prev"
           type="button"
-          class="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
+          class="grid size-8 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40 sm:size-9"
           :disabled="activeMarker <= 0"
           :title="$t('player.previous')"
           :aria-label="$t('player.previousMarker')"
@@ -155,7 +148,7 @@ function next() {
         <button
           data-testid="marker-next"
           type="button"
-          class="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
+          class="grid size-8 place-items-center rounded-lg border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent disabled:pointer-events-none disabled:opacity-40 sm:size-9"
           :disabled="activeMarker >= markers.length - 1"
           :title="$t('player.next')"
           :aria-label="$t('player.nextMarker')"
@@ -166,7 +159,7 @@ function next() {
       </div>
 
       <span
-        class="font-display text-sm uppercase tracking-[0.12em] text-ink-subtle"
+        class="font-display text-xs uppercase tracking-[0.12em] text-ink-subtle sm:text-sm"
       >
         <span class="tabular-nums text-ink-muted">{{ markers.length }}</span>
         {{ mode }}
@@ -192,12 +185,12 @@ function next() {
       <ul
         v-if="markers.length"
         data-testid="marker-list"
-        class="mt-3 flex flex-wrap gap-1.5"
+        class="mt-3 flex flex-wrap gap-1 sm:gap-1.5"
       >
         <li v-for="(m, i) in markers" :key="m.key">
           <button
             type="button"
-            class="flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs tabular-nums transition-[border-color,color,background-color] duration-200"
+            class="flex min-h-7 items-center gap-1 rounded-lg border px-1.5 text-[0.6875rem] tabular-nums transition-[border-color,color,background-color] duration-200 sm:min-h-8 sm:gap-1.5 sm:px-2.5 sm:text-xs"
             :class="
               i === activeMarker
                 ? 'border-accent bg-accent text-on-brand font-semibold shadow-[var(--ui-glow-strong)]'

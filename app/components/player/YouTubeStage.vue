@@ -37,26 +37,34 @@ const api = useYouTubePlayer(host, videoId, {
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(frame)
 
 /**
- * Chrome appears with the cursor and leaves two seconds later, the way video
- * chrome should: there when you reach for it, gone while you watch.
+ * Chrome appears with the cursor and leaves a couple of seconds later, the way
+ * video chrome should: there when you reach for it, gone while you watch.
  *
  * A cross-origin iframe swallows every pointer event inside it, so "the cursor
  * stopped moving" would not be observable — except that the shield below now
  * covers the iframe, so movement over the video reaches us after all. A paused
  * player keeps the chrome, and any shortcut counts as activity, so a keypress
  * never lands on a hidden overlay.
+ *
+ * The delay is the viewer's, set in the settings menu, and can be turned off
+ * outright — scrubbing a rally frame by frame wants the bar to stay put.
  */
-const IDLE_MS = 2000
+const { autoHide, autoHideMs, chromeHeld } = usePlayerSettings()
 const cursorActive = ref(false)
 let idleTimer: ReturnType<typeof setTimeout> | null = null
 
 function wake() {
   cursorActive.value = true
   if (idleTimer) clearTimeout(idleTimer)
+  if (!autoHide.value) return
   idleTimer = setTimeout(() => {
     cursorActive.value = false
-  }, IDLE_MS)
+  }, autoHideMs.value)
 }
+
+// Turning auto-hide off mid-watch must bring the chrome back rather than
+// freeze it in whatever state the last timer left it in.
+watch(autoHide, () => wake())
 
 function sleep() {
   if (idleTimer) clearTimeout(idleTimer)
@@ -73,11 +81,29 @@ onBeforeUnmount(() => {
  * than merely unclickable.
  */
 const chromeVisible = computed(() =>
-  !nativeMode.value && (cursorActive.value || !api.isPlaying.value),
+  !nativeMode.value
+  && (chromeHeld.value || !autoHide.value || cursorActive.value || !api.isPlaying.value),
+)
+
+/**
+ * The way-back pill idles out too, but never all the way to nothing.
+ *
+ * While the handover lasts the shield is lifted, so the iframe is swallowing
+ * pointer events again and "the cursor moved" stops being observable. A pill
+ * that hid completely would have no way to hear the movement that should bring
+ * it back — the only exit left would be Escape, which one click into the iframe
+ * takes away. So it dims to a ghost instead: out of the way of the frame, still
+ * findable, and back to full on hover or focus, which are its own events.
+ */
+const nativeExitDim = computed(() =>
+  nativeMode.value && autoHide.value && !cursorActive.value,
 )
 
 function enterNativeMode() {
   nativeMode.value = true
+  // The handover starts the clock: no pointer events reach us from here, so
+  // this is the last wake the pill will get on its own.
+  wake()
 }
 
 function exitNativeMode() {
@@ -178,9 +204,11 @@ defineExpose({ ...api, isFullscreen, toggleFullscreen, wake, nativeMode, enterNa
       v-if="nativeMode"
       type="button"
       data-testid="stage-native-exit"
-      class="absolute left-1/2 top-3 z-20 inline-flex min-h-8 -translate-x-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/70 px-3 font-display text-[0.6875rem] uppercase tracking-[0.1em] text-white/80 backdrop-blur-md transition-colors duration-150 hover:border-accent/60 hover:text-white"
+      class="absolute left-1/2 top-3 z-20 inline-flex min-h-8 -translate-x-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/70 px-3 font-display text-[0.6875rem] uppercase tracking-[0.1em] text-white/80 backdrop-blur-md transition-[opacity,color,border-color] duration-300 hover:border-accent/60 hover:!opacity-100 hover:text-white focus-visible:!opacity-100"
+      :class="nativeExitDim ? 'opacity-15' : 'opacity-100'"
       style="box-shadow: var(--ui-glow-soft)"
       @click="exitNativeMode"
+      @pointerenter="wake"
     >
       <Settings :size="13" aria-hidden="true" />
       {{ $t('player.nativeControls') }}

@@ -211,7 +211,14 @@ const detailsVisible = computed(() => revealed.value || !spoilable.value)
 const legend = computed(() => [
   { key: 'us', swatch: 'bg-us', label: `Point for ${sideLabels.value[1]}` },
   { key: 'them', swatch: 'bg-them', label: `Point for ${sideLabels.value[2]}` },
-  { key: 'highlight', swatch: 'bg-accent shadow-[0_0_8px_var(--ui-accent)]', label: t('player.highlight') },
+  // A highlight is no longer a colour of its own — it is a point wearing a ring
+  // and a glow — so the swatch has to be one too, or the key describes a mark
+  // the timeline stopped drawing.
+  {
+    key: 'highlight',
+    swatch: 'bg-us ring-1 ring-accent shadow-[0_0_8px_var(--ui-accent)]',
+    label: t('player.highlight'),
+  },
   { key: 'break', swatch: 'bg-bg-deep border border-line-strong', label: t('player.break') },
 ])
 
@@ -322,6 +329,7 @@ useSeoMeta({
                 :duration="playbackDuration"
                 :current-time="currentTime"
                 :breaks="breaks"
+                :video-id="match.youtube_video_id"
                 @seek="seekAndPlay"
               />
             </template>
@@ -338,22 +346,16 @@ useSeoMeta({
         :duration="playbackDuration"
         :current-time="currentTime"
         :breaks="breaks"
+        :video-id="match.youtube_video_id"
         @seek="seekAndPlay"
       />
 
-      <ul class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-subtle">
+      <ul class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-ink-subtle sm:gap-x-5 sm:text-xs">
         <li v-for="item in legend" :key="item.key" class="inline-flex items-center gap-1.5">
-          <span class="size-2.5 rounded-sm" :class="item.swatch" aria-hidden="true" />
+          <span class="size-2.5 shrink-0 rounded-sm" :class="item.swatch" aria-hidden="true" />
           {{ item.label }}
         </li>
       </ul>
-
-      <!--
-        The same panel the tagger gets, scoped to what a viewer can act on:
-        the shortcuts here are theirs to change too, and this is the only place
-        that says what they are now that the in-player sheet is gone.
-      -->
-      <PlayerKeyHelp scope="player" class="mt-4" />
     </div>
 
     <div class="mt-8 rounded-2xl p-5 glass sm:p-6">

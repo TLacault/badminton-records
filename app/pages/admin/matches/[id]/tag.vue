@@ -423,6 +423,7 @@ const saveLabel = computed(() => {
             />
 
             <PlayerStageChrome
+              keybind-scope="all"
               :chrome-visible="chromeVisible"
               :is-fullscreen="isFullscreen"
               :is-playing="stage?.isPlaying ?? false"
@@ -448,6 +449,7 @@ const saveLabel = computed(() => {
                   :duration="duration"
                   :current-time="currentTime"
                   :breaks="session.breaks.value"
+                  :video-id="match.youtube_video_id"
                   @seek="seekAndPlay"
                 />
               </template>
@@ -460,6 +462,7 @@ const saveLabel = computed(() => {
           :duration="duration"
           :current-time="currentTime"
           :breaks="session.breaks.value"
+          :video-id="match.youtube_video_id"
           @seek="seekAndPlay"
         />
         <p
@@ -477,7 +480,6 @@ const saveLabel = computed(() => {
           :breaks="session.breaks.value"
           @seek="(s: number) => stage?.seekTo(s)"
         />
-        <PlayerKeyHelp class="mt-4" />
         <MatchDetails
           class="mt-4"
           :derived="session.derived.value"

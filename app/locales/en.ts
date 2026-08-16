@@ -181,6 +181,17 @@ export default {
     noVideo: "No YouTube video ID set for this match.",
     qualityHint: "Current quality. Click for YouTube's own settings, where it can be changed.",
     nativeControls: "YouTube controls",
+    settings: "Player settings",
+    settingsPlayer: "Player",
+    settingsKeyboard: "Keyboard",
+    hideAfter: "Hide controls after",
+    neverHide: "Never hide the controls",
+    never: "Never",
+    picture: "Picture",
+    quality: "Quality",
+    qualityAuto: "Auto",
+    speed: "Speed",
+    untagged: "Untagged",
   },
 
   login: {

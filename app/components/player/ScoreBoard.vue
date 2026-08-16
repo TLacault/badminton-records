@@ -58,9 +58,17 @@ const sides = computed(() => {
   }))
 })
 
-/** Label column, then one fixed cell per set so the columns stay aligned. */
+/**
+ * Label column, then one cell per set so the columns stay aligned.
+ *
+ * The cell width is a clamp rather than a constant: at 2.5rem apiece a
+ * three-set board took a third of a phone's width before a single name was
+ * printed, and the names are what the board is for. It gives ground down to
+ * 1.5rem — still two digits at the size they are drawn — and never grows past
+ * the width the desktop board always had.
+ */
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `minmax(0,1fr) repeat(${columns.value.length}, 2.5rem)`,
+  gridTemplateColumns: `minmax(0,1fr) repeat(${columns.value.length}, clamp(1.5rem, 5.5vw, 2.5rem))`,
 }))
 </script>
 
@@ -81,12 +89,12 @@ const gridStyle = computed(() => ({
     role="button"
     tabindex="0"
     :aria-label="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
-    class="pointer-events-auto absolute left-3 top-3 cursor-pointer overflow-hidden rounded-xl border border-white/12 bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 transition-[border-color] duration-200 hover:border-white/30 legible"
+    class="pointer-events-auto absolute left-2 top-2 cursor-pointer sm:left-3 sm:top-3 overflow-hidden rounded-xl border border-white/12 bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 transition-[border-color] duration-200 hover:border-white/30 legible"
     @click="toggle"
     @keydown.enter.prevent="toggle"
     @keydown.space.prevent="toggle"
   >
-    <div class="relative px-3 py-2">
+    <div class="relative px-2 py-1.5 sm:px-3 sm:py-2">
       <!-- Set numbers. Only earns its line once a second set exists. -->
       <div
         v-if="columns.length > 1"
@@ -97,7 +105,7 @@ const gridStyle = computed(() => ({
         <span
           v-for="column in columns"
           :key="column.number"
-          class="text-center font-display text-[0.625rem] font-semibold uppercase tracking-[0.12em]"
+          class="text-center font-display text-[0.5625rem] font-semibold uppercase tracking-[0.12em] sm:text-[0.625rem]"
           :class="column.live ? 'text-[var(--ui-accent)]' : 'text-white/45'"
         >S{{ column.number }}</span>
       </div>
@@ -105,13 +113,13 @@ const gridStyle = computed(() => ({
       <div
         v-for="s in sides"
         :key="s.side"
-        class="grid items-center gap-x-1 border-b border-white/10 py-1 last:border-b-0"
+        class="grid items-center gap-x-1 border-b border-white/10 py-0.5 last:border-b-0 sm:py-1"
         :style="gridStyle"
       >
         <!-- Compact: one line per side. Expanded: the names that make it up. -->
-        <div class="min-w-0 pr-2">
+        <div class="min-w-0 pr-1 sm:pr-2">
           <template v-if="mode === 'compact'">
-            <p class="flex items-center gap-1.5 truncate font-display text-sm font-semibold uppercase tracking-[0.06em]">
+            <p class="flex items-center gap-1 truncate font-display text-xs font-semibold uppercase tracking-[0.06em] sm:gap-1.5 sm:text-sm">
               <Circle
                 :size="7"
                 class="shrink-0 transition-[color,filter] duration-200"
@@ -127,7 +135,7 @@ const gridStyle = computed(() => ({
             <p
               v-for="p in s.players"
               :key="p.slot"
-              class="flex items-center gap-1.5 text-[0.8125rem] leading-tight"
+              class="flex items-center gap-1 text-[0.6875rem] leading-tight sm:gap-1.5 sm:text-[0.8125rem]"
             >
               <!-- Shuttle marks the server; the space is reserved either way so
                    the rows never shift as service changes. -->
@@ -141,7 +149,7 @@ const gridStyle = computed(() => ({
               />
               <span
                 v-if="p.club"
-                class="shrink-0 rounded border border-white/25 px-1 font-mono text-[0.5625rem] font-semibold tracking-wide text-white/70"
+                class="shrink-0 rounded border border-white/25 px-1 font-mono text-[0.5rem] font-semibold tracking-wide text-white/70 sm:text-[0.5625rem]"
               >{{ p.club }}</span>
               <span class="truncate" :class="p.serving ? 'font-semibold' : 'text-white/80'">
                 {{ p.name }}
@@ -154,7 +162,7 @@ const gridStyle = computed(() => ({
           v-for="column in columns"
           :key="column.number"
           :data-testid="column.live ? 'scoreboard-live' : undefined"
-          class="text-center font-display text-xl font-bold tabular-nums leading-none"
+          class="text-center font-display text-base font-bold tabular-nums leading-none sm:text-xl"
           :class="column.live ? 'text-accent' : 'text-white/60'"
         >{{ column.score[s.side - 1] }}</span>
       </div>
