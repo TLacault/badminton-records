@@ -1,21 +1,24 @@
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, RallyInput, Side } from '~~/shared/badminton'
-import { deriveMatch, insertPositionFor } from '~~/shared/badminton'
+import { clampBreak, clampBreaks, deriveMatch, insertPositionFor, MIN_BREAK_SECONDS } from '~~/shared/badminton'
 
 const UNDO_LIMIT = 100
 // Short enough to feel immediate, long enough that a burst of keystrokes
 // during a rally is one write rather than six. There is no save button any
 // more, so this is the only thing standing between a tag and the database.
 const SAVE_DEBOUNCE_MS = 400
-/**
- * Below this, a break is a double press rather than a pause: nobody leaves the
- * court for half a second, and the key that ends a break is easy to hit twice.
- */
-const MIN_BREAK_SECONDS = 1
 
 interface Snapshot {
   rallies: RallyInput[]
   breaks: BreakInput[]
+}
+
+/** What the list should flash: the row a mutation just put there. */
+export interface Inserted {
+  kind: 'rally' | 'break'
+  idx: number
+  /** Bumped on every insert, so flashing the same row twice still fires. */
+  seq: number
 }
 
 function clone(rallies: RallyInput[], breaks: BreakInput[]): Snapshot {
@@ -41,6 +44,8 @@ export function useTaggingSession(
   const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveError = ref<string | null>(null)
   const dirty = ref(false)
+  const lastInserted = ref<Inserted | null>(null)
+  let insertSeq = 0
 
   const derived = computed(() => deriveMatch(config.value, rallies.value))
   const canUndo = computed(() => undoStack.value.length > 0)
@@ -117,31 +122,48 @@ export function useTaggingSession(
     scheduleSave()
   }
 
-  function addRally(winnerSide: Side, endedAtSeconds: number) {
-    const at = insertPositionFor(rallies.value, endedAtSeconds)
+  /**
+   * Put every break back inside a rally gap after the log moved under them.
+   *
+   * A point inserted, retimed or deleted moves the boundaries breaks were
+   * tagged against. Left alone, a break that now straddles a rally end paints
+   * over the point on the timeline, swallows it in `resumeTimeAt` and cuts it
+   * out of the highlights — which is exactly what makes a point tagged inside a
+   * break look like it was never recorded.
+   *
+   * Called from inside `mutate`, so the repair shares the point's undo entry:
+   * one press, one undo.
+   */
+  function repairBreaks() {
+    breaks.value = clampBreaks(rallies.value, breaks.value)
+  }
+
+  function insertRally(rally: Omit<RallyInput, 'idx'>) {
+    const at = insertPositionFor(rallies.value, rally.endedAtSeconds)
     mutate(() => {
-      rallies.value.splice(at, 0, {
-        idx: at,
-        winnerSide,
-        isLet: false,
-        isHighlight: false,
-        scoredByPlayerId: null,
-        endedAtSeconds,
-      })
+      rallies.value.splice(at, 0, { idx: at, ...rally })
+      repairBreaks()
+    })
+    lastInserted.value = { kind: 'rally', idx: at, seq: ++insertSeq }
+  }
+
+  function addRally(winnerSide: Side, endedAtSeconds: number) {
+    insertRally({
+      winnerSide,
+      isLet: false,
+      isHighlight: false,
+      scoredByPlayerId: null,
+      endedAtSeconds,
     })
   }
 
   function addLet(endedAtSeconds: number) {
-    const at = insertPositionFor(rallies.value, endedAtSeconds)
-    mutate(() => {
-      rallies.value.splice(at, 0, {
-        idx: at,
-        winnerSide: null,
-        isLet: true,
-        isHighlight: false,
-        scoredByPlayerId: null,
-        endedAtSeconds,
-      })
+    insertRally({
+      winnerSide: null,
+      isLet: true,
+      isHighlight: false,
+      scoredByPlayerId: null,
+      endedAtSeconds,
     })
   }
 
@@ -163,6 +185,26 @@ export function useTaggingSession(
   }
 
   /**
+   * The open break this press should close, if any.
+   *
+   * Only one that `atSeconds` could plausibly still be inside: it has to start
+   * before the press, with no point recorded in between. Adopting any open
+   * break anywhere in the video — which is what this used to do — meant that
+   * re-editing a match carrying a stale open break from 0:30 turned one press
+   * at 3:44 into a three-minute pause swallowing everything tagged since.
+   */
+  function openBreakFor(atSeconds: number) {
+    const candidate = breaks.value.find(
+      b => b.endsAtSeconds === null && b.startsAtSeconds < atSeconds,
+    )
+    if (!candidate) return null
+    const played = rallies.value.some(
+      r => r.endedAtSeconds > candidate.startsAtSeconds && r.endedAtSeconds < atSeconds,
+    )
+    return played ? null : candidate
+  }
+
+  /**
    * One press, as play resumes: this marks where a break ENDED.
    *
    * The start needs no keypress of its own — dead time runs from wherever play
@@ -170,27 +212,61 @@ export function useTaggingSession(
    * presses meant tagging the start before the pause, at the one moment nobody
    * is watching for it, and a forgotten first press left the log lying.
    *
+   * That derived start is right while tagging forwards and right again when
+   * patching a region already tagged, since `lastStopBefore` is the end of the
+   * point before the press either way. When the pause actually began later than
+   * the previous point ended, the start is typed into the row.
+   *
    * A break already left open — by older data, tagged when it took two presses
    * — is closed here instead, so it can still be finished.
    */
   function endBreak(atSeconds: number) {
-    const open = breaks.value.find(b => b.endsAtSeconds === null)
+    const open = openBreakFor(atSeconds)
     const startsAtSeconds = open ? open.startsAtSeconds : lastStopBefore(atSeconds)
     if (atSeconds - startsAtSeconds < MIN_BREAK_SECONDS) return
 
+    // Breaks stay in video order, like the rally log: `mutate` renumbers from
+    // position, and the timeline draws them in the order it is given.
+    const at = open
+      ? breaks.value.indexOf(open)
+      : breaks.value.findIndex(b => b.startsAtSeconds > startsAtSeconds)
+    const position = at === -1 ? breaks.value.length : at
+
     mutate(() => {
-      if (open) {
-        open.endsAtSeconds = atSeconds
+      if (open) open.endsAtSeconds = atSeconds
+      else breaks.value.splice(position, 0, { idx: 0, startsAtSeconds, endsAtSeconds: atSeconds })
+    })
+    lastInserted.value = { kind: 'break', idx: position, seq: ++insertSeq }
+  }
+
+  /**
+   * Retime one edge of a break, by hand, from the list.
+   *
+   * The edge typed is the one that holds: the other gives way if the break
+   * would otherwise cross a point, which is the same rule `repairBreaks`
+   * enforces from the rally side. A break clamped down to nothing is deleted
+   * rather than kept as a sliver.
+   */
+  function setBreakTime(idx: number, edge: 'start' | 'end', seconds: number) {
+    const b = breaks.value[idx]
+    if (!b) return
+    const at = Math.max(0, seconds)
+    const proposed: BreakInput = edge === 'start'
+      ? { ...b, startsAtSeconds: at }
+      : { ...b, endsAtSeconds: at }
+
+    // A start dragged past the end (or an end pulled before the start) is not a
+    // clamp the rally log can resolve — the break has simply been inverted.
+    if (proposed.endsAtSeconds !== null && proposed.endsAtSeconds <= proposed.startsAtSeconds) return
+
+    const clamped = clampBreak(rallies.value, proposed, edge)
+    mutate(() => {
+      if (!clamped) {
+        breaks.value.splice(idx, 1)
         return
       }
-      // Breaks stay in video order, like the rally log: `mutate` renumbers from
-      // position, and the timeline draws them in the order it is given.
-      const at = breaks.value.findIndex(b => b.startsAtSeconds > startsAtSeconds)
-      breaks.value.splice(at === -1 ? breaks.value.length : at, 0, {
-        idx: 0,
-        startsAtSeconds,
-        endsAtSeconds: atSeconds,
-      })
+      breaks.value.splice(idx, 1, clamped)
+      breaks.value.sort((x, y) => x.startsAtSeconds - y.startsAtSeconds)
     })
   }
 
@@ -239,6 +315,9 @@ export function useTaggingSession(
    * Retime a point. Re-sorts afterwards: the log must stay in video order or
    * every score after the edit is derived from the wrong sequence. The sort is
    * stable, so points sharing a timestamp keep their relative order.
+   *
+   * Moving a point moves the gap boundaries the breaks around it were tagged
+   * against, so they are put back inside a gap in the same step.
    */
   function setTimestamp(idx: number, seconds: number) {
     const r = rallies.value[idx]
@@ -246,6 +325,7 @@ export function useTaggingSession(
     mutate(() => {
       r.endedAtSeconds = Math.max(0, seconds)
       rallies.value.sort((a, b) => a.endedAtSeconds - b.endedAtSeconds)
+      repairBreaks()
     })
   }
 
@@ -260,19 +340,6 @@ export function useTaggingSession(
   function deleteRally(idx: number) {
     mutate(() => {
       rallies.value.splice(idx, 1)
-    })
-  }
-
-  function insertBefore(idx: number, winnerSide: Side, endedAtSeconds: number) {
-    mutate(() => {
-      rallies.value.splice(idx, 0, {
-        idx,
-        winnerSide,
-        isLet: false,
-        isHighlight: false,
-        scoredByPlayerId: null,
-        endedAtSeconds,
-      })
     })
   }
 
@@ -306,6 +373,7 @@ export function useTaggingSession(
     saveState,
     saveError,
     dirty,
+    lastInserted,
     canUndo,
     canRedo,
     addRally,
@@ -316,8 +384,8 @@ export function useTaggingSession(
     setTimestamp,
     setScorer,
     deleteRally,
-    insertBefore,
     endBreak,
+    setBreakTime,
     deleteBreak,
     undo,
     redo,

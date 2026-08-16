@@ -492,10 +492,12 @@ const saveLabel = computed(() => {
       </div>
       <TaggingPointList
         :rallies="session.rallies.value"
+        :breaks="session.breaks.value"
         :derived="session.derived.value"
         :names="names"
         :slot-to-player-id="slotToPlayerId"
         :current-idx="currentRallyIdx"
+        :last-inserted="session.lastInserted.value"
         @seek="(s: number) => stage?.seekTo(s)"
         @flip="session.flipWinner"
         @toggle-let="session.toggleLet"
@@ -503,6 +505,8 @@ const saveLabel = computed(() => {
         @set-scorer="session.setScorer"
         @set-timestamp="session.setTimestamp"
         @delete="session.deleteRally"
+        @set-break-time="session.setBreakTime"
+        @delete-break="session.deleteBreak"
       />
     </div>
   </div>

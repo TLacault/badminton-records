@@ -9,6 +9,16 @@ export function formatDuration(seconds: number | null): string {
 }
 
 /**
+ * `125` → `02:05`. Zero-padded and always mm:ss, so a column of timecodes lines
+ * up — which `formatDuration` deliberately does not do, since a lone duration
+ * reads better as `2:05`.
+ */
+export function formatClock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+
+/**
  * Parses a hand-typed timecode back to seconds. Accepts `mm:ss`, `h:mm:ss`, or
  * a bare number of seconds. Returns null for anything it cannot read, so the
  * caller can leave the existing value alone rather than write a NaN.

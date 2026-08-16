@@ -36,11 +36,6 @@ const scorerOptions = computed(() => [
   })),
 ])
 
-function formatTime(seconds: number) {
-  const s = Math.max(0, Math.floor(seconds))
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-}
-
 /**
  * Commit a hand-typed timecode. Unreadable input is reverted rather than
  * written: a NaN here would corrupt the ordering the score depends on.
@@ -49,11 +44,11 @@ function commitTime(event: Event, rally: RallyInput) {
   const input = event.target as HTMLInputElement
   const seconds = parseClock(input.value)
   if (seconds === null) {
-    input.value = formatTime(rally.endedAtSeconds)
+    input.value = formatClock(rally.endedAtSeconds)
     return
   }
   if (seconds !== rally.endedAtSeconds) emit('set-timestamp', rally.idx, seconds)
-  input.value = formatTime(seconds)
+  input.value = formatClock(seconds)
 }
 </script>
 
@@ -74,7 +69,7 @@ function commitTime(event: Event, rally: RallyInput) {
   >
     <button
       class="shrink-0 text-ink-subtle transition-colors duration-150 hover:text-accent"
-      :title="`Jump to ${formatTime(state?.startsAtSeconds ?? 0)}`"
+      :title="`Jump to ${formatClock(state?.startsAtSeconds ?? 0)}`"
       @click="emit('seek', state?.startsAtSeconds ?? 0)"
     >
       <CornerDownRight :size="12" />
@@ -86,7 +81,7 @@ function commitTime(event: Event, rally: RallyInput) {
     -->
     <input
       data-testid="row-time"
-      :value="formatTime(rally.endedAtSeconds)"
+      :value="formatClock(rally.endedAtSeconds)"
       class="w-12 shrink-0 rounded bg-transparent px-1 text-left font-mono text-ink-subtle hover:bg-panel-strong focus:bg-panel-strong focus:text-ink focus:outline-none"
       title="Point ends at — edit to retime (mm:ss)"
       @focus="($event.target as HTMLInputElement).select()"
