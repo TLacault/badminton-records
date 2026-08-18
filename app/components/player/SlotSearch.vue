@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { MyffbadPlayer } from '~~/server/utils/myffbad'
 import type { Database } from '~/types/database.types'
-import { CircleDashed, Loader, Search, UserPlus, X } from '@lucide/vue'
+import { CircleDashed, Globe, Loader, Search, UserPlus, UserSearch, X } from '@lucide/vue'
+// Named explicitly rather than auto-imported: the template reads them, and a
+// bare identifier there resolves against the setup bindings, not unimport.
+import { STAGE_ACTION, STAGE_LABEL, useMyffbadSearch } from '~/composables/useMyffbadSearch'
+import { findPlaceholder } from '~/utils/players'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 
@@ -18,16 +22,12 @@ const emit = defineEmits<{
   'created': []
 }>()
 
-/** Only the MyFFBaD leg is debounced — filtering the roster is free. */
-const DEBOUNCE_MS = 1000
-
 const client = useSupabaseClient<Database>()
 
 const term = ref('')
 const open = ref(false)
-const busy = ref(false)
-const error = ref<string | null>(null)
-const remote = ref<MyffbadPlayer[]>([])
+const saving = ref(false)
+const saveError = ref<string | null>(null)
 const root = ref<HTMLElement | null>(null)
 
 const selected = computed(() =>
@@ -39,10 +39,10 @@ function name(player: PlayerRow) {
 }
 
 /**
- * The stand-in, kept at the top of the list whatever is typed. It is the
- * answer to "I cannot name this person", which is a thing you know before you
- * start typing and still know after a search has found nobody — so it is
- * pinned rather than left to be found by name among the real players.
+ * The stand-in, offered on every leg of the search. It is the answer to "I
+ * cannot name this person", which is a thing you know before you start typing
+ * and still know once France has been searched — so it sits in the header
+ * beside the button that widens the search, not down among the results.
  */
 const placeholder = computed(() => findPlaceholder(props.players))
 
@@ -50,7 +50,7 @@ const placeholder = computed(() => findPlaceholder(props.players))
  * The roster, filtered on every keystroke. No request, so no debounce.
  *
  * Without the stand-in, which sits above: listing it twice is noise, and
- * counting it as a hit would mean the MyFFBaD fallback below never runs.
+ * counting it as a hit would mean the MyFFBaD legs below never run.
  */
 const matches = computed(() => {
   const roster = props.players.filter(p => p.id !== placeholder.value?.id)
@@ -63,58 +63,26 @@ const matches = computed(() => {
   )
 })
 
-/**
- * MyFFBaD is the fallback, not the first stop: it only runs once the roster
- * has nothing to offer, so the common case — someone we have played before —
- * never touches the network.
- */
-let timer: ReturnType<typeof setTimeout> | null = null
-let sequence = 0
+const {
+  stage,
+  next,
+  results: remote,
+  truncated,
+  busy,
+  error: searchError,
+  answered,
+  searchable,
+  run,
+  reset,
+} = useMyffbadSearch({ term, localCount: () => matches.value.length })
 
-async function lookup(value: string) {
-  const query = value.trim()
-  if (query.length < 2 || matches.value.length) {
-    remote.value = []
-    return
-  }
-  const ticket = ++sequence
-  busy.value = true
-  error.value = null
-  try {
-    // `all`, not the default `local`: we only get here because the roster had
-    // nobody, and the person being added is usually an opponent — quite
-    // possibly from outside Gironde. The ranking still floats our clubs to the
-    // top, so nothing local is buried by widening the net.
-    const res = await $fetch<{ players: MyffbadPlayer[] }>('/api/myffbad/search', {
-      query: { q: query, scope: 'all' },
-    })
-    if (ticket !== sequence) return
-    remote.value = res.players
-  }
-  catch (cause) {
-    if (ticket !== sequence) return
-    const err = cause as { statusMessage?: string, message?: string }
-    error.value = err.statusMessage ?? err.message ?? 'MyFFBaD search failed'
-    remote.value = []
-  }
-  finally {
-    if (ticket === sequence) busy.value = false
-  }
-}
-
-watch(term, (value) => {
-  if (timer) clearTimeout(timer)
-  remote.value = []
-  timer = setTimeout(() => lookup(value), DEBOUNCE_MS)
-})
-onBeforeUnmount(() => {
-  if (timer) clearTimeout(timer)
-})
+const error = computed(() => saveError.value ?? searchError.value)
+const working = computed(() => busy.value || saving.value)
 
 function choose(playerId: string | null) {
   emit('update:modelValue', playerId)
   term.value = ''
-  remote.value = []
+  reset()
   open.value = false
 }
 
@@ -132,8 +100,8 @@ async function addAndChoose(licensee: MyffbadPlayer) {
     return
   }
 
-  busy.value = true
-  error.value = null
+  saving.value = true
+  saveError.value = null
   try {
     const { data: club } = await client
       .from('clubs')
@@ -160,14 +128,14 @@ async function addAndChoose(licensee: MyffbadPlayer) {
       .single()
 
     if (dbError) {
-      error.value = dbError.message
+      saveError.value = dbError.message
       return
     }
     emit('created')
     choose(created.id)
   }
   finally {
-    busy.value = false
+    saving.value = false
   }
 }
 
@@ -180,6 +148,21 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
 function ranks(p: MyffbadPlayer) {
   return [p.rankSingles, p.rankDoubles, p.rankMixed].map(r => r || '—').join(' / ')
 }
+
+/** What the list says when it has nothing to show on the current leg. */
+const emptyNote = computed(() => {
+  if (working.value) return null
+  if (stage.value === 'local') {
+    if (matches.value.length) return null
+    return searchable.value
+      ? 'Nobody on the roster — our club is checked a second after you stop typing.'
+      : 'Nobody on the roster yet.'
+  }
+  if (!answered.value || remote.value.length) return null
+  return stage.value === 'club'
+    ? 'Nobody at US Talence.'
+    : 'No licensee found in France.'
+})
 </script>
 
 <template>
@@ -189,10 +172,10 @@ function ranks(p: MyffbadPlayer) {
       :class="open ? 'ring-2 ring-accent/40' : ''"
     >
       <component
-        :is="busy ? Loader : Search"
+        :is="working ? Loader : Search"
         :size="15"
         class="shrink-0"
-        :class="busy ? 'animate-spin text-accent' : 'text-ink-subtle'"
+        :class="working ? 'animate-spin text-accent' : 'text-ink-subtle'"
         aria-hidden="true"
       />
       <input
@@ -226,30 +209,54 @@ function ranks(p: MyffbadPlayer) {
       v-if="open"
       class="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-xl p-1 glass-menu"
     >
-      <button
-        type="button"
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
-        @click="choose(null)"
-      >
-        <CircleDashed :size="15" aria-hidden="true" />
-        No player
-      </button>
+      <!-- The header, unchanged by whatever the search is doing below it: the
+           next leg of the search, the stand-in, and an empty slot. -->
+      <div class="flex flex-wrap items-center gap-1.5 px-1.5 pb-1.5 pt-1">
+        <button
+          v-if="next"
+          type="button"
+          data-testid="slot-widen"
+          class="btn btn-sm border border-accent/50 bg-accent-soft text-accent hover:bg-accent-soft hover:brightness-125 disabled:opacity-45"
+          :disabled="!searchable || busy"
+          :title="searchable ? undefined : 'Type at least two letters first'"
+          @click="run(next)"
+        >
+          <component :is="next === 'club' ? UserSearch : Globe" :size="14" aria-hidden="true" />
+          {{ STAGE_ACTION[next] }}
+        </button>
 
-      <!-- The two ways of not naming somebody, together and above the rule:
-           leave the slot empty, or fill it with the stand-in. -->
-      <button
-        v-if="placeholder"
-        type="button"
-        data-testid="slot-placeholder"
-        class="flex w-full items-baseline gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
-        :class="placeholder.id === modelValue ? 'text-accent' : 'text-ink'"
-        @click="choose(placeholder.id)"
-      >
-        <span class="font-medium">{{ name(placeholder) }}</span>
-        <span v-if="placeholder.club" class="truncate text-xs text-ink-subtle">{{ placeholder.club }}</span>
-      </button>
+        <button
+          v-if="placeholder"
+          type="button"
+          data-testid="slot-placeholder"
+          class="btn btn-sm btn-ghost"
+          :class="placeholder.id === modelValue ? 'text-accent' : ''"
+          @click="choose(placeholder.id)"
+        >
+          {{ name(placeholder) }}
+        </button>
 
-      <div v-if="placeholder" class="mx-3 my-1 border-t border-line" aria-hidden="true" />
+        <button
+          type="button"
+          class="btn btn-sm btn-ghost text-ink-muted"
+          @click="choose(null)"
+        >
+          <CircleDashed :size="14" aria-hidden="true" />
+          No player
+        </button>
+      </div>
+
+      <div class="mx-3 mb-1 border-t border-line" aria-hidden="true" />
+
+      <!-- The roster stays listed once the search widens: you may have gone
+           looking for someone else, but the people we already know are still
+           the cheapest right answer. -->
+      <p
+        v-if="stage !== 'local' && matches.length"
+        class="px-3 pb-1 pt-1.5 text-xs uppercase tracking-[0.14em] text-ink-subtle"
+      >
+        On the roster
+      </p>
 
       <button
         v-for="p in matches"
@@ -263,13 +270,12 @@ function ranks(p: MyffbadPlayer) {
         <span v-if="p.club" class="truncate text-xs text-ink-subtle">{{ p.club }}</span>
       </button>
 
-      <!--
-        Only ever shown when the roster came up empty, so a licensee never
-        competes with someone already on it.
-      -->
-      <template v-if="!matches.length && remote.length">
-        <p class="px-3 pb-1 pt-2.5 text-xs uppercase tracking-[0.14em] text-ink-subtle">
-          Not on the roster — from MyFFBaD
+      <template v-if="stage !== 'local' && remote.length">
+        <p
+          data-testid="slot-remote-label"
+          class="px-3 pb-1 pt-2.5 text-xs uppercase tracking-[0.14em] text-ink-subtle"
+        >
+          {{ STAGE_LABEL[stage] }}
         </p>
         <button
           v-for="p in remote"
@@ -283,13 +289,13 @@ function ranks(p: MyffbadPlayer) {
           <span class="text-xs tabular-nums text-ink-muted">{{ ranks(p) }}</span>
           <span v-if="p.club" class="truncate text-xs text-ink-subtle">{{ p.club }}</span>
         </button>
+        <p v-if="truncated" class="px-3 pb-1 pt-1 text-xs text-ink-subtle">
+          Showing the first {{ remote.length }} — add a first name to narrow it down.
+        </p>
       </template>
 
-      <p
-        v-else-if="!matches.length && !busy"
-        class="px-3 py-2.5 text-xs text-ink-subtle"
-      >
-        {{ term.trim().length < 2 ? 'Nobody on the roster yet.' : 'No match — MyFFBaD is checked a second after you stop typing.' }}
+      <p v-if="emptyNote" class="px-3 py-2.5 text-xs text-ink-subtle">
+        {{ emptyNote }}
       </p>
     </div>
   </div>

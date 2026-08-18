@@ -121,3 +121,69 @@ export function playerInfoChips(
     .map(field => ({ id: field.id, label: field.label, value: field.read(player) ?? '' }))
     .filter(chip => chip.value !== '')
 }
+
+/**
+ * Where a rank sits, best first.
+ *
+ * FFBaD ranks read N1 … N3, R4 … R6, D7 … D9, P10 … P12, so the number alone
+ * already orders them and the letter is only a label. Anything else — `NC`, a
+ * blank, a typo — has no place on that scale and sorts after every rank rather
+ * than being guessed at.
+ */
+export function rankOrder(rank: string | null | undefined): number {
+  const match = /^\s*[nrdp](\d+)/i.exec(rank ?? '')
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY
+}
+
+/** The columns of the roster table that can be sorted on. */
+export type PlayerSortKey = 'name' | 'club' | 'rank_singles' | 'rank_doubles' | 'rank_mixed'
+
+export interface SortablePlayer {
+  first_name: string
+  last_name: string
+  club?: string | null
+  rank_singles?: string | null
+  rank_doubles?: string | null
+  rank_mixed?: string | null
+}
+
+/** The name as the table prints it, which is the string the name column sorts on. */
+function displayName(player: SortablePlayer) {
+  return `${player.first_name} ${player.last_name}`.trim()
+}
+
+/**
+ * Sorts the roster by one column.
+ *
+ * Empty cells always sit at the bottom, whichever way the column is pointing:
+ * reversing the order asks "who is ranked lowest", not "show me the people
+ * with no rank at all", and a screenful of dashes is never the answer wanted.
+ * Ties fall back to the name, so the order is stable to look at.
+ */
+export function sortPlayers<T extends SortablePlayer>(
+  players: readonly T[],
+  key: PlayerSortKey,
+  direction: 'asc' | 'desc',
+): T[] {
+  const sign = direction === 'desc' ? -1 : 1
+  const byName = (a: T, b: T) => displayName(a).localeCompare(displayName(b), 'fr')
+
+  return [...players].sort((a, b) => {
+    if (key === 'name') return sign * byName(a, b)
+
+    if (key === 'club') {
+      const left = a.club?.trim() ?? ''
+      const right = b.club?.trim() ?? ''
+      if (!left || !right) return left ? -1 : right ? 1 : byName(a, b)
+      return sign * left.localeCompare(right, 'fr') || byName(a, b)
+    }
+
+    const left = rankOrder(a[key])
+    const right = rankOrder(b[key])
+    if (left === right) return byName(a, b)
+    if (!Number.isFinite(left) || !Number.isFinite(right)) {
+      return Number.isFinite(left) ? -1 : 1
+    }
+    return sign * (left - right)
+  })
+}

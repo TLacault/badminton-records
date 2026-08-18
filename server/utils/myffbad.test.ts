@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   MyffbadScrapeError,
   normalisePlayer,
   parseSearchPage,
+  HOME_CLUB_QUERY,
   rankBySearchPriority,
+  searchPlayers,
+  sortByName,
   splitName,
   toTitleCase,
 } from './myffbad'
@@ -131,9 +134,9 @@ describe('rankBySearchPriority', () => {
 
   /**
    * Two clubs that genuinely appear in the fixture. Picking ids by hand — 830
-   * is ours in real life — made the filter tests vacuous, because no Martin
-   * plays for us: `shown` came back empty and every assertion about it passed
-   * for the wrong reason.
+   * is ours in real life — made the ranking tests vacuous, because no Martin
+   * plays for us: every row scored the same and the assertions passed for the
+   * wrong reason.
    */
   const [top, second] = [...new Set(crowd().map(p => p.clubId))] as string[]
   const priorities = new Map([[top!, 100], [second!, 0]])
@@ -144,14 +147,18 @@ describe('rankBySearchPriority', () => {
     expect(all.filter(p => p.clubId === second).length).toBeGreaterThan(0)
   })
 
-  it('shows only our clubs by default, and counts what it held back', () => {
+  it('keeps everyone, unknown clubs last', () => {
     const all = crowd()
-    const { shown, hidden } = rankBySearchPriority(all, priorities, 'local')
+    const ranked = rankBySearchPriority(all, priorities)
 
-    expect(shown.length).toBeGreaterThan(0)
-    expect(shown.length).toBeLessThan(all.length)
-    expect(shown.every(p => p.priority !== null)).toBe(true)
-    expect(shown.length + hidden).toBe(all.length)
+    expect(ranked).toHaveLength(all.length)
+
+    // A player from an unlisted club can never outrank one of ours.
+    const firstUnknown = ranked.findIndex(p => p.priority === null)
+    const lastKnown = ranked.findLastIndex(p => p.priority !== null)
+    expect(firstUnknown).toBeGreaterThan(-1)
+    expect(lastKnown).toBeGreaterThan(-1)
+    expect(firstUnknown).toBeGreaterThan(lastKnown)
   })
 
   it('puts the highest priority club first', () => {
@@ -160,9 +167,9 @@ describe('rankBySearchPriority', () => {
     const ours = { ...players[10]!, clubId: top!, lastName: 'Zzz', firstName: 'Zzz' }
     const neighbour = { ...players[11]!, clubId: second!, lastName: 'Aaa', firstName: 'Aaa' }
 
-    const { shown } = rankBySearchPriority([neighbour, ours], priorities, 'local')
+    const ranked = rankBySearchPriority([neighbour, ours], priorities)
     // 'Zzz' sorts last alphabetically, so only priority can put it first.
-    expect(shown.map(p => p.lastName)).toEqual(['Zzz', 'Aaa'])
+    expect(ranked.map(p => p.lastName)).toEqual(['Zzz', 'Aaa'])
   })
 
   it('falls back to surname order within one club', () => {
@@ -170,28 +177,66 @@ describe('rankBySearchPriority', () => {
     const b = { ...players[0]!, clubId: top!, lastName: 'Bernard' }
     const a = { ...players[1]!, clubId: top!, lastName: 'Andre' }
 
-    const { shown } = rankBySearchPriority([b, a], priorities, 'local')
-    expect(shown.map(p => p.lastName)).toEqual(['Andre', 'Bernard'])
-  })
-
-  it('keeps everyone when the search is broadened, unknown clubs last', () => {
-    const all = crowd()
-    const { shown, hidden } = rankBySearchPriority(all, priorities, 'all')
-
-    expect(shown).toHaveLength(all.length)
-    expect(hidden).toBe(all.length - shown.filter(p => p.priority !== null).length)
-
-    // A player from an unlisted club can never outrank one of ours.
-    const firstUnknown = shown.findIndex(p => p.priority === null)
-    const lastKnown = shown.findLastIndex(p => p.priority !== null)
-    expect(firstUnknown).toBeGreaterThan(-1)
-    expect(lastKnown).toBeGreaterThan(-1)
-    expect(firstUnknown).toBeGreaterThan(lastKnown)
+    const ranked = rankBySearchPriority([b, a], priorities)
+    expect(ranked.map(p => p.lastName)).toEqual(['Andre', 'Bernard'])
   })
 
   it('treats a player with no club as unknown rather than crashing', () => {
     const orphan = { ...crowd()[0]!, clubId: null }
-    expect(rankBySearchPriority([orphan], priorities, 'local').shown).toHaveLength(0)
-    expect(rankBySearchPriority([orphan], priorities, 'all').shown).toHaveLength(1)
+    const ranked = rankBySearchPriority([orphan], priorities)
+    expect(ranked).toHaveLength(1)
+    expect(ranked[0]!.priority).toBeNull()
+  })
+})
+
+describe('sortByName', () => {
+  it('orders one club by surname, then first name', () => {
+    const [a, b, c] = crowdish()
+    expect(sortByName([c!, a!, b!]).map(p => `${p.lastName} ${p.firstName}`))
+      .toEqual(['Andre Zoe', 'Bernard Alice', 'Bernard Bob'])
+  })
+
+  /** Three rows from the fixture, renamed so the order under test is obvious. */
+  function crowdish() {
+    const rows = parseSearchPage(fixture('martin')).players
+    return [
+      { ...rows[0]!, lastName: 'Andre', firstName: 'Zoe' },
+      { ...rows[1]!, lastName: 'Bernard', firstName: 'Alice' },
+      { ...rows[2]!, lastName: 'Bernard', firstName: 'Bob' },
+    ]
+  }
+})
+
+describe('searchPlayers', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  /** Records what the scraper asked MyFFBaD for, and answers with a fixture. */
+  function record(page: string) {
+    const calls: { url: string, query: Record<string, string> }[] = []
+    vi.stubGlobal('$fetch', (url: string, options: { query: Record<string, string> }) => {
+      calls.push({ url, query: options.query })
+      return Promise.resolve(page)
+    })
+    return calls
+  }
+
+  it('asks for our club alone, the way the site\'s own filter does', async () => {
+    const calls = record(fixture('lacault'))
+    await searchPlayers('lacault')
+
+    expect(calls[0]!.url).toBe('https://myffbad.fr/recherche/joueur')
+    expect(calls[0]!.query).toEqual({
+      isFirstLoad: 'false',
+      search: 'lacault',
+      ...HOME_CLUB_QUERY,
+    })
+  })
+
+  it('drops every filter when the search goes national', async () => {
+    const calls = record(fixture('martin'))
+    const { players } = await searchPlayers('martin', 'all')
+
+    expect(calls[0]!.query).toEqual({ search: 'martin' })
+    expect(players).toHaveLength(50)
   })
 })

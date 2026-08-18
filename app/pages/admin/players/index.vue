@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { MyffbadPlayer } from '~~/server/utils/myffbad'
-import { ExternalLink, Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
-import { myffbadProfileUrl } from '~/utils/players'
+import type { PlayerSortKey } from '~/utils/players'
+import { ChevronDown, ChevronUp, ChevronsUpDown, ExternalLink, Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
+import { myffbadProfileUrl, sortPlayers } from '~/utils/players'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -160,6 +161,35 @@ const fields: TextField[] = [
   { key: 'ffbad_license', label: 'FFBaD licence', placeholder: '00000000' },
   { key: 'category', label: 'Category', placeholder: 'Senior' },
 ]
+
+/**
+ * The sortable columns, in the order they are printed. The three ranks are
+ * three columns rather than one `S / D / Mx` cell: written as one string they
+ * read fine and sort not at all, and "who are our best doubles players" is the
+ * question this table is opened to answer.
+ */
+const columns: { key: PlayerSortKey, label: string, title: string }[] = [
+  { key: 'name', label: 'Name', title: 'Sort by name' },
+  { key: 'club', label: 'Club', title: 'Sort by club' },
+  { key: 'rank_singles', label: 'S', title: 'Sort by singles rank' },
+  { key: 'rank_doubles', label: 'D', title: 'Sort by doubles rank' },
+  { key: 'rank_mixed', label: 'Mx', title: 'Sort by mixed rank' },
+]
+
+const sortKey = ref<PlayerSortKey>('name')
+const direction = ref<'asc' | 'desc'>('asc')
+
+/** A new column starts ascending; the column already sorted flips. */
+function sortBy(key: PlayerSortKey) {
+  if (sortKey.value === key) {
+    direction.value = direction.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+  sortKey.value = key
+  direction.value = 'asc'
+}
+
+const rows = computed(() => sortPlayers(players.value ?? [], sortKey.value, direction.value))
 </script>
 
 <template>
@@ -242,14 +272,29 @@ const fields: TextField[] = [
       <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
         <thead>
           <tr class="border-b border-line bg-panel">
-            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-              Name
-            </th>
-            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-              Club
-            </th>
-            <th class="px-4 py-3 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-              S / D / Mx
+            <th
+              v-for="col in columns"
+              :key="col.key"
+              scope="col"
+              class="px-4 py-3"
+              :aria-sort="sortKey === col.key ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'"
+            >
+              <button
+                type="button"
+                :data-testid="`p-sort-${col.key}`"
+                :title="col.title"
+                class="inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors duration-150 hover:text-accent"
+                :class="sortKey === col.key ? 'text-accent' : 'text-ink-subtle'"
+                @click="sortBy(col.key)"
+              >
+                {{ col.label }}
+                <component
+                  :is="sortKey === col.key ? (direction === 'asc' ? ChevronUp : ChevronDown) : ChevronsUpDown"
+                  :size="13"
+                  :class="sortKey === col.key ? '' : 'opacity-40'"
+                  aria-hidden="true"
+                />
+              </button>
             </th>
             <th class="px-4 py-3">
               <span class="sr-only">Actions</span>
@@ -258,7 +303,7 @@ const fields: TextField[] = [
         </thead>
         <tbody data-testid="p-rows">
           <tr
-            v-for="p in players"
+            v-for="p in rows"
             :key="p.id"
             :data-player-id="p.id"
             class="border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-panel"
@@ -271,7 +316,13 @@ const fields: TextField[] = [
               {{ p.club || '—' }}
             </td>
             <td class="px-4 py-3 tabular-nums text-ink-muted">
-              {{ p.rank_singles || '—' }} / {{ p.rank_doubles || '—' }} / {{ p.rank_mixed || '—' }}
+              {{ p.rank_singles || '—' }}
+            </td>
+            <td class="px-4 py-3 tabular-nums text-ink-muted">
+              {{ p.rank_doubles || '—' }}
+            </td>
+            <td class="px-4 py-3 tabular-nums text-ink-muted">
+              {{ p.rank_mixed || '—' }}
             </td>
             <td class="px-4 py-3">
               <div class="flex items-center justify-end gap-1">

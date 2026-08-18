@@ -18,6 +18,25 @@
 
 const SEARCH_URL = 'https://myffbad.fr/recherche/joueur'
 
+/**
+ * Our club as the search page addresses it: club 830 (US Talence), in
+ * committee 31 (Gironde), in league 3301 (Nouvelle-Aquitaine).
+ *
+ * Asking MyFFBaD for one club is not the same as asking for everyone and
+ * keeping the rows that happen to be ours: a common surname fills the first
+ * page with strangers and our own licensee is never on it. `isFirstLoad=false`
+ * is what the site's own form sends once you have typed something — without
+ * it the page answers with its landing state instead of a search.
+ */
+export const HOME_CLUB_QUERY = {
+  league: '3301',
+  committee: '31',
+  club: '830',
+} as const
+
+/** Where a search looks: our club only, or every club in France. */
+export type SearchScope = 'club' | 'all'
+
 /** Printed by the site when a query matches nobody. */
 const NO_RESULTS_MARKER = 'Aucun résultat pour cette recherche.'
 
@@ -287,42 +306,52 @@ export interface RankedPlayer extends MyffbadPlayer {
 }
 
 /**
- * Puts our clubs first, and by default shows nothing else.
+ * Puts our clubs first, keeping everyone else.
  *
  * MyFFBaD orders by surname across the whole country, which buries the people
  * we actually play. `priorities` maps a MyFFBaD club id to its rank, so the
  * comparison is on ids rather than club names — no spelling to get wrong.
  *
- * `hidden` is the number of matches held back by the local filter, which is
- * what lets the UI offer to widen the search instead of showing a dead end.
+ * Nothing is dropped here any more: a search that wants our club alone asks
+ * MyFFBaD for our club alone, and this only runs on the country-wide leg,
+ * where hiding a stranger would hide the very person the leg exists to find.
  */
 export function rankBySearchPriority(
   players: MyffbadPlayer[],
   priorities: Map<string, number>,
-  scope: 'local' | 'all',
-): { shown: RankedPlayer[], hidden: number } {
+): RankedPlayer[] {
   const ranked: RankedPlayer[] = players.map(player => ({
     ...player,
     priority: player.clubId ? priorities.get(player.clubId) ?? null : null,
   }))
 
-  const local = ranked.filter(p => p.priority !== null)
-  const shown = scope === 'all' ? ranked : local
-
-  shown.sort((a, b) =>
+  ranked.sort((a, b) =>
     (b.priority ?? -1) - (a.priority ?? -1)
     || a.lastName.localeCompare(b.lastName, 'fr')
     || a.firstName.localeCompare(b.firstName, 'fr'),
   )
 
-  return { shown, hidden: ranked.length - local.length }
+  return ranked
+}
+
+/** Surname order, for a leg where every row is from the same club. */
+export function sortByName(players: MyffbadPlayer[]): MyffbadPlayer[] {
+  return [...players].sort((a, b) =>
+    a.lastName.localeCompare(b.lastName, 'fr')
+    || a.firstName.localeCompare(b.firstName, 'fr'),
+  )
 }
 
 /** Fetches and parses one page of results for `term`. */
-export async function searchPlayers(term: string): Promise<MyffbadSearchResult> {
+export async function searchPlayers(
+  term: string,
+  scope: SearchScope = 'club',
+): Promise<MyffbadSearchResult> {
   const html = await $fetch<string>(SEARCH_URL, {
     responseType: 'text',
-    query: { search: term },
+    query: scope === 'club'
+      ? { isFirstLoad: 'false', search: term, ...HOME_CLUB_QUERY }
+      : { search: term },
     headers: {
       'User-Agent': 'badminton-records/1.0 (roster lookup; +https://myffbad.fr)',
     },

@@ -248,9 +248,17 @@ this reads the public site instead, <https://myffbad.fr/recherche/joueur>, which
 answers anonymously. There is nothing to configure: no API key, no login. Any
 `MYFFBAD_*` variables in your `.env` are not read by the app.
 
-Results are filtered to our clubs and ranked by `clubs.priority`, so Talence
-comes first. When nothing local matches, the dropdown offers to search the rest
-of France rather than leaving you at a dead end.
+The search widens in three legs, each one reached only when the one before it
+found nobody: the **roster** we already hold, then **US Talence** on MyFFBaD,
+then **all of France**. Each leg also has a button, so you can widen it by hand
+when you can see the current leg is not going to answer.
+
+The club leg is a club-scoped request — `?search=…&league=3301&committee=31&club=830`,
+the same URL the site's own filter builds — not a France-wide search filtered
+afterwards. That distinction is the whole point: a common surname fills page one
+with strangers, and our own licensee never appears on the only page we fetch.
+The France-wide leg keeps everyone, ranked by `clubs.priority` so the clubs we
+play sit at the top.
 
 Two things it cannot do:
 
@@ -259,9 +267,11 @@ Two things it cannot do:
 - **Deep paging.** A bare surname can match thousands. The lookup reads page one
   and shows ten, then tells you to add a first name.
 
-The same search backs the four player slots on a match form, with the roster
-filtered first and MyFFBaD asked only when the roster has nobody — picking a
-licensee there adds them to the roster and fills the slot at once.
+The same escalation backs the four player slots on a match form — picking a
+licensee there adds them to the roster and fills the slot in one go. The
+stand-in (`place holder`) sits in the dropdown's header on every leg, since
+"I cannot name this person" is an answer you may have before you type and still
+have after France has been searched.
 
 ## Clubs
 
@@ -296,6 +306,8 @@ curl '/api/myffbad/search?q=<name>&debug=1'      # normalised + raw records
 # 2. Refresh the fixtures and re-run the parser tests.
 curl -o server/utils/__fixtures__/myffbad-search-lacault.html \
   'https://myffbad.fr/recherche/joueur?search=Tim+Lacault'
+# The club-scoped leg, which is a different URL and can break on its own.
+curl 'https://myffbad.fr/recherche/joueur?isFirstLoad=false&search=lacault&league=3301&committee=31&club=830'
 pnpm vitest run server/utils/myffbad.test.ts
 ```
 
