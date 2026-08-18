@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
-import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, Loader, MapPin, RefreshCw, SlidersHorizontal, Timer, TriangleAlert, Video } from '@lucide/vue'
+import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, SlidersHorizontal, Timer, TriangleAlert, Video } from '@lucide/vue'
 import { disciplineCode, LIST_SELECT } from '~/utils/matchSummary'
 import { groupBySession } from '~/utils/sessions'
 import { applyFilters, decorate, emptyFilters } from '~/utils/videoFilters'
@@ -39,12 +39,6 @@ const filtered = computed(() => applyFilters(entries.value, filters.value))
 const sessions = computed(() => groupBySession(filtered.value, entry => entry.row))
 
 const CHIP = 'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]'
-
-const TAGGING_OPTIONS = [
-  { value: 'untagged', label: 'Untagged', icon: CircleDashed },
-  { value: 'in_progress', label: 'In progress', icon: Loader },
-  { value: 'tagged', label: 'Tagged', icon: CircleCheck },
-]
 
 /** Header summary. Cheap to derive and the only place the two flags are ever
  *  visible as totals rather than per row. */
@@ -123,7 +117,7 @@ async function setTaggingStatus(id: string, next: string) {
         </h1>
         <p class="mt-2 text-sm text-ink-muted">
           <span class="tabular-nums">{{ counts.total }}</span> imported ·
-          <span class="tabular-nums">{{ counts.tagged }}</span> tagged ·
+          <span class="tabular-nums">{{ counts.tagged }}</span> edited ·
           <span class="tabular-nums">{{ counts.published }}</span> published
         </p>
       </div>
@@ -258,13 +252,10 @@ async function setTaggingStatus(id: string, next: string) {
 
             <!-- Controls sit above the stretched link so they stay clickable. -->
             <div class="relative flex shrink-0 items-center gap-2">
-              <UiSelect
+              <VideoTaggingStatusPicker
                 data-testid="row-tagging-status"
-                class="w-40"
-                size="sm"
-                :label="`Tagging status for ${title}`"
+                :label="`Editing state for ${title}`"
                 :model-value="m.tagging_status"
-                :options="TAGGING_OPTIONS"
                 @update:model-value="value => setTaggingStatus(m.id, value)"
               />
 

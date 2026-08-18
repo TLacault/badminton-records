@@ -10,6 +10,16 @@ export interface PlayerKeyTargets {
   changeVolume: (delta: number) => number
   stepRate: (direction: 1 | -1) => number
   toggleFullscreen: () => void
+  /**
+   * Hold the play/pause key to run at double speed.
+   *
+   * The stage owns the boost, because the same gesture arrives there as a
+   * finger held on the video. `releaseBoost` says whether the press had
+   * actually become a hold, which is what decides whether letting go is also
+   * a play/pause.
+   */
+  holdBoost?: () => void
+  releaseBoost?: () => boolean
   /** Each returns the seconds to jump to, or null when there is none. */
   jump: Record<'prevPoint' | 'nextPoint' | 'prevSet' | 'nextSet' | 'prevHighlight' | 'nextHighlight', () => number | null>
   /** Called on every handled press, so the chrome can surface itself. */
@@ -102,7 +112,14 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
     if (!action) return false
 
     switch (action) {
-      case 'playPause': targets.toggle(); break
+      // Held rather than pressed: the key starts the boost clock and the
+      // release decides what it was. A page that has not wired the boost up
+      // keeps the old behaviour, since a play/pause key that waits for a keyup
+      // nobody listens for is a dead key.
+      case 'playPause':
+        if (!targets.releaseBoost) targets.toggle()
+        else if (!event.repeat) targets.holdBoost?.()
+        break
       case 'seekBack': nudge(-1); break
       case 'seekForward': nudge(1); break
       // The toast, not the seek arrows beside it: those are drawn with "5s" on
@@ -133,7 +150,24 @@ export function usePlayerKeys(targets: PlayerKeyTargets) {
     return true
   }
 
-  return { handle, nudge, volumeFlash, rateFlash, seekFlash, jumpFlash }
+  /**
+   * The other half of the play/pause key: let go, and either the boost ends or
+   * the video is toggled — never both.
+   *
+   * Deciding on the release costs nothing that can be felt. A tap lasts eighty
+   * milliseconds, and eighty milliseconds is not a delay; half a second of
+   * holding is a different gesture, and this is the only moment at which the
+   * two can be told apart.
+   */
+  function handleUp(event: KeyboardEvent): boolean {
+    if (actionFor(event) !== 'playPause' || !targets.releaseBoost) return false
+    event.preventDefault()
+    if (!targets.releaseBoost()) targets.toggle()
+    targets.wake?.()
+    return true
+  }
+
+  return { handle, handleUp, nudge, volumeFlash, rateFlash, seekFlash, jumpFlash }
 }
 
 /**

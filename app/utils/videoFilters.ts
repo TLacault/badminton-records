@@ -43,11 +43,12 @@ export const SORTS: { id: SortId, label: string }[] = [
   { id: 'points', label: 'Most points' },
 ]
 
+/** The card's vocabulary, in the order the work happens. See taggingStatus.ts. */
 export const STATUSES = [
-  { id: 'all', label: 'Any status' },
-  { id: 'tagged', label: 'Tagged' },
-  { id: 'in_progress', label: 'In progress' },
-  { id: 'untagged', label: 'Untagged' },
+  { id: 'all', label: 'Any state' },
+  { id: 'untagged', label: 'Raw' },
+  { id: 'in_progress', label: 'Editing' },
+  { id: 'tagged', label: 'Edited' },
 ]
 
 export const RESULTS = [

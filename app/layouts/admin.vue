@@ -46,13 +46,16 @@ async function signOut() {
 
     <header class="sticky top-0 z-50 border-b border-line bg-bg/75 backdrop-blur-xl backdrop-saturate-150">
       <nav
-        class="mx-auto flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6"
+        class="mx-auto flex min-h-16 flex-wrap items-center gap-x-1.5 gap-y-2 px-3 py-2 sm:gap-x-3 sm:px-6"
         :class="wide ? 'max-w-none' : 'max-w-6xl'"
         aria-label="Admin"
       >
         <NuxtLink to="/admin" class="-m-1 flex items-center gap-2.5 rounded-lg p-1">
           <UiBrandLogo size="h-7" :wordmark="false" />
-          <span class="font-display text-sm font-bold uppercase tracking-[0.18em] text-accent">
+          <!-- The word goes on a phone, not the mark: the row has to stay one
+               row there, or the tagger's pinned video sits under a header that
+               is taller than it says it is. -->
+          <span class="hidden font-display text-sm font-bold uppercase tracking-[0.18em] text-accent sm:inline">
             Admin
           </span>
         </NuxtLink>
@@ -61,7 +64,7 @@ async function signOut() {
           <li v-for="link in links" :key="link.to">
             <NuxtLink
               :to="link.to"
-              class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 font-display text-sm font-semibold uppercase tracking-[0.08em] transition-[color,background-color] duration-200 ease-brand"
+              class="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 font-display text-sm font-semibold uppercase tracking-[0.08em] transition-[color,background-color] duration-200 ease-brand sm:px-3"
               :class="isActive(link)
                 ? 'bg-accent-soft text-accent'
                 : 'text-ink-muted hover:text-ink'"
@@ -73,7 +76,7 @@ async function signOut() {
           </li>
         </ul>
 
-        <div class="ml-auto flex items-center gap-2">
+        <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
           <NuxtLink
             to="/"
             class="hidden min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-ink-subtle transition-colors duration-200 hover:text-accent md:inline-flex"
@@ -91,7 +94,7 @@ async function signOut() {
 
           <button
             type="button"
-            class="grid size-11 place-items-center rounded-xl border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent"
+            class="grid size-10 place-items-center rounded-xl border border-line text-ink-muted transition-[color,border-color] duration-200 hover:border-accent/50 hover:text-accent sm:size-11"
             aria-label="Sign out"
             title="Sign out"
             @click="signOut"

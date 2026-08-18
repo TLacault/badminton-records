@@ -74,7 +74,7 @@ function clock(seconds: number) {
 
 // The nudge arrows are drawn with their distance on them, and that distance is
 // now the viewer's rather than a constant.
-const { skipSeconds } = usePlayerSettings()
+const { skipSeconds, menuOpen } = usePlayerSettings()
 
 const rateOpen = ref(false)
 function pickRate(value: number) {
@@ -95,10 +95,16 @@ function rateLabel(value: number) {
  * its trigger gone is furniture nobody asked for. Handing the player to YouTube
  * closes it too, since our layer is standing down.
  */
-const settingsOpen = ref(false)
+const settingsOpen = menuOpen
 
 watch(() => props.chromeVisible, (visible) => {
   if (!visible) settingsOpen.value = false
+})
+
+// A menu is a state of this player, not of the app: leaving the page with one
+// open must not bring it back open on the next.
+onBeforeUnmount(() => {
+  settingsOpen.value = false
 })
 
 function toggleSettings() {
@@ -181,6 +187,7 @@ function handOver() {
         <button
           type="button"
           data-testid="control-settings"
+          data-settings-trigger
           class="grid size-8 place-items-center rounded-lg text-white transition-[color,transform] duration-150 hover:text-accent sm:size-9"
           :class="settingsOpen ? 'rotate-45 text-accent' : ''"
           :aria-expanded="settingsOpen"

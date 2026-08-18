@@ -123,6 +123,23 @@ export function playerInfoChips(
 }
 
 /**
+ * `Tim Lacault` → `Tim L.`
+ *
+ * What fits on a thumb-sized button. The surname is what goes, not the first
+ * name: on a court you call people by the name you shout, and two players
+ * sharing a first name are told apart by an initial rather than by a surname
+ * the button has no room for.
+ */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const last = parts[parts.length - 1]
+  // `Slot 3` is a stand-in for a slot nobody has been put in yet, not a name,
+  // and `Slot 3.` would be a stand-in that looks like a typo.
+  if (parts.length < 2 || !last || !/\p{L}/u.test(last)) return parts.join(' ')
+  return `${parts.slice(0, -1).join(' ')} ${last[0]!.toLocaleUpperCase('fr')}.`
+}
+
+/**
  * Where a rank sits, best first.
  *
  * FFBaD ranks read N1 … N3, R4 … R6, D7 … D9, P10 … P12, so the number alone

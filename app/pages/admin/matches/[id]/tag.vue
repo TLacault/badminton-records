@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { KeybindActionId } from '~/composables/useKeybinds'
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
@@ -186,6 +187,8 @@ const stage = ref<{
   toggleFullscreen: () => void
   wake: () => void
   enterNativeMode: () => void
+  armBoost: () => void
+  releaseBoost: () => boolean
   currentTime: number
   duration: number
   isPlaying: boolean
@@ -228,6 +231,8 @@ const playerKeys = usePlayerKeys({
   changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,
   stepRate: direction => stage.value?.stepRate(direction) ?? 1,
   toggleFullscreen: () => stage.value?.toggleFullscreen(),
+  holdBoost: () => stage.value?.armBoost(),
+  releaseBoost: () => stage.value?.releaseBoost() ?? false,
   jump: {
     prevPoint: nav.prevPoint,
     nextPoint: nav.nextPoint,
@@ -273,30 +278,22 @@ async function resetMatch() {
 }
 
 /**
- * Every key comes from the editable bindings, so nothing here assumes a
- * layout. The cheat sheet listens in the capture phase while it is waiting
- * for a key, which stops a rebind from also scoring a point.
+ * One tagging action, wherever it came from.
+ *
+ * A key and a thumb on the phone pad are the same instruction, and they must
+ * stay the same instruction: both resolve the point being watched from the
+ * player's own clock and both act on the session the same way. Splitting them
+ * is how the pad and the keyboard end up disagreeing about which point a
+ * highlight lands on.
  */
-function onKeydown(event: KeyboardEvent) {
-  const target = event.target as HTMLElement | null
-  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
-
-  // Playback, volume, fullscreen and the overlays are the same everywhere, so
-  // they are handled once, in one place, and this page only keeps what is
-  // genuinely about tagging.
-  if (playerKeys.handle(event)) return
-
-  const action = actionFor(event)
-  if (!action) return
-
-  event.preventDefault()
+function runTagAction(action: KeybindActionId) {
   const time = stage.value?.getTime() ?? 0
   // Resolved from the player's own clock rather than from `currentRallyIdx`,
   // which trails it by up to a frame: the same rally in all but the instant a
   // point turns over, and that instant is exactly when a key gets pressed.
   const watched = currentRallyAt(session.derived.value, time)?.idx ?? null
 
-  /** Editing keys act on the point on screen; with none, they do nothing. */
+  /** Editing actions act on the point on screen; with none, they do nothing. */
   function onWatched(fn: (idx: number) => void) {
     if (watched !== null) fn(watched)
   }
@@ -317,16 +314,50 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+function typing(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  return !!target
+    && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+}
+
+/**
+ * Every key comes from the editable bindings, so nothing here assumes a
+ * layout. The cheat sheet listens in the capture phase while it is waiting
+ * for a key, which stops a rebind from also scoring a point.
+ */
+function onKeydown(event: KeyboardEvent) {
+  if (typing(event)) return
+
+  // Playback, volume, fullscreen and the overlays are the same everywhere, so
+  // they are handled once, in one place, and this page only keeps what is
+  // genuinely about tagging.
+  if (playerKeys.handle(event)) return
+
+  const action = actionFor(event)
+  if (!action) return
+
+  event.preventDefault()
+  runTagAction(action)
+}
+
+/** Play/pause happens on the release, since a held key is a speed boost. */
+function onKeyup(event: KeyboardEvent) {
+  if (typing(event)) return
+  playerKeys.handleUp(event)
+}
+
 function beforeUnload(event: BeforeUnloadEvent) {
   if (session.dirty.value) event.preventDefault()
 }
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('keyup', onKeyup)
   window.addEventListener('beforeunload', beforeUnload)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('keyup', onKeyup)
   window.removeEventListener('beforeunload', beforeUnload)
 })
 
@@ -354,12 +385,12 @@ const saveLabel = computed(() => {
       :info-fields="match.player_info_fields ?? []"
     />
 
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-y-2">
       <VideoStatusBadge
         :tagging-status="taggingStatus"
         :visibility="match.visibility"
       />
-      <div class="flex items-center gap-3 text-sm">
+      <div class="flex flex-wrap items-center gap-2 text-sm sm:gap-3">
         <span
           data-testid="save-state"
           class="text-ink-subtle"
@@ -367,7 +398,7 @@ const saveLabel = computed(() => {
         >{{ saveLabel }}</span>
         <button
           data-testid="undo"
-          class="btn btn-sm btn-ghost"
+          class="btn btn-sm btn-ghost hidden sm:inline-flex"
           :disabled="!session.canUndo.value"
           @click="session.undo()"
         >
@@ -375,7 +406,7 @@ const saveLabel = computed(() => {
         </button>
         <button
           data-testid="redo"
-          class="btn btn-sm btn-ghost"
+          class="btn btn-sm btn-ghost hidden sm:inline-flex"
           :disabled="!session.canRedo.value"
           @click="session.redo()"
         >
@@ -406,66 +437,99 @@ const saveLabel = computed(() => {
     -->
     <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
       <div>
-        <PlayerYouTubeStage
-          ref="stage"
-          @nudge="playerKeys.nudge"
-          :video-id="match.youtube_video_id"
-          restore-focus
+        <!--
+          On a phone the video is pinned under the header and the pad is worked
+          below it: tagging is watching, and a player that scrolls away is a
+          player you tag from memory. On a desktop there is room for both at
+          once, so the pin comes off.
+        -->
+        <div
+          class="sticky top-16 z-20 -mx-4 border-b border-line bg-bg/95 px-4 pb-2 pt-2 backdrop-blur-xl lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
         >
-          <template #overlay="{ chromeVisible, isFullscreen }">
-            <PlayerScoreBoard
-              v-if="scoreboard.visible.value"
-              :playback="playback"
-              :derived="session.derived.value"
-              :names="names"
-              :side-labels="sideLabels"
-              :clubs="clubs"
-              :format="(match.format as MatchFormat)"
-            />
+          <PlayerYouTubeStage
+            ref="stage"
+            @nudge="playerKeys.nudge"
+            :video-id="match.youtube_video_id"
+            restore-focus
+          >
+            <template #overlay="{ chromeVisible, isFullscreen }">
+              <PlayerScoreBoard
+                v-if="scoreboard.visible.value"
+                :playback="playback"
+                :derived="session.derived.value"
+                :names="names"
+                :side-labels="sideLabels"
+                :clubs="clubs"
+                :format="(match.format as MatchFormat)"
+              />
 
-            <PlayerStageChrome
-              keybind-scope="all"
-              :chrome-visible="chromeVisible"
-              :is-fullscreen="isFullscreen"
-              :is-playing="stage?.isPlaying ?? false"
-              :current-time="currentTime"
-              :duration="duration"
-              :rate="stage?.rate ?? 1"
-              :rates="stage?.rates ?? [1]"
-              :quality="stage?.quality ?? null"
-              :timeline-visible="timeline.visible.value"
-              :volume-flash="playerKeys.volumeFlash.value"
-              :rate-flash="playerKeys.rateFlash.value"
-              :seek-flash="playerKeys.seekFlash.value"
-              :jump-flash="playerKeys.jumpFlash.value"
-              @toggle="stage?.toggle()"
-              @toggle-fullscreen="stage?.toggleFullscreen()"
-              @set-rate="value => stage?.setRate(value)"
-              @native-controls="stage?.enterNativeMode()"
-            >
-              <template #timeline>
-                <PlayerMatchTimeline
-                  overlay
-                  :derived="session.derived.value"
-                  :duration="duration"
-                  :current-time="currentTime"
-                  :breaks="session.breaks.value"
-                  :video-id="match.youtube_video_id"
-                  @seek="seekAndPlay"
-                />
-              </template>
-            </PlayerStageChrome>
-          </template>
-        </PlayerYouTubeStage>
-        <PlayerMatchTimeline
-          class="mt-3"
-          :derived="session.derived.value"
-          :duration="duration"
-          :current-time="currentTime"
-          :breaks="session.breaks.value"
-          :video-id="match.youtube_video_id"
-          @seek="seekAndPlay"
-        />
+              <PlayerStageChrome
+                keybind-scope="all"
+                :chrome-visible="chromeVisible"
+                :is-fullscreen="isFullscreen"
+                :is-playing="stage?.isPlaying ?? false"
+                :current-time="currentTime"
+                :duration="duration"
+                :rate="stage?.rate ?? 1"
+                :rates="stage?.rates ?? [1]"
+                :quality="stage?.quality ?? null"
+                :timeline-visible="timeline.visible.value"
+                :volume-flash="playerKeys.volumeFlash.value"
+                :rate-flash="playerKeys.rateFlash.value"
+                :seek-flash="playerKeys.seekFlash.value"
+                :jump-flash="playerKeys.jumpFlash.value"
+                @toggle="stage?.toggle()"
+                @toggle-fullscreen="stage?.toggleFullscreen()"
+                @set-rate="value => stage?.setRate(value)"
+                @native-controls="stage?.enterNativeMode()"
+              >
+                <template #timeline>
+                  <PlayerMatchTimeline
+                    overlay
+                    :derived="session.derived.value"
+                    :duration="duration"
+                    :current-time="currentTime"
+                    :breaks="session.breaks.value"
+                    :video-id="match.youtube_video_id"
+                    @seek="seekAndPlay"
+                  />
+                </template>
+              </PlayerStageChrome>
+            </template>
+          </PlayerYouTubeStage>
+          <PlayerMatchTimeline
+            class="mt-3"
+            :derived="session.derived.value"
+            :duration="duration"
+            :current-time="currentTime"
+            :breaks="session.breaks.value"
+            :video-id="match.youtube_video_id"
+            @seek="seekAndPlay"
+          />
+
+          <!--
+            The pad is pinned with the video, not under it. Pinned content
+            overlaps whatever scrolls beneath, and a point button that slides
+            under the player is a point button that seeks the timeline instead
+            — so on a phone the whole working surface travels together, and it
+            is the reference material below that scrolls past.
+          -->
+          <TaggingScorePad
+            class="mt-2 lg:hidden"
+            :derived="session.derived.value"
+            :names="names"
+            :side-labels="sideLabels"
+            :slot-to-player-id="slotToPlayerId"
+            :format="(match.format as MatchFormat)"
+            :current-idx="currentRallyIdx"
+            :can-undo="session.canUndo.value"
+            :can-redo="session.canRedo.value"
+            :open-break="!!session.openBreak.value"
+            @action="runTagAction"
+            @seek="seekAndPlay"
+          />
+        </div>
+
         <p
           v-if="session.openBreak.value"
           data-testid="break-open"

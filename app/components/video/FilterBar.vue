@@ -5,11 +5,11 @@ import {
   CalendarArrowDown,
   CalendarArrowUp,
   ChevronDown,
-  CircleCheck,
   CircleDashed,
+  Flame,
   Hourglass,
   Layers,
-  Loader,
+  Scissors,
   Search,
   Star,
   Tags,
@@ -74,9 +74,9 @@ const FORMAT_ICONS: Record<string, Component> = {
 }
 const STATUS_ICONS: Record<string, Component> = {
   all: Layers,
-  tagged: CircleCheck,
-  in_progress: Loader,
   untagged: CircleDashed,
+  in_progress: Scissors,
+  tagged: Flame,
 }
 
 const sortOptions = computed(() => SORTS.map(s => ({ ...s, value: s.id, icon: SORT_ICONS[s.id] })))
@@ -174,7 +174,7 @@ function reset() {
         </div>
 
         <div v-if="showStatus" data-testid="filters-status">
-          <span class="label">Tagging</span>
+          <span class="label">Editing</span>
           <UiSelect v-model="filters.status" class="mt-2" :label="$t('filters.tagging')" :options="statusOptions" />
         </div>
       </div>

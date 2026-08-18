@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { CircleCheck, CircleDashed, Eye, EyeOff, Loader } from '@lucide/vue'
+import { Eye, EyeOff } from '@lucide/vue'
+import { taggingState } from '~/utils/taggingStatus'
 
 const props = defineProps<{
   taggingStatus?: string
@@ -10,16 +11,14 @@ const props = defineProps<{
  * Bichromatic, so shape and weight carry what a second hue used to: crimson
  * means "done / live", a plain outline means "not yet", and every state keeps
  * its own icon so the badges are still readable in greyscale.
+ *
+ * The three editing states come from the shared vocabulary rather than being
+ * spelled out here: the guest cards, the library's segmented control and this
+ * badge are three views of one fact and must never word it three ways.
  */
 const tagging = computed(() => {
-  switch (props.taggingStatus) {
-    case 'tagged':
-      return { label: 'Tagged', icon: CircleCheck, class: 'border-accent/40 bg-accent-soft text-accent' }
-    case 'in_progress':
-      return { label: 'In progress', icon: Loader, class: 'border-dashed border-accent/40 text-accent' }
-    default:
-      return { label: 'Untagged', icon: CircleDashed, class: 'border-line text-ink-subtle' }
-  }
+  const state = taggingState(props.taggingStatus)
+  return { label: state.label, icon: state.icon, class: state.chip }
 })
 
 const visible = computed(() =>
@@ -37,7 +36,12 @@ const visible = computed(() =>
       class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em]"
       :class="tagging.class"
     >
-      <component :is="tagging.icon" :size="12" aria-hidden="true" />{{ tagging.label }}
+      <component
+        :is="tagging.icon"
+        :size="12"
+        :fill="taggingStatus === 'tagged' ? 'currentColor' : 'none'"
+        aria-hidden="true"
+      />{{ tagging.label }}
     </span>
     <span
       v-if="visibility"

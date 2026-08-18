@@ -92,6 +92,30 @@ function onKeydown(event: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', onKeydown, true))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
+
+/**
+ * A press anywhere but inside the panel closes it, at once.
+ *
+ * On pointerdown rather than click, so the menu is gone before the press it
+ * came with has finished — on a phone that press is usually the video, and
+ * watching the rally through a panel for the length of a tap is exactly what
+ * this is here to stop. The stage swallows that same press so the video does
+ * not also pause under the menu that just closed.
+ *
+ * The gear is the one thing outside the panel that is spared: it is a toggle,
+ * and closing here would let it reopen on the click that follows.
+ */
+const panel = ref<HTMLElement | null>(null)
+
+function onPointerDown(event: PointerEvent) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+  if (panel.value?.contains(target)) return
+  if (target.closest('[data-settings-trigger]')) return
+  emit('close')
+}
+onMounted(() => document.addEventListener('pointerdown', onPointerDown, true))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown, true))
 </script>
 
 <template>
@@ -106,6 +130,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     The fallback covers the fullscreen case, where there is room to spare.
   -->
   <div
+    ref="panel"
     data-testid="settings-menu"
     class="settings-panel pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl glass-menu sm:right-3 sm:w-[32rem]"
     role="dialog"

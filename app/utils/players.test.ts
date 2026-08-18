@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rankOrder, sortPlayers } from './players'
+import { rankOrder, shortName, sortPlayers } from './players'
 
 /** Only the fields the sort reads; the roster row has many more. */
 function player(
@@ -63,5 +63,18 @@ describe('sortPlayers', () => {
     expect(names(sortPlayers(tied, 'rank_singles', 'desc')))
       .toEqual(['Alice Same', 'Bob Same'])
     expect(names(tied)).toEqual(['Bob Same', 'Alice Same'])
+  })
+})
+
+describe('shortName', () => {
+  it('keeps the first name and initials the surname', () => {
+    expect(shortName('Tim Lacault')).toBe('Tim L.')
+    expect(shortName('Marie Claire Dupont')).toBe('Marie Claire D.')
+  })
+
+  it('leaves a name it cannot split alone', () => {
+    expect(shortName('Slot 3')).toBe('Slot 3')
+    expect(shortName('Madonna')).toBe('Madonna')
+    expect(shortName('  ')).toBe('')
   })
 })

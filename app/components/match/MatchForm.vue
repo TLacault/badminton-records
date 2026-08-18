@@ -15,6 +15,7 @@ import {
   Users,
 } from '@lucide/vue'
 import { PLAYER_INFO_FIELDS } from '~/utils/players'
+import { TAGGING_STATES } from '~/utils/taggingStatus'
 
 const props = defineProps<{ matchId: string | null }>()
 
@@ -240,11 +241,11 @@ const visibilityOptions = [
   { value: 'public' as const, label: 'Public', icon: Eye },
 ]
 
-const taggingOptions = [
-  { value: 'untagged' as const, label: 'Untagged', icon: CircleDashed },
-  { value: 'in_progress' as const, label: 'Tagging in progress', icon: Loader },
-  { value: 'tagged' as const, label: 'Tagged', icon: CircleCheck },
-]
+const taggingOptions = TAGGING_STATES.map(s => ({
+  value: s.id,
+  label: s.label,
+  icon: s.icon,
+}))
 
 /*
  * The serve pickers name people, not slots. "Slot 3" is an implementation

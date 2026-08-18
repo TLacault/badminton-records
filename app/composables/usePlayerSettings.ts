@@ -90,6 +90,16 @@ export function usePlayerSettings() {
    */
   const chromeHeld = useState('player-chrome-held', () => false)
 
+  /**
+   * Whether the settings menu is up.
+   *
+   * Global because the gesture layer has to know: a press on the video with the
+   * menu open is a press that closes the menu and nothing else. Kept here
+   * rather than in the bar that owns the gear, because the stage cannot reach
+   * into the overlay it was handed.
+   */
+  const menuOpen = useState('player-settings-open', () => false)
+
   function setAutoHideStop(value: number) {
     const next = value >= NEVER_STOP ? OFF : value
     autoHideSeconds.value = next
@@ -108,6 +118,7 @@ export function usePlayerSettings() {
     autoHideMs,
     skipSeconds,
     chromeHeld,
+    menuOpen,
     setAutoHideStop,
     setSkipSeconds,
   }

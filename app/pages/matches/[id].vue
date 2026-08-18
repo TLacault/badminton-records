@@ -141,6 +141,8 @@ const stage = ref<{
   toggleFullscreen: () => void
   wake: () => void
   enterNativeMode: () => void
+  armBoost: () => void
+  releaseBoost: () => boolean
   isPlaying: boolean
   rate: number
   rates: number[]
@@ -173,6 +175,8 @@ const playerKeys = usePlayerKeys({
   changeVolume: delta => stage.value?.changeVolume(delta) ?? 0,
   stepRate: direction => stage.value?.stepRate(direction) ?? 1,
   toggleFullscreen: () => stage.value?.toggleFullscreen(),
+  holdBoost: () => stage.value?.armBoost(),
+  releaseBoost: () => stage.value?.releaseBoost() ?? false,
   jump: {
     prevPoint: nav.prevPoint,
     nextPoint: nav.nextPoint,
@@ -188,14 +192,31 @@ const playerKeys = usePlayerKeys({
  * Shortcuts are only shortcuts when nothing is being typed into — Space in a
  * search box must stay a space. `isContentEditable` covers the rest.
  */
-function onKeydown(event: KeyboardEvent) {
+function typing(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
-  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+  return !!target
+    && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (typing(event)) return
   playerKeys.handle(event)
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+/** Play/pause happens on the release, since a held key is a speed boost. */
+function onKeyup(event: KeyboardEvent) {
+  if (typing(event)) return
+  playerKeys.handleUp(event)
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('keyup', onKeyup)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('keyup', onKeyup)
+})
 
 /**
  * Only a finished match has something to give away. A half-tagged one shows
