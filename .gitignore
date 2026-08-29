@@ -26,3 +26,7 @@ logs
 
 # Vercel project link and its downloaded OIDC token
 .vercel
+
+# Downloaded match videos, fetched tracks and rendered reels. Gigabytes of
+# regenerable cache — see server/utils/reel.ts.
+.reel-cache

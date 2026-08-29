@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Menu, ShieldCheck, Video, Waypoints, X } from '@lucide/vue'
+import { BookOpen, Clapperboard, Menu, ShieldCheck, Video, Waypoints, X } from '@lucide/vue'
 import { site } from '~/config/site'
 
 const route = useRoute()
@@ -7,8 +7,8 @@ const user = useSupabaseUser()
 
 const ICONS = { videos: Video, 'resources': BookOpen, 'skill-tree': Waypoints } as const
 
-const links = computed(() =>
-  site.pillars.map(pillar => ({
+const links = computed(() => [
+  ...site.pillars.map(pillar => ({
     ...pillar,
     icon: ICONS[pillar.id as keyof typeof ICONS],
     // A match page is still "Videos" as far as the reader is concerned, so the
@@ -17,7 +17,18 @@ const links = computed(() =>
       ? route.path.startsWith('/videos') || route.path.startsWith('/matches')
       : route.path.startsWith(pillar.to),
   })),
-)
+  // A tool rather than a pillar: it makes something out of the videos instead
+  // of being a section of the site, so it is written here and not in site.ts,
+  // whose entries also compose the landing page.
+  {
+    id: 'reel',
+    to: '/reel',
+    label: { fr: 'Reel', en: 'Reel' },
+    icon: Clapperboard,
+    ready: true,
+    active: route.path.startsWith('/reel'),
+  },
+])
 
 const open = ref(false)
 // Any navigation closes the sheet — including a back gesture, which would

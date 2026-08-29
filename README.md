@@ -138,6 +138,114 @@ is over the video the parent page cannot see it move. Entering and leaving the
 stage are observable, and playback state fills the rest — a paused player keeps
 the button, a playing one hides it.
 
+## Reel — the highlight cutter
+
+`/reel` turns a tagged match into a highlight film. The tagging already says
+where the good rallies are, so the reel starts from that rather than from a
+scrub bar: **Build the reel** takes every starred passage, pads it out to the
+serve before and the beat after, and lays the clips end to end. From there each
+clip can be trimmed, slowed, punched in, graded and captioned; a song is
+imported from a YouTube link and trimmed to the length of the film; ffmpeg cuts
+the mp4.
+
+Open to guests as well as admins. Nothing about it writes to the database —
+a reel is a file, not a row.
+
+### It is one object
+
+Everything on the page reads one `ReelProject` (`shared/reel/types.ts`) and
+nothing else, so what you are watching and what would be rendered cannot come
+apart. The same object is what `.reel` holds and what `POST /api/reel/render`
+is sent.
+
+`shared/reel/project.ts` is pure and framework-free, like `shared/badminton`:
+which clips a match offers, how long the film runs once the transitions have
+overlapped it, where in the song to start. `timeline()` is the list the preview
+plays and the renderer cuts, and it is the reason a crossfaded reel previews
+exactly as long as it exports — a join gives back its overlap in both.
+
+### The preview is a rehearsal
+
+There is no film until you export one, so previewing means dragging a single
+player along the edit list, jumping it at every boundary. Position is read from
+the player rather than counted by a clock of our own, which is what keeps the
+picture and the number under it honest.
+
+The grade is CSS, the caption is a `<p>` where drawtext will put it, and a join
+is drawn as a dip rather than a real crossfade, which one video element cannot
+do to itself. It is accurate enough to decide from. **ffmpeg is the truth**,
+and the panel says so.
+
+### Three sources, in order of how well they behave
+
+| Source | Scrubbing | Render |
+|---|---|---|
+| A file you attach | instant | yes |
+| Downloaded by the host (`yt-dlp`) | instant, range requests | yes |
+| The YouTube embed | approximate seeks | no |
+
+The download is the "user material" the tool leans on: a YouTube embed cannot
+be seeked to a frame, played smoothly at 0.25×, or read by ffmpeg. One download
+per video id, cached under `.reel-cache/` (gitignored, and deletable from the
+Export panel — these are gigabytes).
+
+### The song
+
+Paste a YouTube link. The host fetches the audio and measures a loudness
+envelope — one RMS reading per quarter second — and the window with the most
+energy in it, for exactly as long as the reel runs, is the chorus in most of
+what anyone cuts to. That is where the song starts, and it is re-picked
+whenever the reel changes length. Drag the window on the waveform to overrule
+it. A dropped audio file is decoded and measured the same way in the browser,
+which is the same feature with no server.
+
+### Intro and outro
+
+Drop `intro.mp4` and `outro.mp4` into `public/brand/reel/`; they are picked up
+automatically and appear as two checkboxes. Not `public/reel/` — a directory
+there shadows the page and Nitro serves the folder instead of the editor.
+
+### What a host needs
+
+`GET /api/reel/capabilities` reports what the machine can do, and the editor
+shapes itself around the answer rather than failing at minute nine of an
+export:
+
+- **`yt-dlp` + `ffmpeg` + `ffprobe`** — fetch the match video and the song.
+- **`ffmpeg` + `ffprobe`** — render.
+- **Neither** (a Vercel deployment) — the editor still cuts, previews against
+  the embed, and saves the project. Open the `.reel` file where the binaries
+  are and render there.
+
+Downloads and renders are background jobs with a ticket the browser polls, so a
+reload does not lose a render and nothing holds a request open for eleven
+minutes.
+
+### The filter graph
+
+`server/utils/reelFfmpeg.ts` builds the argv and runs nothing, because an
+ffmpeg invocation is the least debuggable thing in this repository: a filter
+graph is either exactly right or it fails eighty frames in with a message about
+a pad. It is asserted in `reelFfmpeg.test.ts` — offsets, speed in both picture
+and sound, a silent bookend given a synthetic track so `concat` still sees
+matching pads — and only then handed to a child process.
+
+Two escaping notes, both learned the hard way. Filtergraph quoting is not shell
+quoting: inside `'…'` nothing is escaped, so a caption only has to close,
+escape and reopen the quote around an apostrophe — and `expansion=none` on
+drawtext is what stops `%` and `%{…}` in a caption being read as a directive.
+And `ffmpeg --version` exits 8: the capability probe asks for `-version`, or it
+answers "no ffmpeg" on a machine that has it.
+
+### Projects
+
+**Save** writes a `.reel` file: plain JSON holding the clips, the effects, the
+song and the output settings. JSON because a reel is nested — a music window
+and per-clip effects do not fit in a CSV without inventing a second format
+inside the first — and plain because a file you cannot open in an editor is a
+file you cannot fix. The current project also lives in `localStorage`, so a
+reload picks the edit back up; Ctrl+Z steps back through a snapshot stack.
+
 ## Admin
 
 Nothing in the admin has a save button any more. The match form writes itself
