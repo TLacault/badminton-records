@@ -332,7 +332,7 @@ export function fitMusicStart(
   return Math.min(latest, best)
 }
 
-/** Reads a `.reel` file back, filling in anything a older version lacked. */
+/** Reads a `.clip` (or older `.reel`) file back, filling in anything a older version lacked. */
 export function parseProject(raw: string): ReelProject {
   const parsed = JSON.parse(raw) as Partial<ReelProject>
   const base = emptyProject()
@@ -351,15 +351,15 @@ export function parseProject(raw: string): ReelProject {
   }
 }
 
-/** The name the file is offered under. `Tim & Adrien vs Thomas — reel.reel`. */
+/** The name the file is offered under. `Tim & Adrien vs Thomas — clip.clip`. */
 export function projectFileName(project: ReelProject, extension: string): string {
-  const stem = (project.name || project.matchTitle || 'reel')
+  const stem = (project.name || project.matchTitle || 'clip')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
-    .toLowerCase() || 'reel'
+    .toLowerCase() || 'clip'
   return `${stem}.${extension}`
 }
 

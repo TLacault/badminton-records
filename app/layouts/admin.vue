@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Building2, ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '@lucide/vue'
+import { Building2, Clapperboard, ExternalLink, LogOut, Plus, Tags, UsersRound, Video } from '@lucide/vue'
 
 const client = useSupabaseClient()
 const { profile } = useCurrentProfile()
@@ -28,6 +28,8 @@ const links = [
   { to: '/admin/players', label: 'Players', icon: UsersRound, exact: false },
   { to: '/admin/clubs', label: 'Clubs', icon: Building2, exact: false },
   { to: '/admin/match-types', label: 'Types', icon: Tags, exact: true },
+  // Lives outside /admin (it is a public tool), linked here so the admin never has to leave to reach it.
+  { to: '/clip', label: 'Clip', icon: Clapperboard, exact: true },
 ]
 
 function isActive(link: (typeof links)[number]) {
@@ -78,7 +80,7 @@ async function signOut() {
 
         <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
           <NuxtLink
-            to="/"
+            to="/videos"
             class="hidden min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-ink-subtle transition-colors duration-200 hover:text-accent md:inline-flex"
           >
             View site

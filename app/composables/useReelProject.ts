@@ -1,17 +1,17 @@
 import type { ReelClip, ReelProject } from '~~/shared/reel'
 import { emptyProject, parseProject, projectFileName } from '~~/shared/reel'
 
-/** The custom extension. Plain JSON inside, so it diffs and it opens. */
-export const REEL_EXTENSION = 'reel'
+/** The custom extension. Plain JSON inside, so it diffs and it opens. Older saves are `.reel`. */
+export const REEL_EXTENSION = 'clip'
 
 const STORAGE_KEY = 'ust-reel-project-v1'
 const HISTORY_LIMIT = 40
 
 /**
  * The project being edited: one object, held for the session, written to
- * localStorage as it changes and to a `.reel` file when asked.
+ * localStorage as it changes and to a `.clip` file when asked.
  *
- * `.reel` is JSON with a name on it. The alternative was CSV, which cannot
+ * `.clip` is JSON with a name on it. The alternative was CSV, which cannot
  * hold a nested music window or per-clip effects without inventing a second
  * format inside the first, and the alternative to that was a binary blob
  * nobody could open in an editor to see what their reel actually says.

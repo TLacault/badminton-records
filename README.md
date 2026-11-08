@@ -138,11 +138,13 @@ is over the video the parent page cannot see it move. Entering and leaving the
 stage are observable, and playback state fills the rest — a paused player keeps
 the button, a playing one hides it.
 
-## Reel — the highlight cutter
+## Clip — the highlight cutter
 
-`/reel` turns a tagged match into a highlight film. The tagging already says
-where the good rallies are, so the reel starts from that rather than from a
-scrub bar: **Build the reel** takes every starred passage, pads it out to the
+`/clip` (formerly `/reel`, which still redirects) turns a tagged match into a
+highlight film. In the UI the film is the *clip* and its pieces are *shots*;
+the code still says `reel` for the film and `clip` for a piece. The tagging
+already says where the good rallies are, so the clip starts from that rather than from a
+scrub bar: **Build the clip** takes every starred passage, pads it out to the
 serve before and the beat after, and lays the clips end to end. From there each
 clip can be trimmed, slowed, punched in, graded and captioned; a song is
 imported from a YouTube link and trimmed to the length of the film; ffmpeg cuts
@@ -155,7 +157,7 @@ a reel is a file, not a row.
 
 Everything on the page reads one `ReelProject` (`shared/reel/types.ts`) and
 nothing else, so what you are watching and what would be rendered cannot come
-apart. The same object is what `.reel` holds and what `POST /api/reel/render`
+apart. The same object is what `.clip` holds and what `POST /api/reel/render`
 is sent.
 
 `shared/reel/project.ts` is pure and framework-free, like `shared/badminton`:
@@ -202,7 +204,7 @@ which is the same feature with no server.
 ### Intro and outro
 
 Drop `intro.mp4` and `outro.mp4` into `public/brand/reel/`; they are picked up
-automatically and appear as two checkboxes. Not `public/reel/` — a directory
+automatically and appear as two checkboxes. Not `public/clip/` — a directory
 there shadows the page and Nitro serves the folder instead of the editor.
 
 ### What a host needs
@@ -214,7 +216,7 @@ export:
 - **`yt-dlp` + `ffmpeg` + `ffprobe`** — fetch the match video and the song.
 - **`ffmpeg` + `ffprobe`** — render.
 - **Neither** (a Vercel deployment) — the editor still cuts, previews against
-  the embed, and saves the project. Open the `.reel` file where the binaries
+  the embed, and saves the project. Open the `.clip` file where the binaries
   are and render there.
 
 Downloads and renders are background jobs with a ticket the browser polls, so a
@@ -239,7 +241,7 @@ answers "no ffmpeg" on a machine that has it.
 
 ### Projects
 
-**Save** writes a `.reel` file: plain JSON holding the clips, the effects, the
+**Save** writes a `.clip` file (`.reel` still opens): plain JSON holding the clips, the effects, the
 song and the output settings. JSON because a reel is nested — a music window
 and per-clip effects do not fit in a CSV without inventing a second format
 inside the first — and plain because a file you cannot open in an editor is a

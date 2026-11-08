@@ -21,12 +21,12 @@ const links = computed(() => [
   // of being a section of the site, so it is written here and not in site.ts,
   // whose entries also compose the landing page.
   {
-    id: 'reel',
-    to: '/reel',
-    label: { fr: 'Reel', en: 'Reel' },
+    id: 'clip',
+    to: '/clip',
+    label: { fr: 'Clip', en: 'Clip' },
     icon: Clapperboard,
     ready: true,
-    active: route.path.startsWith('/reel'),
+    active: route.path.startsWith('/clip'),
   },
 ])
 

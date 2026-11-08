@@ -61,9 +61,12 @@ async function importFromYouTube() {
   importError.value = null
   try {
     const res = await $fetch('/api/youtube/import', { method: 'POST' })
-    importResult.value = res.imported
+    const refreshed = res.refreshed
+      ? ` ${res.refreshed} thumbnail${res.refreshed === 1 ? '' : 's'} or duration${res.refreshed === 1 ? '' : 's'} updated.`
+      : ''
+    importResult.value = (res.imported
       ? `Imported ${res.imported} new video${res.imported === 1 ? '' : 's'} (${res.skipped} already known).`
-      : `No new videos — all ${res.found} are already imported.`
+      : `No new videos — all ${res.found} are already imported.`) + refreshed
     await refresh()
   }
   catch (cause) {

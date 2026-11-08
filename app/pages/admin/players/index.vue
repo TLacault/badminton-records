@@ -2,7 +2,7 @@
 import type { Database } from '~/types/database.types'
 import type { MyffbadPlayer } from '~~/server/utils/myffbad'
 import type { PlayerSortKey } from '~/utils/players'
-import { ChevronDown, ChevronUp, ChevronsUpDown, ExternalLink, Pencil, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
+import { ChevronDown, ChevronUp, ChevronsUpDown, ExternalLink, Pencil, RefreshCw, Save, Trash2, TriangleAlert, UserPlus, UsersRound, X } from '@lucide/vue'
 import { myffbadProfileUrl, sortPlayers } from '~/utils/players'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
@@ -25,6 +25,36 @@ const { data: clubs } = await useAsyncData('players-clubs', async () => {
     .not('myffbad_club_id', 'is', null)
   return data ?? []
 })
+
+const syncing = ref(false)
+const syncResult = ref<string | null>(null)
+const syncError = ref<string | null>(null)
+
+/** Ranks, CPPH, category and club from MyFFBaD, for every player with a licence. */
+async function syncFromMyffbad() {
+  syncing.value = true
+  syncResult.value = null
+  syncError.value = null
+  try {
+    const res = await $fetch<{ total: number, updated: number, notFound: string[], failed: string[] }>(
+      '/api/players/refresh',
+      { method: 'POST' },
+    )
+    syncResult.value = [
+      `${res.updated} of ${res.total} licensed players updated.`,
+      res.notFound.length ? `Not on MyFFBaD: ${res.notFound.join(', ')}.` : '',
+      res.failed.length ? `Failed: ${res.failed.join(', ')}.` : '',
+    ].filter(Boolean).join(' ')
+    await refresh()
+  }
+  catch (cause) {
+    const err = cause as { statusMessage?: string, message?: string }
+    syncError.value = err.statusMessage ?? err.message ?? 'Refresh failed'
+  }
+  finally {
+    syncing.value = false
+  }
+}
 
 function blank(): PlayerInsert {
   return {
@@ -204,10 +234,30 @@ const rows = computed(() => sortPlayers(players.value ?? [], sortKey.value, dire
           Players
         </h1>
       </div>
-      <p class="text-sm text-ink-subtle">
-        <span class="tabular-nums">{{ players?.length ?? 0 }}</span> on the roster
-      </p>
+      <div class="flex items-center gap-3">
+        <p class="text-sm text-ink-subtle">
+          <span class="tabular-nums">{{ players?.length ?? 0 }}</span> on the roster
+        </p>
+        <button
+          type="button"
+          data-testid="p-refresh"
+          class="btn btn-ghost"
+          :disabled="syncing"
+          title="Re-read ranks and club from MyFFBaD for every player with a licence number"
+          @click="syncFromMyffbad"
+        >
+          <RefreshCw :size="16" :class="syncing ? 'animate-spin' : ''" aria-hidden="true" />
+          Refresh from MyFFBaD
+        </button>
+      </div>
     </div>
+
+    <p v-if="syncResult" data-testid="p-synced" class="mt-4 text-sm text-ink-muted">
+      {{ syncResult }}
+    </p>
+    <p v-if="syncError" role="alert" class="mt-4 text-sm text-accent">
+      {{ syncError }}
+    </p>
 
     <section class="mt-8 rounded-2xl p-5 glass sm:p-6">
       <h2 class="label">

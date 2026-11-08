@@ -27,9 +27,9 @@ export const OUT_DIR = join(CACHE_DIR, 'out')
 /**
  * Where an auto-imported intro and outro are looked for.
  *
- * Under `brand/` rather than at `public/reel/`, which would shadow the page:
+ * Under `brand/` rather than at `public/clip/`, which would shadow the page:
  * a directory in `public` with the same name as a route makes Nitro redirect
- * `/reel` to `/reel/` and serve the folder instead of the editor.
+ * `/clip` to `/clip/` and serve the folder instead of the editor.
  */
 export const BOOKEND_DIR = join(process.cwd(), 'public', 'brand', 'reel')
 

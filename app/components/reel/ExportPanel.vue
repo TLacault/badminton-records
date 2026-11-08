@@ -196,7 +196,7 @@ const MODE_TONE: Record<SourceMode, string> = {
         <label class="btn btn-sm btn-ghost flex-1 cursor-pointer">
           <FolderOpen :size="15" aria-hidden="true" />
           {{ $t('reel.openProject') }}
-          <input type="file" accept=".reel,application/json" class="sr-only" @change="onProject">
+          <input type="file" accept=".clip,.reel,application/json" class="sr-only" @change="onProject">
         </label>
       </div>
       <p class="mt-2 text-[0.6875rem] leading-relaxed text-ink-subtle">

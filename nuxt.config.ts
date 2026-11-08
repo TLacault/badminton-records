@@ -76,6 +76,10 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  // The highlight cutter was called Reel; old links and bookmarks still land.
+  routeRules: {
+    '/reel': { redirect: '/clip' },
+  },
   nitro: {
     prerender: {
       // /admin needs a signed-in admin session, which a build does not have:

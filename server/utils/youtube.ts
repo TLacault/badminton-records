@@ -28,7 +28,11 @@ interface PlaylistItemsResponse {
 }
 
 interface VideosResponse {
-  items: Array<{ id: string, contentDetails: { duration: string } }>
+  items: Array<{
+    id: string
+    contentDetails: { duration: string }
+    snippet?: { thumbnails?: Record<string, { url: string, width: number }> }
+  }>
 }
 
 /** ISO-8601 duration (`PT1H2M3S`) → seconds. Returns null if unparseable. */
@@ -105,23 +109,27 @@ export async function listPlaylistVideos(playlistId: string, key: string) {
 }
 
 /**
- * Fill in durations, which playlistItems does not carry. videos.list takes up
- * to 50 ids per call, so this costs one request per 50 videos.
+ * Fill in durations, which playlistItems does not carry, and re-read the
+ * thumbnails: playlistItems keeps serving the processing placeholder (or
+ * nothing) for a while after upload, videos.list has the real one first.
+ * videos.list takes up to 50 ids per call, so this costs one request per 50.
  */
-export async function attachDurations(videos: ChannelVideo[], key: string) {
+export async function attachDetails(videos: ChannelVideo[], key: string) {
   for (let i = 0; i < videos.length; i += 50) {
     const batch = videos.slice(i, i + 50)
     const res = await $fetch<VideosResponse>(`${API}/videos`, {
       query: {
-        part: 'contentDetails',
+        part: 'contentDetails,snippet',
         id: batch.map(v => v.videoId).join(','),
         key,
       },
     })
-    const byId = new Map(res.items.map(x => [x.id, x.contentDetails.duration]))
+    const byId = new Map(res.items.map(x => [x.id, x]))
     for (const v of batch) {
-      const iso = byId.get(v.videoId)
-      if (iso) v.durationSeconds = parseIsoDuration(iso)
+      const item = byId.get(v.videoId)
+      if (!item) continue
+      v.durationSeconds = parseIsoDuration(item.contentDetails.duration)
+      v.thumbnailUrl = bestThumbnail(item.snippet?.thumbnails) ?? v.thumbnailUrl
     }
   }
   return videos
