@@ -1,0 +1,5 @@
+name = "myffbad-relay"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [{ pattern = "myffbad-relay.timlacault.dev", custom_domain = true }]

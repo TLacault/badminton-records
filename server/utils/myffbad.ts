@@ -347,13 +347,17 @@ export async function searchPlayers(
   term: string,
   scope: SearchScope = 'club',
 ): Promise<MyffbadSearchResult> {
-  const html = await $fetch<string>(SEARCH_URL, {
+  // myffbad.fr drops connections from AWS, where Vercel runs, so production
+  // goes through the Cloudflare Worker in `relay/`. Unset locally: direct.
+  const relay = process.env.MYFFBAD_RELAY_URL
+  const html = await $fetch<string>(relay || SEARCH_URL, {
     responseType: 'text',
     query: scope === 'club'
       ? { isFirstLoad: 'false', search: term, ...HOME_CLUB_QUERY }
       : { search: term },
     headers: {
       'User-Agent': 'badminton-records/1.0 (roster lookup; +https://myffbad.fr)',
+      ...(relay ? { 'X-Relay-Key': process.env.MYFFBAD_RELAY_KEY ?? '' } : {}),
     },
   })
   return parseSearchPage(html)

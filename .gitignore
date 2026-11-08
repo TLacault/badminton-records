@@ -30,3 +30,4 @@ logs
 # Downloaded match videos, fetched tracks and rendered reels. Gigabytes of
 # regenerable cache — see server/utils/reel.ts.
 .reel-cache
+.wrangler/

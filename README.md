@@ -355,8 +355,15 @@ a full name, pause a second, pick from the dropdown.
 
 The federation's own web services are **not open to the public** — we asked. So
 this reads the public site instead, <https://myffbad.fr/recherche/joueur>, which
-answers anonymously. There is nothing to configure: no API key, no login. Any
-`MYFFBAD_*` variables in your `.env` are not read by the app.
+answers anonymously. No API key, no login, and locally nothing to configure.
+
+myffbad.fr silently drops connections from AWS, where Vercel runs, so in
+production every request goes through a Cloudflare Worker (`relay/`, deployed
+at `myffbad-relay.timlacault.dev` with `cd relay && npx wrangler deploy`). It
+relays the search page only, and only with the shared key: Vercel holds
+`MYFFBAD_RELAY_URL` and `MYFFBAD_RELAY_KEY`, the worker holds the same key as
+its `RELAY_KEY` secret. Unset `MYFFBAD_RELAY_URL` and the app goes direct.
+`MYFFBAD_ID` / `MYFFBAD_PWD` are not read by the app.
 
 The search widens in three legs, each one reached only when the one before it
 found nobody: the **roster** we already hold, then **US Talence** on MyFFBaD,
