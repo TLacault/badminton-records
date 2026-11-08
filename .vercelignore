@@ -1,0 +1,2 @@
+# The vercel CLI uploads the working tree and does not read .gitignore.
+.reel-cache
