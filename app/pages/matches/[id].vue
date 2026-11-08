@@ -129,6 +129,7 @@ const breaks = computed<BreakInput[]>(() =>
 const stage = ref<{
   currentTime: number
   duration: number
+  frame: HTMLElement | null
   isFullscreen: boolean
   seekTo: (s: number) => void
   play: () => void
@@ -209,7 +210,11 @@ function onKeyup(event: KeyboardEvent) {
   playerKeys.handleUp(event)
 }
 
+const playerGuide = usePlayerGuide()
+
 onMounted(() => {
+  // First visit: the tour, once the player has drawn its bar.
+  setTimeout(playerGuide.startIfNew, 600)
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('keyup', onKeyup)
 })
@@ -290,6 +295,7 @@ useSeoMeta({
     <MatchHeader
       class="mt-4"
       :match-id="match.id"
+      :video-id="match.youtube_video_id"
       :side-names="sideNames"
       :derived="derived"
       :type-label="typeLabel"
@@ -332,6 +338,7 @@ useSeoMeta({
             :rate-flash="playerKeys.rateFlash.value"
             :seek-flash="playerKeys.seekFlash.value"
             :jump-flash="playerKeys.jumpFlash.value"
+            guide
             @toggle="stage?.toggle()"
             @toggle-fullscreen="stage?.toggleFullscreen()"
             @set-rate="value => stage?.setRate(value)"
@@ -351,6 +358,8 @@ useSeoMeta({
           </PlayerStageChrome>
         </template>
       </PlayerYouTubeStage>
+
+      <PlayerGuide :frame="stage?.frame ?? null" :is-fullscreen="stage?.isFullscreen ?? false" />
 
       <!-- The same timeline again, under the video, for reading rather than
            reaching: in a window there is room for it, and it stays put while

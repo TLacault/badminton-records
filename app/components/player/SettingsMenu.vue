@@ -132,11 +132,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
   <div
     ref="panel"
     data-testid="settings-menu"
-    class="settings-panel pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl glass-menu sm:right-3 sm:w-[32rem]"
+    class="settings-panel pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl glass-menu sm:right-3 sm:w-[32rem]"
     role="dialog"
     :aria-label="$t('player.settings')"
   >
-    <div class="flex shrink-0 items-center gap-1 border-b border-line p-1">
+    <div class="coarse-hide flex shrink-0 items-center gap-1 border-b border-line p-1">
       <button
         v-for="s in sections"
         :key="s.id"
@@ -160,8 +160,10 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
         <!--
           Picture first: quality and speed are what a viewer reaches for during
           a match. The two durations below are set once and then left alone.
+          Not on a touch screen, where both already sit in the bar as chips and
+          the panel has to fit over a video two hundred pixels tall.
         -->
-        <div>
+        <div class="coarse-hide">
           <p class="label text-[0.6875rem]">
             {{ $t('player.picture') }}
           </p>
@@ -224,7 +226,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
           is too many to click through, and what is being picked is a length of
           time, which is what a slider is for.
         -->
-        <div class="mt-4 border-t border-line pt-3">
+        <div class="first-slider mt-4 border-t border-line pt-3">
           <div class="flex items-baseline justify-between gap-2">
             <p class="label inline-flex items-center gap-1.5 text-[0.6875rem]">
               <Redo2 :size="12" aria-hidden="true" />
@@ -248,7 +250,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
             @input="setSkipSeconds(Number(($event.target as HTMLInputElement).value))"
           >
 
-          <div class="mt-1 flex items-center justify-between">
+          <div class="coarse-hide mt-1 flex items-center justify-between">
             <span
               v-for="stop in RANGE_STOPS"
               :key="stop"
@@ -257,7 +259,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
               aria-hidden="true"
             />
           </div>
-          <div class="flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
+          <div class="coarse-hide flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
             <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
             <span>{{ secondsLabel(RANGE_LAST) }}</span>
           </div>
@@ -293,7 +295,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
             @input="setAutoHideStop(Number(($event.target as HTMLInputElement).value))"
           >
 
-          <div class="mt-1 flex items-center justify-between">
+          <div class="coarse-hide mt-1 flex items-center justify-between">
             <span
               v-for="stop in hideStops"
               :key="stop"
@@ -305,7 +307,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
               aria-hidden="true"
             />
           </div>
-          <div class="flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
+          <div class="coarse-hide flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
             <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
             <span>{{ $t('player.never') }}</span>
           </div>
@@ -340,6 +342,28 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
     bottom: 100%;
     margin-bottom: 0.25rem;
     max-height: min(calc(var(--stage-h, 40rem) - 4.5rem), 34rem);
+  }
+}
+
+/*
+ * A touch screen gets the two sliders alone: the picture chips are in the bar,
+ * the keyboard tab has no keyboard to serve, and the tick rows repeat the
+ * value printed beside each label. Scoped selectors outrank the width
+ * utilities, so the narrow panel holds in landscape too.
+ */
+@media (pointer: coarse) {
+  .settings-panel {
+    width: min(15rem, calc(100vw - 1.5rem));
+  }
+
+  .coarse-hide {
+    display: none !important;
+  }
+
+  .first-slider {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
   }
 }
 

@@ -10,17 +10,41 @@
  *
  * The swap costs one frame of flicker on YouTube's button. Ours goes straight
  * to the wrapper and shows none.
+ *
+ * Where the Fullscreen API cannot take an element — Safari on an iPhone only
+ * fullscreens a bare <video> — `pseudo` stands in: the wrapper is pinned over
+ * the viewport with CSS, which is as full as a page can get there.
+ *
+ * On a touch screen, turning the phone sideways enters fullscreen and turning
+ * it back leaves it. Chrome allows a fullscreen request from an orientation
+ * change with no tap, which is what makes this possible at all.
  */
 export function useFullscreen(target: Ref<HTMLElement | null>) {
-  const isFullscreen = ref(false)
+  const native = ref(false)
+  const pseudo = ref(false)
+  const isFullscreen = computed(() => native.value || pseudo.value)
 
   /** Guards the exit→re-request handoff against re-entering itself. */
   let swapping = false
 
-  function request() {
-    target.value?.requestFullscreen?.().catch(() => {
-      // Denied (no user gesture, or the browser said no). Nothing to undo.
+  function canNative() {
+    return Boolean(document.fullscreenEnabled && target.value?.requestFullscreen)
+  }
+
+  function enter() {
+    if (!canNative()) {
+      pseudo.value = true
+      return
+    }
+    target.value!.requestFullscreen().catch(() => {
+      // Denied (no user gesture, or the browser said no): pin it instead.
+      pseudo.value = true
     })
+  }
+
+  function exit() {
+    pseudo.value = false
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
   }
 
   async function onChange() {
@@ -45,16 +69,36 @@ export function useFullscreen(target: Ref<HTMLElement | null>) {
       return
     }
 
-    isFullscreen.value = active === wrapper
+    native.value = active === wrapper
+    if (native.value) pseudo.value = false
   }
 
   function toggle() {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
-    else request()
+    if (isFullscreen.value) exit()
+    else enter()
   }
 
-  onMounted(() => document.addEventListener('fullscreenchange', onChange))
-  onBeforeUnmount(() => document.removeEventListener('fullscreenchange', onChange))
+  function onOrientation() {
+    if (!matchMedia('(pointer: coarse)').matches) return
+    const landscape = screen.orientation
+      ? screen.orientation.type.startsWith('landscape')
+      : matchMedia('(orientation: landscape)').matches
+    if (landscape && !isFullscreen.value) enter()
+    else if (!landscape && isFullscreen.value) exit()
+  }
 
-  return { isFullscreen, toggle }
+  // `screen.orientation` where it exists; `orientationchange` for older iOS.
+  const orientationTarget = () => (typeof screen !== 'undefined' && screen.orientation) || window
+
+  onMounted(() => {
+    document.addEventListener('fullscreenchange', onChange)
+    orientationTarget().addEventListener(screen.orientation ? 'change' : 'orientationchange', onOrientation)
+  })
+  onBeforeUnmount(() => {
+    document.removeEventListener('fullscreenchange', onChange)
+    orientationTarget().removeEventListener(screen.orientation ? 'change' : 'orientationchange', onOrientation)
+    pseudo.value = false
+  })
+
+  return { isFullscreen, pseudo, toggle }
 }

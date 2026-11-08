@@ -73,7 +73,15 @@ const api = useYouTubePlayer(host, videoId, {
   // focus out from under an open menu is what closes it.
   restoreFocus: () => props.restoreFocus && !nativeMode.value,
 })
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(frame)
+const { isFullscreen, pseudo, toggle: toggleFullscreen } = useFullscreen(frame)
+
+// Pinned over the viewport, the page under it must not scroll away.
+watch(pseudo, (on) => {
+  document.documentElement.style.overflow = on ? 'hidden' : ''
+})
+onBeforeUnmount(() => {
+  document.documentElement.style.overflow = ''
+})
 
 /**
  * Chrome appears with the cursor and leaves a couple of seconds later, the way
@@ -326,6 +334,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 defineExpose({
   ...api,
+  // The guide teleports into it in fullscreen, where nothing outside shows.
+  frame,
   isFullscreen,
   toggleFullscreen,
   wake,
@@ -350,8 +360,12 @@ defineExpose({
   -->
   <div
     ref="frame"
-    class="group relative aspect-video w-full overflow-hidden bg-black"
-    :class="isFullscreen ? 'rounded-none border-0' : 'rounded-2xl border border-line'"
+    data-testid="stage-frame"
+    class="group overflow-hidden bg-black"
+    :class="[
+      isFullscreen ? 'rounded-none border-0' : 'rounded-2xl border border-line',
+      pseudo ? 'fixed inset-0 z-[90] h-dvh w-screen' : 'relative aspect-video w-full',
+    ]"
     :style="{
       '--stage-h': stageHeightVar,
       'boxShadow': isFullscreen ? undefined : 'var(--ui-glow-soft), var(--ui-shadow)',

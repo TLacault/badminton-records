@@ -6,7 +6,10 @@ import {
   highlightSpans,
   rallyAtTime,
   resumeTimeAt,
+  withoutBreaks,
 } from "~~/shared/badminton";
+import { storyboardFrame } from "~~/shared/storyboard";
+import type { Storyboard } from "~~/shared/storyboard";
 
 const props = withDefaults(
   defineProps<{
@@ -55,11 +58,17 @@ onMounted(() => {
 
 onBeforeUnmount(() => observer?.disconnect());
 
+/**
+ * A rally's span reaches back over any break before it, so every break is cut
+ * out of it (see `withoutBreaks`): the break stays bare track, coloured by
+ * nobody.
+ */
 const segments = computed(() =>
-  states.value.map((s) => ({
-    idx: s.idx,
-    left: pct(s.startsAtSeconds),
-    width: pct(s.endsAtSeconds - s.startsAtSeconds),
+  states.value.flatMap((s) =>
+    withoutBreaks({ from: s.startsAtSeconds, to: s.endsAtSeconds }, props.breaks).map((piece, i) => ({
+    key: `${s.idx}-${i}`,
+    left: pct(piece.from),
+    width: pct(piece.to - piece.from),
     start: s.startsAtSeconds,
     // Two colours, no third: crimson is ours, ink is theirs. Lets stay
     // colourless because no point was scored, so neither side "owns" them.
@@ -69,7 +78,8 @@ const segments = computed(() =>
       ? "bg-us"
       : "bg-them",
     title: `Point ${s.idx + 1} · ${s.scoreAfter[0]}–${s.scoreAfter[1]}`,
-  })),
+    })),
+  ),
 );
 
 /**
@@ -157,20 +167,27 @@ const preview = computed(() => {
 });
 
 /**
- * A frame from roughly where the pointer is.
- *
- * YouTube's real scrub storyboards live behind a signature that only its own
- * player response carries, and an embed never sees one. What every video does
- * expose is three still frames, at about a quarter, a half and three quarters
- * of the way through. Coarse, but it changes as you move and it is a picture of
- * this match rather than a placeholder — and the time and score beside it are
- * the parts that are exact.
+ * YouTube's own scrub sprites, read off the watch page by the server: a frame
+ * every couple of seconds. Both timelines on the page share the one request.
+ */
+const { data: storyboardRes } = useFetch<{ storyboard: Storyboard | null }>("/api/youtube/storyboard", {
+  query: { v: computed(() => props.videoId) },
+  immediate: Boolean(props.videoId),
+  server: false,
+  lazy: true,
+});
+const storyboard = computed(() => storyboardRes.value?.storyboard ?? null);
+
+/**
+ * The frame under the pointer: a storyboard tile, or, when YouTube gave no
+ * storyboard, the nearest of the three stills every video exposes.
  */
 const previewFrame = computed(() => {
   const t = previewTime.value;
   if (!props.videoId || t === null || !total.value) return null;
+  if (storyboard.value) return { style: storyboardFrame(storyboard.value, t, total.value), src: null };
   const nth = Math.min(3, Math.max(1, Math.ceil((t / total.value) * 3) || 1));
-  return `https://i.ytimg.com/vi/${props.videoId}/${nth}.jpg`;
+  return { style: null, src: `https://i.ytimg.com/vi/${props.videoId}/${nth}.jpg` };
 });
 
 /** Preview card width, in px, so it can be kept inside the track. */
@@ -274,27 +291,20 @@ function onPointerCancel() {
       -->
       <div
         v-for="s in segments"
-        :key="s.idx"
+        :key="s.key"
         class="absolute bottom-0 top-2.5 border-r opacity-85 transition-opacity duration-150 hover:opacity-100"
         :class="[s.class, overlay ? 'border-black/60' : 'border-bg-deep']"
         :style="{ left: s.left, width: s.width }"
         :title="s.title"
       />
 
-      <!-- Dead time is drawn, not left blank: a gap would read as missing data
-           rather than as the shuttle being off the court. -->
+      <!-- Dead time is bare track: no colour, only its tooltip. -->
       <div
         v-for="b in breakBands"
         :key="`b${b.idx}`"
         data-testid="timeline-break"
-        class="absolute bottom-0 top-2.5 border-x border-line-strong"
-        :class="[b.open ? 'opacity-70' : '', overlay ? 'bg-black/70' : 'bg-bg-deep']"
-        :style="{
-          left: b.left,
-          width: b.width,
-          backgroundImage:
-            'repeating-linear-gradient(45deg, var(--ui-line) 0 2px, transparent 2px 6px)',
-        }"
+        class="absolute bottom-0 top-2.5"
+        :style="{ left: b.left, width: b.width }"
         :title="b.open ? $t('player.breakOpen') : $t('player.break')"
       />
 
@@ -349,8 +359,14 @@ function onPointerCancel() {
         role="tooltip"
       >
         <div v-if="previewFrame" class="relative aspect-video w-full bg-black">
+          <div
+            v-if="previewFrame.style"
+            class="h-full w-full bg-no-repeat"
+            :style="previewFrame.style"
+          />
           <img
-            :src="previewFrame"
+            v-else
+            :src="previewFrame.src ?? undefined"
             alt=""
             class="h-full w-full object-cover"
             loading="lazy"

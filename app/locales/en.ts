@@ -196,6 +196,20 @@ export default {
     skipBy: "Skip by",
     shieldHint: "Play or pause; double-click an edge to skip",
   },
+  guide: {
+    open: "Player guide",
+    next: "Next",
+    back: "Back",
+    done: "Got it",
+    hide: "Hide guide",
+    reopen: "Find this guide again any time with the ? button next to the settings.",
+    frame: { title: "The match player", body: "Tap the middle to play or pause. Double-tap the left or right side to skip back or forward. Hold anywhere for 2× speed. Turn your phone sideways for fullscreen." },
+    scoreboard: { title: "Live scoreboard", body: "It follows the video, so it never gives a point away early. Tap it to switch between teams and player names." },
+    timeline: { title: "The timeline", body: "One block per point, in the colour of the side that won it. Glowing bands are highlights, gaps are breaks. Hover or hold to preview, let go to jump to the start of that point." },
+    quality: { title: "Quality and captions", body: "YouTube keeps these in its own menu. Tap here to hand the player to YouTube, then use its gear for quality and CC for captions. Tap \"YouTube controls ✕\" at the top to come back." },
+    settings: { title: "Settings", body: "Playback speed, how far a skip jumps, how soon the controls hide, and keyboard shortcuts on a computer." },
+    guide: { title: "This guide", body: "That's the tour. This button brings it back whenever you need it." },
+  },
 
   reel: {
     eyebrow: "Highlight cutter",

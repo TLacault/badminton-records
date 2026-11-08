@@ -193,6 +193,20 @@ export default {
     skipBy: "Saut de",
     shieldHint: "Lecture ou pause ; double-cliquez sur un bord pour sauter",
   },
+  guide: {
+    open: "Guide du lecteur",
+    next: "Suivant",
+    back: "Retour",
+    done: "Compris",
+    hide: "Masquer le guide",
+    reopen: "Retrouvez ce guide à tout moment avec le bouton ? à côté des réglages.",
+    frame: { title: "Le lecteur de match", body: "Touchez le centre pour lire ou mettre en pause. Touchez deux fois le bord gauche ou droit pour reculer ou avancer. Maintenez n'importe où pour la vitesse ×2. Tournez votre téléphone pour passer en plein écran." },
+    scoreboard: { title: "Score en direct", body: "Il suit la vidéo, donc il ne dévoile jamais un point en avance. Touchez-le pour passer des équipes aux noms des joueurs." },
+    timeline: { title: "La frise", body: "Un bloc par point, de la couleur du camp qui l'a gagné. Les bandes lumineuses sont les temps forts, les vides sont les pauses. Survolez ou maintenez pour prévisualiser, relâchez pour aller au début du point." },
+    quality: { title: "Qualité et sous-titres", body: "YouTube les garde dans son propre menu. Touchez ici pour rendre la main à YouTube, puis utilisez sa roue pour la qualité et CC pour les sous-titres. Touchez « Commandes YouTube ✕ » en haut pour revenir." },
+    settings: { title: "Réglages", body: "Vitesse de lecture, durée d'un saut, délai avant que les commandes se masquent, et raccourcis clavier sur ordinateur." },
+    guide: { title: "Ce guide", body: "C'est tout pour la visite. Ce bouton la relance quand vous en avez besoin." },
+  },
 
   reel: {
     eyebrow: "Montage des temps forts",

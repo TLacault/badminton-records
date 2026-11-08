@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  CircleHelp,
   Gauge,
   Maximize,
   Minimize,
@@ -31,7 +32,11 @@ const props = withDefaults(defineProps<{
   jumpFlash: string | null
   /** `player` hides the tagger's scoring and session keys in the settings menu. */
   keybindScope?: 'all' | 'player'
-}>(), { keybindScope: 'player' })
+  /** Shows the button that reopens the player tour, where a page renders one. */
+  guide?: boolean
+}>(), { keybindScope: 'player', guide: false })
+
+const playerGuide = usePlayerGuide()
 
 const emit = defineEmits<{
   toggle: []
@@ -179,6 +184,18 @@ function handOver() {
       </p>
 
       <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+        <button
+          v-if="guide"
+          type="button"
+          data-testid="control-guide"
+          class="grid size-8 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent sm:size-9"
+          :aria-label="$t('guide.open')"
+          :title="$t('guide.open')"
+          @click="playerGuide.start()"
+        >
+          <CircleHelp :size="17" aria-hidden="true" class="sm:size-[18px]" />
+        </button>
+
         <!--
           The settings button, immediately left of the quality chip: the two
           neighbouring things that change how the player behaves rather than

@@ -6,6 +6,7 @@ const { t, bcp47 } = useI18n()
 
 const props = defineProps<{
   matchId: string
+  videoId: string | null
   sideNames: Record<number, string>
   derived: DerivedMatch | null
   typeLabel: string | null
@@ -80,11 +81,24 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
         {{ heading }}
       </h1>
 
-      <UiShareButton
-        :to="`/matches/${matchId}`"
-        :label="$t('share.action')"
-        class="btn btn-sm btn-ghost shrink-0"
-      />
+      <div class="flex shrink-0 flex-col items-stretch gap-1">
+        <UiShareButton
+          :to="`/matches/${matchId}`"
+          :label="$t('share.action')"
+          class="btn btn-sm btn-ghost justify-start"
+        />
+        <a
+          v-if="videoId"
+          data-testid="match-youtube"
+          :href="`https://www.youtube.com/watch?v=${videoId}`"
+          target="_blank"
+          rel="noopener"
+          class="btn btn-sm btn-ghost justify-start"
+        >
+          <UiYouTubeGlyph :size="14" />
+          YouTube
+        </a>
+      </div>
     </div>
 
     <ul class="relative mt-4 flex flex-wrap items-center gap-2">

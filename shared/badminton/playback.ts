@@ -106,7 +106,7 @@ export interface Span {
  * which is how the timeline paints one. So the only reliable answer is to
  * subtract them all rather than to push the start past the first.
  */
-function withoutBreaks(span: Span, breaks: readonly BreakInput[]): Span[] {
+export function withoutBreaks(span: Span, breaks: readonly BreakInput[]): Span[] {
   let pieces: Span[] = [span]
 
   for (const b of breaks) {
