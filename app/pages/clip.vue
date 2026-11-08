@@ -262,6 +262,7 @@ watch(() => JSON.stringify(project.value), () => {
 async function render() {
   renderError.value = null
   try {
+    await source.upload()
     const started = await $fetch<{ ready: boolean, name: string, job: ReelJob | null }>(
       '/api/reel/render',
       { method: 'POST', body: { project: project.value } },
@@ -491,7 +492,7 @@ useSeoMeta({
               :downloading="source.downloading.value"
               :download-progress="source.progress.value"
               :source-error="source.error.value"
-              :rendering="renderJob.running.value"
+              :rendering="renderJob.running.value || source.uploading.value"
               :render-progress="renderJob.progress.value"
               :render-error="renderError"
               :render-url="renderUrl"

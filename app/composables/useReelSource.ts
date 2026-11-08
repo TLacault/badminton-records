@@ -68,6 +68,25 @@ export function useReelSource(videoId: Ref<string | null>) {
     }
   }
 
+  const uploading = ref(false)
+
+  /**
+   * Hands an attached file to the server, which is where the render runs. The
+   * object URL the preview plays is invisible to it. Once copied the source
+   * counts as cached, so this happens once per match.
+   */
+  async function upload() {
+    if (!file.value || !videoId.value || cached.value) return
+    uploading.value = true
+    try {
+      await $fetch(`/api/reel/source/${videoId.value}`, { method: 'PUT', body: file.value })
+      await refresh()
+    }
+    finally {
+      uploading.value = false
+    }
+  }
+
   async function forget() {
     if (!videoId.value) return
     await $fetch(`/api/reel/source/${videoId.value}`, { method: 'DELETE' })
@@ -85,6 +104,8 @@ export function useReelSource(videoId: Ref<string | null>) {
     duration,
     attach,
     fetchSource,
+    upload,
+    uploading,
     forget,
     job: download.job,
     progress: download.progress,
