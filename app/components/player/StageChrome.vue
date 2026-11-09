@@ -207,7 +207,7 @@ function toggleSettings() {
 
           <ul
             v-if="rateOpen"
-            class="dark glass-player absolute bottom-full right-0 z-30 mb-1.5 max-h-56 overflow-y-auto rounded-lg p-1 [--glass-bg:rgb(0_0_0/0.62)]"
+            class="dark glass-player absolute bottom-full right-0 z-30 mb-1.5 rounded-lg p-1 [--glass-bg:rgb(0_0_0/0.62)]"
             role="listbox"
           >
             <li v-for="value in rates" :key="value">
@@ -215,7 +215,7 @@ function toggleSettings() {
                 type="button"
                 role="option"
                 :aria-selected="value === rate"
-                class="w-full rounded-md px-3 py-1.5 text-right font-mono text-xs tabular-nums transition-colors duration-100 hover:bg-accent-soft hover:text-accent"
+                class="w-full rounded-md px-3 py-1 text-right font-mono text-xs tabular-nums transition-colors duration-100 hover:bg-accent-soft hover:text-accent"
                 :class="value === rate ? 'text-accent' : 'text-ink-muted'"
                 @click="pickRate(value)"
               >
