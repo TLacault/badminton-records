@@ -291,8 +291,8 @@
     0 1px 2px rgb(0 0 0 / 0.92),
     0 0 12px rgb(0 0 0 / 0.6);
   --ui-ink: #ffffff;
-  --ui-ink-muted: rgb(255 255 255 / 0.94);
-  --ui-ink-subtle: rgb(255 255 255 / 0.8);
+  --ui-ink-muted: #ffffff;
+  --ui-ink-subtle: #ffffff;
   --ui-line: rgb(255 255 255 / 0.12);
   --ui-line-strong: rgb(255 255 255 / 0.28);
   --ui-accent: #f5233f;

@@ -126,7 +126,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
         :key="s.id"
         type="button"
         :data-testid="`settings-tab-${s.id}`"
-        class="coarse-hide min-h-7 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
+        class="coarse-hide min-h-7 flex-1 [text-shadow:0_1px_3px_rgb(0_0_0/0.95),0_0_10px_rgb(0_0_0/0.75)] items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
         :class="[
           s.desktopOnly ? 'hidden sm:inline-flex' : 'inline-flex',
           section === s.id ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink',
