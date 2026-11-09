@@ -279,7 +279,8 @@
   holding tokenised text, so the ink reads white whatever the page theme.
 */
 @utility glass-player {
-  background-color: rgb(0 0 0 / 0.42);
+  /* Overridable per surface: the settings menu sits a shade darker still. */
+  background-color: var(--glass-bg, rgb(0 0 0 / 0.42));
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid rgb(255 255 255 / 0.12);

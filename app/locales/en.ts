@@ -189,6 +189,7 @@ export default {
     never: "Never",
     mute: "Mute",
     unmute: "Unmute",
+    youtubeSettings: "YouTube settings",
     volume: "Volume",
     close: "Close",
     speed: "Speed",
@@ -207,6 +208,7 @@ export default {
     scoreboard: { title: "Live scoreboard", body: "It follows the video, so it never gives a point away early. Tap it to switch between teams and player names." },
     timeline: { title: "The timeline", body: "One block per point, in the colour of the side that won it. Glowing bands are highlights, gaps are breaks. Hover or hold to preview, let go to jump to the start of that point." },
     settings: { title: "Settings", body: "How far a skip jumps, how soon the controls hide, and keyboard shortcuts on a computer." },
+    youtube: { title: "Quality and captions", body: "YouTube keeps these in its own menu. Tap here to hand the player to YouTube, then use its gear for quality and CC for captions. Tap \"YouTube controls ✕\" at the top to come back." },
     guide: { title: "This guide", body: "That's the tour. This button brings it back whenever you need it." },
   },
 

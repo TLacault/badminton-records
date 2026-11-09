@@ -5,6 +5,8 @@ import { NEVER_STOP, RANGE_STOPS } from '~/composables/usePlayerSettings'
 const props = defineProps<{
   /** `player` hides the tagger's scoring and session keys. */
   keybindScope: 'all' | 'player'
+  /** Fullscreen with the scrub bar up: the menu sits above it, so it is shorter. */
+  raised?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -114,7 +116,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
   <div
     ref="panel"
     data-testid="settings-menu"
-    class="settings-panel dark glass-player pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl text-ink sm:right-3 sm:w-[32rem]"
+    class="settings-panel dark glass-player pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl text-ink [--glass-bg:rgb(0_0_0/0.62)] sm:right-3 sm:w-[32rem]"
+    :class="{ raised }"
     role="dialog"
     :aria-label="$t('player.settings')"
   >
@@ -272,6 +275,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
     bottom: 100%;
     margin-bottom: 0.25rem;
     max-height: min(calc(var(--stage-h, 40rem) - 4.5rem), 34rem);
+  }
+
+  /* Above the fullscreen scrub bar as well as the control bar. */
+  .settings-panel.raised {
+    max-height: min(calc(var(--stage-h, 40rem) - 8rem), 34rem);
   }
 }
 

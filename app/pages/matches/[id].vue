@@ -145,6 +145,7 @@ const stage = ref<{
   setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
+  enterNativeMode: () => void
   armBoost: () => void
   releaseBoost: () => boolean
   isPlaying: boolean
@@ -347,6 +348,7 @@ useSeoMeta({
             @set-rate="value => stage?.setRate(value)"
             @set-volume="value => stage?.setVolume(value)"
             @toggle-mute="stage?.toggleMute()"
+            @native-controls="stage?.enterNativeMode()"
           >
             <template #timeline>
               <PlayerMatchTimeline

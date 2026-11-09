@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DerivedMatch, MatchFormat, PlaybackState } from '~~/shared/badminton'
-import { ChevronsDownUp, ChevronsUpDown, Circle } from '@lucide/vue'
+import { Circle } from '@lucide/vue'
 
 const props = defineProps<{
   playback: PlaybackState
@@ -195,16 +195,6 @@ const gridStyle = computed(() => ({
       </div>
     </div>
 
-    <!-- Kept as the affordance — it is what tells you the board can change
-         size — but the click is handled by the board itself, so this is
-         decoration and must not swallow the event or double-toggle it. -->
-    <span
-      data-testid="scoreboard-mode"
-      class="pointer-events-none absolute right-1 top-1 hidden size-6 place-items-center rounded-md text-white/40 sm:grid"
-      aria-hidden="true"
-    >
-      <component :is="mode === 'compact' ? ChevronsUpDown : ChevronsDownUp" :size="13" />
-    </span>
   </div>
 </template>
 

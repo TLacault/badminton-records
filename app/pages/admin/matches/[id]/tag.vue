@@ -190,6 +190,7 @@ const stage = ref<{
   setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
+  enterNativeMode: () => void
   armBoost: () => void
   releaseBoost: () => boolean
   currentTime: number
@@ -486,6 +487,7 @@ const saveLabel = computed(() => {
                 @set-rate="value => stage?.setRate(value)"
                 @set-volume="value => stage?.setVolume(value)"
                 @toggle-mute="stage?.toggleMute()"
+                @native-controls="stage?.enterNativeMode()"
               >
                 <template #timeline>
                   <PlayerMatchTimeline

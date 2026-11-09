@@ -186,6 +186,7 @@ export default {
     never: "Jamais",
     mute: "Couper le son",
     unmute: "Remettre le son",
+    youtubeSettings: "Réglages YouTube",
     volume: "Volume",
     close: "Fermer",
     speed: "Vitesse",
@@ -204,6 +205,7 @@ export default {
     scoreboard: { title: "Score en direct", body: "Il suit la vidéo, donc il ne dévoile jamais un point en avance. Touchez-le pour passer des équipes aux noms des joueurs." },
     timeline: { title: "La frise", body: "Un bloc par point, de la couleur du camp qui l'a gagné. Les bandes lumineuses sont les temps forts, les vides sont les pauses. Survolez ou maintenez pour prévisualiser, relâchez pour aller au début du point." },
     settings: { title: "Réglages", body: "Durée d'un saut, délai avant que les commandes se masquent, et raccourcis clavier sur ordinateur." },
+    youtube: { title: "Qualité et sous-titres", body: "YouTube les garde dans son propre menu. Touchez ici pour rendre la main à YouTube, puis utilisez sa roue pour la qualité et CC pour les sous-titres. Touchez « Commandes YouTube ✕ » en haut pour revenir." },
     guide: { title: "Ce guide", body: "C'est tout pour la visite. Ce bouton la relance quand vous en avez besoin." },
   },
 
