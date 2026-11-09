@@ -58,9 +58,6 @@ function secondsLabel(value: number) {
 
 const RANGE_LAST = RANGE_STOPS[RANGE_STOPS.length - 1]!
 
-/** The auto-hide scale, plus the "never" stop that sits one step past its top. */
-const hideStops = [...RANGE_STOPS, NEVER_STOP]
-
 /**
  * Escape closes the menu before anything else can have the key.
  *
@@ -116,8 +113,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
   <div
     ref="panel"
     data-testid="settings-menu"
-    class="settings-panel dark glass-player pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl text-ink [--glass-bg:rgb(0_0_0/0.62)] sm:right-3 sm:w-[32rem]"
-    :class="{ raised }"
+    class="settings-panel dark glass-player pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl text-ink [--glass-bg:rgb(0_0_0/0.62)] sm:right-3"
+    :class="[{ raised }, section === 'keyboard' ? 'sm:w-[32rem]' : 'sm:w-72']"
     role="dialog"
     :aria-label="$t('player.settings')"
   >
@@ -129,7 +126,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
         :key="s.id"
         type="button"
         :data-testid="`settings-tab-${s.id}`"
-        class="coarse-hide min-h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
+        class="coarse-hide min-h-7 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
         :class="[
           s.desktopOnly ? 'hidden sm:inline-flex' : 'inline-flex',
           section === s.id ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink',
@@ -143,7 +140,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
       <button
         type="button"
         data-testid="settings-close"
-        class="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors duration-150 hover:bg-white/10 hover:text-ink"
+        class="ml-auto grid size-7 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors duration-150 hover:bg-white/10 hover:text-ink"
         :aria-label="$t('player.close')"
         @click="emit('close')"
       >
@@ -151,7 +148,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
       </button>
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+    <div class="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
       <template v-if="section === 'options'">
         <!--
           Two durations on the same scale and the same control, because they are
@@ -174,7 +171,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
           <input
             data-testid="skip-range"
             type="range"
-            class="player-range mt-2 w-full"
+            class="player-range mt-1 w-full"
             :min="RANGE_STOPS[0]"
             :max="RANGE_LAST"
             :step="0.5"
@@ -182,20 +179,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
             :aria-label="$t('player.skipBy')"
             @input="setSkipSeconds(Number(($event.target as HTMLInputElement).value))"
           >
-
-          <div class="coarse-hide mt-1 flex items-center justify-between">
-            <span
-              v-for="stop in RANGE_STOPS"
-              :key="stop"
-              class="h-1 w-px"
-              :class="stop <= skipSeconds ? 'bg-accent/70' : 'bg-line-strong'"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="coarse-hide flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
-            <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
-            <span>{{ secondsLabel(RANGE_LAST) }}</span>
-          </div>
         </div>
 
         <!--
@@ -203,7 +186,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
           an answer to the same question — how long should the chrome stay? —
           and the longest possible answer belongs at the long end of the scale.
         -->
-        <div class="mt-4 border-t border-line pt-3">
+        <div class="mt-2.5 border-t border-line pt-2.5">
           <div class="flex items-baseline justify-between gap-2">
             <p class="label inline-flex items-center gap-1.5 text-[0.6875rem]">
               <EyeOff :size="12" aria-hidden="true" />
@@ -219,7 +202,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
           <input
             data-testid="autohide-range"
             type="range"
-            class="player-range mt-2 w-full"
+            class="player-range mt-1 w-full"
             :min="RANGE_STOPS[0]"
             :max="NEVER_STOP"
             :step="0.5"
@@ -227,23 +210,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
             :aria-label="$t('player.hideAfter')"
             @input="setAutoHideStop(Number(($event.target as HTMLInputElement).value))"
           >
-
-          <div class="coarse-hide mt-1 flex items-center justify-between">
-            <span
-              v-for="stop in hideStops"
-              :key="stop"
-              class="w-px"
-              :class="[
-                stop === NEVER_STOP ? 'h-1.5' : 'h-1',
-                stop <= autoHideStop ? 'bg-accent/70' : 'bg-line-strong',
-              ]"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="coarse-hide flex items-center justify-between font-mono text-[0.625rem] text-ink-subtle">
-            <span>{{ secondsLabel(RANGE_STOPS[0]!) }}</span>
-            <span>{{ $t('player.never') }}</span>
-          </div>
         </div>
       </template>
 
@@ -285,9 +251,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
 
 /*
  * A touch screen gets the two sliders alone: the keyboard tab has no keyboard
- * to serve, and the tick rows repeat the
- * value printed beside each label. Scoped selectors outrank the width
- * utilities, so the narrow panel holds in landscape too.
+ * to serve. Scoped selectors outrank the width utilities, so the narrow panel
+ * holds in landscape too.
  */
 @media (pointer: coarse) {
   .settings-panel {

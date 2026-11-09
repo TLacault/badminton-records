@@ -207,7 +207,7 @@ function toggleSettings() {
 
           <ul
             v-if="rateOpen"
-            class="dark glass-player absolute bottom-full right-0 mb-1.5 max-h-56 overflow-y-auto rounded-lg p-1"
+            class="dark glass-player absolute bottom-full right-0 z-30 mb-1.5 max-h-56 overflow-y-auto rounded-lg p-1 [--glass-bg:rgb(0_0_0/0.62)]"
             role="listbox"
           >
             <li v-for="value in rates" :key="value">
@@ -426,7 +426,6 @@ function toggleSettings() {
 .stage-scrim {
   background: linear-gradient(to top, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.6) 45%, transparent 100%);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   mask-image: linear-gradient(to top, #000 55%, transparent 100%);
   -webkit-mask-image: linear-gradient(to top, #000 55%, transparent 100%);
 }

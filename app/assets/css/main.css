@@ -234,7 +234,6 @@
 @utility glass {
   background-color: var(--ui-panel);
   backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--ui-line);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.06),
@@ -255,7 +254,6 @@
 @utility glass-menu {
   background-color: var(--ui-menu);
   backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--ui-line);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.08),
@@ -265,7 +263,6 @@
 @utility glass-strong {
   background-color: var(--ui-panel-strong);
   backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--ui-line);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.08),
@@ -273,18 +270,33 @@
 }
 
 /*
-  Glass over the video: the scoreboard's material (black/28, blur, white
-  hairline), a shade darker for the controls that carry denser text — the
-  fullscreen timeline and the player's menus. Pair with `.dark` on anything
-  holding tokenised text, so the ink reads white whatever the page theme.
+  Glass over the video: exactly the scoreboard's material — black, a 12px
+  blur, a white hairline, white type held up by a text shadow rather than by
+  an opaque box — only darker, since these carry denser text than four
+  numbers. The ink tokens are pinned white here, so a control inside reads the
+  same whatever the page theme, and anything tokenised (lines, muted labels)
+  follows without per-component overrides.
+
+  Only the standard `backdrop-filter` is written: with the prefixed twin
+  beside it, the production minifier merged the pair into the -webkit- one
+  alone, which Chrome ignores — every glass surface rendered unblurred on
+  Vercel. The build adds the prefix where its targets need it.
 */
 @utility glass-player {
-  /* Overridable per surface: the settings menu sits a shade darker still. */
-  background-color: var(--glass-bg, rgb(0 0 0 / 0.42));
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  background-color: var(--glass-bg, rgb(0 0 0 / 0.5));
+  backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid rgb(255 255 255 / 0.12);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.92),
+    0 0 12px rgb(0 0 0 / 0.6);
+  --ui-ink: #ffffff;
+  --ui-ink-muted: rgb(255 255 255 / 0.85);
+  --ui-ink-subtle: rgb(255 255 255 / 0.62);
+  --ui-line: rgb(255 255 255 / 0.12);
+  --ui-line-strong: rgb(255 255 255 / 0.28);
+  --ui-accent: #f5233f;
+  --ui-accent-soft: rgb(245 35 63 / 0.18);
 }
 
 /* Hairline crimson rim + bloom. Reserved for the element a screen is about. */
@@ -411,7 +423,6 @@
   color: var(--ui-ink);
   border: 1px solid var(--ui-line);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 
   &:hover:not(:disabled) {
     border-color: color-mix(in oklab, var(--ui-accent) 50%, transparent);
