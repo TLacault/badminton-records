@@ -186,6 +186,26 @@ export function useYouTubePlayer(
     return next
   }
 
+  /** The bar's slider: an absolute level, through the same path as the keys. */
+  function setVolume(level: number): number {
+    return changeVolume(level - volume.value)
+  }
+
+  /** Unmuting a video left at zero brings it back at half, not to silence. */
+  function toggleMute() {
+    const p = player.value
+    if (!p?.mute) return
+    if (muted.value || volume.value === 0) {
+      p.unMute?.()
+      muted.value = false
+      if (volume.value === 0) setVolume(50)
+    }
+    else {
+      p.mute()
+      muted.value = true
+    }
+  }
+
   /** Sets the speed to an offered rate, and reports what it became. */
   function setRate(next: number): number {
     const p = player.value
@@ -221,6 +241,8 @@ export function useYouTubePlayer(
     seekTo,
     seekBy,
     changeVolume,
+    setVolume,
+    toggleMute,
     setRate,
     stepRate,
   }

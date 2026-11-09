@@ -163,9 +163,9 @@ const chromeVisible = computed(() =>
  *   tap ×2   edge    skip back or forward by the viewer's own distance
  *   hold     any     double speed for as long as it is held
  *
- * The edges are the phone convention and they earn their place on a desktop
- * too: the video is the biggest target on the page and the seek keys are not
- * reachable from a couch.
+ * The edges are the phone convention. With a mouse the whole frame is one zone
+ * and a double click toggles fullscreen, the desktop convention; the seek keys
+ * cover skipping there.
  */
 const DOUBLE_TAP_MS = 260
 const EDGE_FRACTION = 0.3
@@ -208,6 +208,15 @@ function handleTap(zone: -1 | 0 | 1, touch: boolean) {
   if (tapTimer) {
     clearTimeout(tapTimer)
     tapTimer = null
+  }
+
+  // The first click already toggled play; undo it, so a double click changes
+  // the screen and leaves the rally as it was.
+  if (double && !touch) {
+    api.toggle()
+    toggleFullscreen()
+    wake()
+    return
   }
 
   if (double && zone !== 0) {
@@ -273,7 +282,8 @@ function onPointerUp(event: PointerEvent) {
   pressed = false
   // A hold has already done its work; the tap it would have been is spent.
   if (boost.release() || swallowed || dragged) return
-  handleTap(zoneAt(event.clientX), event.pointerType === 'touch')
+  const touch = event.pointerType === 'touch'
+  handleTap(touch ? zoneAt(event.clientX) : 0, touch)
 }
 
 function onPointerCancel() {

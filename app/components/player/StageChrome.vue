@@ -4,7 +4,6 @@ import {
   Gauge,
   Maximize,
   Minimize,
-  MonitorCog,
   Pause,
   Play,
   Rewind,
@@ -23,7 +22,8 @@ const props = withDefaults(defineProps<{
   duration: number
   rate: number
   rates: number[]
-  quality: string | null
+  volume: number
+  muted: boolean
   /** Armed by the T shortcut. */
   timelineVisible: boolean
   volumeFlash: number | null
@@ -42,29 +42,12 @@ const emit = defineEmits<{
   toggle: []
   toggleFullscreen: []
   setRate: [rate: number]
-  /** Stand our layer down so YouTube's own settings menu can be reached. */
-  nativeControls: []
+  setVolume: [level: number]
+  toggleMute: []
 }>()
 
-/**
- * YouTube's own resolution names. The level cannot be set through the API —
- * setPlaybackQuality is ignored now, whatever you pass it — so the chip below
- * hands the player back to YouTube instead of trying.
- */
-const QUALITY_LABELS: Record<string, string> = {
-  tiny: '144p',
-  small: '240p',
-  medium: '360p',
-  large: '480p',
-  hd720: '720p',
-  hd1080: '1080p',
-  hd1440: '1440p',
-  hd2160: '4K',
-}
-
-const qualityLabel = computed(() =>
-  props.quality ? QUALITY_LABELS[props.quality] ?? props.quality : null,
-)
+/** Muted reads as zero on the bar, whatever level it will come back at. */
+const shownVolume = computed(() => (props.muted ? 0 : props.volume))
 
 function clock(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
@@ -97,8 +80,7 @@ function rateLabel(value: number) {
  * chrome goes.
  *
  * The bar fades on an idle timer, and a menu left hanging over the video with
- * its trigger gone is furniture nobody asked for. Handing the player to YouTube
- * closes it too, since our layer is standing down.
+ * its trigger gone is furniture nobody asked for.
  */
 const settingsOpen = menuOpen
 
@@ -115,11 +97,6 @@ onBeforeUnmount(() => {
 function toggleSettings() {
   settingsOpen.value = !settingsOpen.value
   if (settingsOpen.value) rateOpen.value = false
-}
-
-function handOver() {
-  settingsOpen.value = false
-  emit('nativeControls')
 }
 </script>
 
@@ -138,13 +115,12 @@ function handOver() {
     :aria-hidden="!chromeVisible"
   >
     <!--
-      The scrim. It is what makes white text over a bright rally readable, the
-      way every video player does it — and it is also what buries YouTube's own
-      bottom bar, which sits in exactly this band of the frame and cannot be
-      asked to leave. Solid at the floor, gone by the top.
+      The scrim: what keeps white text readable over a bright rally. Kept
+      light — a shade at the floor, gone by the top — so the frame still reads
+      as the rally rather than as a bar.
     -->
     <div
-      class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black from-15% via-black/60 to-transparent"
+      class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent"
       :class="isFullscreen ? 'h-44' : 'h-32'"
       aria-hidden="true"
     />
@@ -196,11 +172,6 @@ function handOver() {
           <CircleHelp :size="17" aria-hidden="true" class="sm:size-[18px]" />
         </button>
 
-        <!--
-          The settings button, immediately left of the quality chip: the two
-          neighbouring things that change how the player behaves rather than
-          what it is doing.
-        -->
         <button
           type="button"
           data-testid="control-settings"
@@ -212,26 +183,6 @@ function handOver() {
           @click="toggleSettings"
         >
           <Settings :size="17" aria-hidden="true" class="sm:size-[18px]" />
-        </button>
-
-        <!--
-          The chip is the trigger, because it already names the thing you came
-          for. Clicking it stands our whole layer down and gives the frame back
-          to YouTube, whose settings menu is the only place quality can still
-          be picked.
-        -->
-        <!-- Always here, label or not: quality only reports once a stream is
-             flowing, and a paused player must not be a player with no way in. -->
-        <button
-          type="button"
-          data-testid="control-quality"
-          class="inline-grid min-h-8 min-w-8 place-items-center rounded border border-white/25 px-1 font-mono text-[0.5625rem] tabular-nums text-white/70 transition-colors duration-150 hover:border-accent/60 hover:text-white sm:min-h-9 sm:min-w-9 sm:px-1.5 sm:text-[0.625rem]"
-          :title="$t('player.qualityHint')"
-          :aria-label="$t('player.qualityHint')"
-          @click="emit('nativeControls')"
-        >
-          <template v-if="qualityLabel">{{ qualityLabel }}</template>
-          <MonitorCog v-else :size="13" aria-hidden="true" />
         </button>
 
         <div class="relative">
@@ -251,7 +202,7 @@ function handOver() {
 
           <ul
             v-if="rateOpen"
-            class="absolute bottom-full right-0 mb-1.5 max-h-56 overflow-y-auto rounded-lg p-1 glass-menu"
+            class="dark glass-player absolute bottom-full right-0 mb-1.5 max-h-56 overflow-y-auto rounded-lg p-1"
             role="listbox"
           >
             <li v-for="value in rates" :key="value">
@@ -267,6 +218,39 @@ function handOver() {
               </button>
             </li>
           </ul>
+        </div>
+
+        <!--
+          Mute on the glyph, level on the slider beside it. The slider opens on
+          hover or focus with a mouse; a phone has hardware keys for the level,
+          so there the glyph alone mutes.
+        -->
+        <div class="group/volume flex items-center">
+          <button
+            type="button"
+            data-testid="control-volume"
+            class="grid size-8 place-items-center rounded-lg text-white transition-colors duration-150 hover:text-accent sm:size-9"
+            :aria-label="muted ? $t('player.unmute') : $t('player.mute')"
+            @click="emit('toggleMute')"
+          >
+            <component
+              :is="shownVolume === 0 ? VolumeX : shownVolume < 50 ? Volume1 : Volume2"
+              :size="17"
+              aria-hidden="true"
+              class="sm:size-[18px]"
+            />
+          </button>
+          <input
+            data-testid="control-volume-range"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            :value="shownVolume"
+            :aria-label="$t('player.volume')"
+            class="volume-range w-0 cursor-pointer opacity-0 transition-[width,opacity,margin] duration-200 ease-out group-hover/volume:mr-1 group-hover/volume:w-20 group-hover/volume:opacity-100 group-focus-within/volume:mr-1 group-focus-within/volume:w-20 group-focus-within/volume:opacity-100"
+            @input="emit('setVolume', Number(($event.target as HTMLInputElement).value))"
+          >
         </div>
 
         <button
@@ -287,12 +271,7 @@ function handOver() {
       -->
       <PlayerSettingsMenu
         v-if="settingsOpen"
-        :rate="rate"
-        :rates="rates"
-        :quality-label="qualityLabel"
         :keybind-scope="keybindScope"
-        @set-rate="value => emit('setRate', value)"
-        @native-controls="handOver"
         @close="settingsOpen = false"
       />
     </div>
@@ -372,3 +351,51 @@ function handOver() {
     </div>
   </Transition>
 </template>
+
+<style scoped>
+/* The bar's own range: white thumb on a thin track, nothing of the OS's. */
+.volume-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.25rem;
+  background: transparent;
+}
+.volume-range::-webkit-slider-runnable-track {
+  height: 0.1875rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.3);
+}
+.volume-range::-moz-range-track {
+  height: 0.1875rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.3);
+}
+.volume-range::-moz-range-progress {
+  height: 0.1875rem;
+  border-radius: 999px;
+  background: var(--ui-accent);
+}
+.volume-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: -0.28125rem;
+  border-radius: 999px;
+  background: #fff;
+}
+.volume-range::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+/* A phone sets its level with hardware keys; the glyph alone mutes there. */
+@media (pointer: coarse) {
+  .volume-range {
+    display: none;
+  }
+}
+</style>

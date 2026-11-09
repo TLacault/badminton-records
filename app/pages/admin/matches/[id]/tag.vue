@@ -182,11 +182,14 @@ const stage = ref<{
   play: () => void
   pause: () => void
   changeVolume: (delta: number) => number
+  setVolume: (level: number) => number
+  toggleMute: () => void
+  volume: number
+  muted: boolean
   stepRate: (direction: 1 | -1) => number
   setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
-  enterNativeMode: () => void
   armBoost: () => void
   releaseBoost: () => boolean
   currentTime: number
@@ -194,7 +197,6 @@ const stage = ref<{
   isPlaying: boolean
   rate: number
   rates: number[]
-  quality: string | null
 } | null>(null)
 
 /** Timeline clicks resume playback: you clicked because you want to watch it. */
@@ -472,7 +474,8 @@ const saveLabel = computed(() => {
                 :duration="duration"
                 :rate="stage?.rate ?? 1"
                 :rates="stage?.rates ?? [1]"
-                :quality="stage?.quality ?? null"
+                :volume="stage?.volume ?? 100"
+                :muted="stage?.muted ?? false"
                 :timeline-visible="timeline.visible.value"
                 :volume-flash="playerKeys.volumeFlash.value"
                 :rate-flash="playerKeys.rateFlash.value"
@@ -481,7 +484,8 @@ const saveLabel = computed(() => {
                 @toggle="stage?.toggle()"
                 @toggle-fullscreen="stage?.toggleFullscreen()"
                 @set-rate="value => stage?.setRate(value)"
-                @native-controls="stage?.enterNativeMode()"
+                @set-volume="value => stage?.setVolume(value)"
+                @toggle-mute="stage?.toggleMute()"
               >
                 <template #timeline>
                   <PlayerMatchTimeline

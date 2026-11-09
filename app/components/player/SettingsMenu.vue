@@ -1,20 +1,13 @@
 <script setup lang="ts">
-import { EyeOff, Gauge, Keyboard, MonitorCog, Redo2, SlidersHorizontal } from '@lucide/vue'
+import { EyeOff, Keyboard, Redo2, SlidersHorizontal, X } from '@lucide/vue'
 import { NEVER_STOP, RANGE_STOPS } from '~/composables/usePlayerSettings'
 
 const props = defineProps<{
-  rate: number
-  rates: number[]
-  /** YouTube's raw level name, already turned into `720p` and friends. */
-  qualityLabel: string | null
   /** `player` hides the tagger's scoring and session keys. */
   keybindScope: 'all' | 'player'
 }>()
 
 const emit = defineEmits<{
-  setRate: [rate: number]
-  /** Stand our layer down so YouTube's own settings menu can be reached. */
-  nativeControls: []
   close: []
 }>()
 
@@ -29,7 +22,7 @@ const {
 
 // The chrome's idle timer counts pointer movement, and reading a list of
 // shortcuts involves none. Held for as long as the menu is mounted, released
-// however it closes — Escape, the gear, or the handover to YouTube.
+// however it closes — Escape, the gear, or the close button.
 onMounted(() => {
   chromeHeld.value = true
 })
@@ -53,11 +46,6 @@ const sections = computed(() => [
   { id: 'keyboard' as const, label: t('player.settingsKeyboard'), icon: Keyboard, desktopOnly: true },
 ])
 
-/** `1×` reads better than `1x`, and `0.5×` needs no trailing zero. */
-function rateLabel(value: number) {
-  return `${value}×`
-}
-
 /**
  * `0.5` → `0.5s`, `2` → `2s`. The half-steps need their decimal and the whole
  * ones must not carry a `.0`, or the scale reads as twice as many values.
@@ -70,12 +58,6 @@ const RANGE_LAST = RANGE_STOPS[RANGE_STOPS.length - 1]!
 
 /** The auto-hide scale, plus the "never" stop that sits one step past its top. */
 const hideStops = [...RANGE_STOPS, NEVER_STOP]
-
-const rateOpen = ref(false)
-function pickRate(value: number) {
-  emit('setRate', value)
-  rateOpen.value = false
-}
 
 /**
  * Escape closes the menu before anything else can have the key.
@@ -132,17 +114,19 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
   <div
     ref="panel"
     data-testid="settings-menu"
-    class="settings-panel pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl glass-menu sm:right-3 sm:w-[32rem]"
+    class="settings-panel dark glass-player pointer-events-auto absolute right-2 z-30 flex w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl text-ink sm:right-3 sm:w-[32rem]"
     role="dialog"
     :aria-label="$t('player.settings')"
   >
-    <div class="coarse-hide flex shrink-0 items-center gap-1 border-b border-line p-1">
+    <!-- On a touch screen the tabs go (one section is left) but the close
+         button stays: it is the obvious way out on a device with no Escape. -->
+    <div class="flex shrink-0 items-center gap-1 border-b border-line p-1">
       <button
         v-for="s in sections"
         :key="s.id"
         type="button"
         :data-testid="`settings-tab-${s.id}`"
-        class="min-h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
+        class="coarse-hide min-h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-150"
         :class="[
           s.desktopOnly ? 'hidden sm:inline-flex' : 'inline-flex',
           section === s.id ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink',
@@ -153,80 +137,26 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
         <component :is="s.icon" :size="13" aria-hidden="true" />
         {{ s.label }}
       </button>
+      <button
+        type="button"
+        data-testid="settings-close"
+        class="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors duration-150 hover:bg-white/10 hover:text-ink"
+        :aria-label="$t('player.close')"
+        @click="emit('close')"
+      >
+        <X :size="15" aria-hidden="true" />
+      </button>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3">
       <template v-if="section === 'options'">
-        <!--
-          Picture first: quality and speed are what a viewer reaches for during
-          a match. The two durations below are set once and then left alone.
-          Not on a touch screen, where both already sit in the bar as chips and
-          the panel has to fit over a video two hundred pixels tall.
-        -->
-        <div class="coarse-hide">
-          <p class="label text-[0.6875rem]">
-            {{ $t('player.picture') }}
-          </p>
-
-          <!--
-            The same handover the bar's chip performs. Quality cannot be set
-            through the API — every level passed to it is ignored — so the only
-            way in is YouTube's own menu, and the only way there is to stop
-            covering the player.
-          -->
-          <button
-            type="button"
-            data-testid="settings-quality"
-            class="mt-2 flex min-h-9 w-full items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
-            :title="$t('player.qualityHint')"
-            @click="emit('nativeControls')"
-          >
-            <MonitorCog :size="14" aria-hidden="true" />
-            {{ $t('player.quality') }}
-            <span class="ml-auto font-mono tabular-nums text-accent">{{ qualityLabel ?? $t('player.qualityAuto') }}</span>
-          </button>
-
-          <div class="mt-1.5">
-            <button
-              type="button"
-              data-testid="settings-rate"
-              class="flex min-h-9 w-full items-center gap-2 rounded-lg border border-line px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-accent/50 hover:text-ink"
-              :aria-expanded="rateOpen"
-              @click="rateOpen = !rateOpen"
-            >
-              <Gauge :size="14" aria-hidden="true" />
-              {{ $t('player.speed') }}
-              <span class="ml-auto font-mono tabular-nums text-accent">{{ rateLabel(rate) }}</span>
-            </button>
-
-            <!-- Inline rather than floating: a menu inside a menu that escapes
-                 its scroll container is a menu that lands off the frame. -->
-            <ul v-if="rateOpen" class="mt-1 grid grid-cols-4 gap-1 sm:grid-cols-8" role="listbox">
-              <li v-for="value in rates" :key="value">
-                <button
-                  type="button"
-                  role="option"
-                  :aria-selected="value === rate"
-                  class="w-full rounded-md border px-1 py-1.5 text-center font-mono text-xs tabular-nums transition-colors duration-100"
-                  :class="value === rate
-                    ? 'border-accent/50 bg-accent-soft text-accent'
-                    : 'border-line text-ink-muted hover:border-accent/40 hover:text-ink'"
-                  @click="pickRate(value)"
-                >
-                  {{ rateLabel(value) }}
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-
         <!--
           Two durations on the same scale and the same control, because they are
           the same kind of choice. A range rather than a row of chips: ten stops
           is too many to click through, and what is being picked is a length of
           time, which is what a slider is for.
         -->
-        <div class="first-slider mt-4 border-t border-line pt-3">
+        <div>
           <div class="flex items-baseline justify-between gap-2">
             <p class="label inline-flex items-center gap-1.5 text-[0.6875rem]">
               <Redo2 :size="12" aria-hidden="true" />
@@ -346,8 +276,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
 }
 
 /*
- * A touch screen gets the two sliders alone: the picture chips are in the bar,
- * the keyboard tab has no keyboard to serve, and the tick rows repeat the
+ * A touch screen gets the two sliders alone: the keyboard tab has no keyboard
+ * to serve, and the tick rows repeat the
  * value printed beside each label. Scoped selectors outrank the width
  * utilities, so the narrow panel holds in landscape too.
  */
@@ -358,12 +288,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
 
   .coarse-hide {
     display: none !important;
-  }
-
-  .first-slider {
-    margin-top: 0;
-    border-top: 0;
-    padding-top: 0;
   }
 }
 

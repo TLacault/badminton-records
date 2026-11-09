@@ -12,13 +12,12 @@ const { open, close } = usePlayerGuide()
 const { chromeHeld, menuOpen } = usePlayerSettings()
 
 /** Each step spotlights one thing, found by its test id. */
-const ALL_STEPS = ['frame', 'scoreboard', 'timeline', 'quality', 'settings', 'guide'] as const
+const ALL_STEPS = ['frame', 'scoreboard', 'timeline', 'settings', 'guide'] as const
 type StepId = typeof ALL_STEPS[number]
 const TARGETS: Record<StepId, string> = {
   frame: 'stage-frame',
   scoreboard: 'scoreboard',
   timeline: 'match-timeline',
-  quality: 'control-quality',
   settings: 'control-settings',
   guide: 'control-guide',
 }

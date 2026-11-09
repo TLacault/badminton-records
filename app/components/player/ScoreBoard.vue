@@ -42,6 +42,22 @@ const columns = computed(() => {
   return out
 })
 
+/**
+ * The moments the board marks: a set just closed, and the match just won.
+ *
+ * Both read off the rally on screen having *ended* — the board shows its
+ * `scoreAfter` only once play has passed it — so seeking backwards un-marks
+ * them, and nothing is announced before the video gets there.
+ */
+const rallyEnded = computed(() => {
+  const r = props.playback.rally
+  return !!r && props.playback.score[0] === r.scoreAfter[0] && props.playback.score[1] === r.scoreAfter[1]
+})
+const setJustEnded = computed(() => rallyEnded.value && !!props.playback.rally?.endedSet)
+const winnerSide = computed(() =>
+  rallyEnded.value && props.playback.rally?.endedMatch ? props.derived?.matchWinnerSide ?? null : null,
+)
+
 /** Doubles fields 1+2 against 3+4; singles just 1 against 3. */
 const sides = computed(() => {
   const slots = props.format === 'doubles' ? [[1, 2], [3, 4]] : [[1], [3]]
@@ -49,6 +65,7 @@ const sides = computed(() => {
     side: (i + 1) as 1 | 2,
     label: props.sideLabels[i + 1] ?? (i === 0 ? 'Us' : 'Opponents'),
     serving: props.playback.servingSide === i + 1,
+    won: winnerSide.value === i + 1,
     players: group.map(slot => ({
       slot,
       name: props.names[slot] ?? `Slot ${slot}`,
@@ -89,11 +106,16 @@ const gridStyle = computed(() => ({
     role="button"
     tabindex="0"
     :aria-label="mode === 'compact' ? $t('player.showNames') : $t('player.showSides')"
-    class="pointer-events-auto absolute left-1.5 top-1.5 max-w-[58%] cursor-pointer sm:left-3 sm:top-3 sm:max-w-none overflow-hidden rounded-lg sm:rounded-xl border border-white/12 bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 transition-[border-color] duration-200 hover:border-white/30 legible"
+    class="pointer-events-auto absolute left-1.5 top-1.5 max-w-[58%] cursor-pointer sm:left-3 sm:top-3 sm:max-w-none overflow-hidden rounded-lg sm:rounded-xl border bg-black/28 text-white backdrop-blur-md backdrop-saturate-150 transition-[border-color,box-shadow] duration-500 legible"
+    :class="winnerSide ? 'border-[var(--ui-accent)]/55 shadow-[0_0_28px_-8px_var(--ui-accent)]' : 'border-white/12 hover:border-white/30'"
     @click="toggle"
     @keydown.enter.prevent="toggle"
     @keydown.space.prevent="toggle"
   >
+    <!-- A light sweep across the glass: once when a set closes, once more
+         when the match does. Mounted for the moment, so it plays on arrival. -->
+    <span v-if="setJustEnded" :key="winnerSide ? 'match' : 'set'" class="board-sweep" aria-hidden="true" />
+
     <div class="relative px-1 py-0.5 sm:px-3 sm:py-2">
       <!-- Set numbers. Only earns its line once a second set exists. -->
       <div
@@ -105,7 +127,7 @@ const gridStyle = computed(() => ({
         <span
           v-for="column in columns"
           :key="column.number"
-          class="text-center font-display text-[0.4375rem] font-semibold uppercase tracking-[0.12em] sm:text-[0.625rem]"
+          class="set-in text-center font-display text-[0.4375rem] font-semibold uppercase tracking-[0.12em] sm:text-[0.625rem]"
           :class="column.live ? 'text-[var(--ui-accent)]' : 'text-white/45'"
         >S{{ column.number }}</span>
       </div>
@@ -119,7 +141,10 @@ const gridStyle = computed(() => ({
         <!-- Compact: one line per side. Expanded: the names that make it up. -->
         <div class="min-w-0 pr-0.5 sm:pr-2">
           <template v-if="mode === 'compact'">
-            <p class="flex items-center gap-1 truncate font-display text-[0.625rem] font-semibold uppercase tracking-[0.04em] sm:gap-1.5 sm:text-sm sm:tracking-[0.06em]">
+            <p
+              class="flex items-center gap-1 truncate font-display text-[0.625rem] font-semibold uppercase tracking-[0.04em] transition-colors duration-500 sm:gap-1.5 sm:text-sm sm:tracking-[0.06em]"
+              :class="s.won ? 'text-[var(--ui-accent)]' : ''"
+            >
               <Circle
                 :size="6"
                 class="shrink-0 transition-[color,filter] duration-200"
@@ -151,20 +176,22 @@ const gridStyle = computed(() => ({
                 v-if="p.club"
                 class="hidden shrink-0 rounded border border-white/25 px-1 font-mono text-[0.5625rem] font-semibold tracking-wide text-white/70 sm:inline"
               >{{ p.club }}</span>
-              <span class="truncate" :class="p.serving ? 'font-semibold' : 'text-white/80'">
+              <span class="truncate transition-colors duration-500" :class="s.won ? 'font-semibold text-[var(--ui-accent)]' : p.serving ? 'font-semibold' : 'text-white/80'">
                 {{ p.name }}
               </span>
             </p>
           </template>
         </div>
 
+        <!-- Keyed by value, so a point remounts the digit and it ticks up into
+             place; only the side that scored moves. -->
         <span
           v-for="column in columns"
           :key="column.number"
           :data-testid="column.live ? 'scoreboard-live' : undefined"
-          class="text-center font-display text-xs font-bold tabular-nums leading-none sm:text-xl"
+          class="set-in overflow-hidden text-center font-display text-xs font-bold tabular-nums leading-none transition-colors duration-500 sm:text-xl"
           :class="column.live ? 'text-accent' : 'text-white/60'"
-        >{{ column.score[s.side - 1] }}</span>
+        ><span :key="column.score[s.side - 1]" class="score-tick inline-block">{{ column.score[s.side - 1] }}</span></span>
       </div>
     </div>
 
@@ -180,3 +207,60 @@ const gridStyle = computed(() => ({
     </span>
   </div>
 </template>
+
+<style scoped>
+/*
+ * Three moments, each small: a point ticks the digit up, a new set's column
+ * fades in, and a set or match closing sends one sweep of light over the
+ * glass. Nothing loops; a board that moves on its own pulls the eye off the
+ * court. Off entirely for reduced motion, where the colour changes still say it.
+ */
+.board-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 0.14) 50%, transparent 70%);
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .score-tick {
+    animation: score-tick 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .set-in {
+    animation: set-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .board-sweep {
+    animation: board-sweep 1100ms cubic-bezier(0.4, 0, 0.2, 1) 120ms;
+  }
+}
+
+@keyframes score-tick {
+  from {
+    transform: translateY(55%);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+@keyframes set-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes board-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+}
+</style>

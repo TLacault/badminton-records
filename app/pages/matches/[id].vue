@@ -137,17 +137,19 @@ const stage = ref<{
   toggle: () => void
   seekBy: (delta: number) => void
   changeVolume: (delta: number) => number
+  setVolume: (level: number) => number
+  toggleMute: () => void
+  volume: number
+  muted: boolean
   stepRate: (direction: 1 | -1) => number
   setRate: (rate: number) => number
   toggleFullscreen: () => void
   wake: () => void
-  enterNativeMode: () => void
   armBoost: () => void
   releaseBoost: () => boolean
   isPlaying: boolean
   rate: number
   rates: number[]
-  quality: string | null
 } | null>(null)
 
 /**
@@ -332,7 +334,8 @@ useSeoMeta({
             :duration="playbackDuration"
             :rate="stage?.rate ?? 1"
             :rates="stage?.rates ?? [1]"
-            :quality="stage?.quality ?? null"
+            :volume="stage?.volume ?? 100"
+            :muted="stage?.muted ?? false"
             :timeline-visible="timeline.visible.value"
             :volume-flash="playerKeys.volumeFlash.value"
             :rate-flash="playerKeys.rateFlash.value"
@@ -342,7 +345,8 @@ useSeoMeta({
             @toggle="stage?.toggle()"
             @toggle-fullscreen="stage?.toggleFullscreen()"
             @set-rate="value => stage?.setRate(value)"
-            @native-controls="stage?.enterNativeMode()"
+            @set-volume="value => stage?.setVolume(value)"
+            @toggle-mute="stage?.toggleMute()"
           >
             <template #timeline>
               <PlayerMatchTimeline

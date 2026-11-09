@@ -276,7 +276,7 @@ function onPointerCancel() {
       data-testid="match-timeline"
       class="relative w-full cursor-pointer touch-none select-none overflow-hidden rounded-lg border transition-[border-color] duration-200 sm:rounded-xl"
       :class="overlay
-        ? 'h-9 border-white/20 bg-black/85 backdrop-blur-sm hover:border-white/40 sm:h-11'
+        ? 'glass-player h-9 hover:border-white/30 sm:h-11'
         : 'h-8 border-line bg-bg-deep hover:border-line-strong sm:h-10'"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
