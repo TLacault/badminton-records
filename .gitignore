@@ -31,3 +31,5 @@ logs
 # regenerable cache — see server/utils/reel.ts.
 .reel-cache
 .wrangler/
+.superpowers/
+brand/png/
