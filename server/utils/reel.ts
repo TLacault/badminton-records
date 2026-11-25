@@ -188,7 +188,7 @@ export async function loudnessPeaks(path: string, interval = 0.25): Promise<numb
 
 // ── Jobs ────────────────────────────────────────────────────────────────────
 
-export type JobKind = 'source' | 'music' | 'render'
+export type JobKind = 'source' | 'music' | 'render' | 'publish'
 export type JobState = 'running' | 'done' | 'error'
 
 export interface Job {

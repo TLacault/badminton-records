@@ -72,3 +72,31 @@ export interface BoardState {
   serving: Side | null
   winner: Side | null
 }
+
+/** What the editor sends to start a render. Everything numeric is re-clamped on the server. */
+export interface RenderRequest {
+  matchId: string
+  /** Key of the local source in .reel-cache/source/ (the YouTube id it was attached under). */
+  videoId: string
+  plan: {
+    segments: { from: number, to: number }[]
+    transitions: { at: number, kind: 'set' | 'break', title: string, score: string }[]
+    /** Body output time; `board` index into `boards`. */
+    scores: { from: number, to: number, board: number }[]
+    boards: BoardState[]
+    outroClips: { from: number, to: number }[]
+    outroSpeed: number
+    bodyDuration: number
+  }
+  intro: Record<string, string> | null
+  outro: Record<string, string> | null
+  colour: string
+  corner: Corner
+  /** Scoreboard and transition side labels. */
+  sides: [string, string]
+  crop: CropRect | null
+  outputHeight: number | null
+  draft: boolean
+  title: string
+  description: string
+}
