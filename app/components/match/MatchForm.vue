@@ -47,6 +47,10 @@ const form = reactive({
   // Nearly every match is filmed in the same hall.
   venue: 'Talence',
   match_type_id: null as string | null,
+  // Channel kit: what the YouTube title, thumbnail and intro card print.
+  event_name: null as string | null,
+  round: null as string | null,
+  category: null as 'men' | 'women' | 'mixed' | null,
   /**
    * Which personal details the public player table prints. Everything we have,
    * by default: a detail is only noise when the player has no value for it,
@@ -120,7 +124,8 @@ async function save() {
   // useSupabaseUser() holds JWT claims, not a User: the id is `sub`, and `.id`
   // is undefined. JwtPayload's index signature means `.id` type-checks anyway,
   // so this silently wrote null before.
-  const payload = { ...form, created_by: user.value?.sub ?? null }
+  const { publish_settings: _ps, ...rest } = form as typeof form & { publish_settings?: unknown }
+  const payload = { ...rest, created_by: user.value?.sub ?? null }
   if (!payload.played_on) payload.played_on = null
 
   const { data: saved, error: dbError } = props.matchId
@@ -167,8 +172,9 @@ async function autosave() {
   saveState.value = 'saving'
   error.value = null
 
-  const payload = { ...form }
+  const { publish_settings: _ps, ...payload } = form as typeof form & { publish_settings?: unknown }
   if (!payload.played_on) payload.played_on = null
+  for (const key of ['event_name', 'round'] as const) payload[key] = payload[key]?.trim() || null
 
   const { error: dbError } = await client
     .from('matches').update(payload).eq('id', props.matchId)
@@ -225,6 +231,16 @@ const saveLabel = computed(() => {
     default: return 'Up to date'
   }
 })
+
+const categoryOptions = [
+  { value: null as 'men' | 'women' | 'mixed' | null, label: 'Not set', icon: CircleDashed },
+  { value: 'men' as const, label: 'Hommes', icon: User },
+  { value: 'women' as const, label: 'Dames', icon: User },
+  { value: 'mixed' as const, label: 'Mixte', icon: Users },
+]
+
+/** The usual draw stages; free text still wins for anything else. */
+const ROUNDS = ['Poules', '1/16 de finale', '1/8 de finale', 'Quarts de finale', 'Demi-finale', 'Finale']
 
 const formatOptions = [
   { value: 'doubles' as MatchFormat, label: 'Doubles', icon: Users },
@@ -357,6 +373,21 @@ const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
             <NuxtLink to="/admin/match-types" class="text-accent hover:underline">Edit the list</NuxtLink>.
           </span>
         </div>
+        <div>
+          <span class="label">Category</span>
+          <UiSelect v-model="form.category" class="mt-2" label="Category" :options="categoryOptions" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">With the format: "Doubles hommes" on the YouTube video.</span>
+        </div>
+        <label class="block">
+          <span class="label">Event</span>
+          <input v-model="form.event_name" placeholder="Tournois des Vendanges" class="field mt-2">
+          <span class="mt-1.5 block text-xs text-ink-subtle">Tournaments and championships. The year comes from the date.</span>
+        </label>
+        <label class="block">
+          <span class="label">Round</span>
+          <input v-model="form.round" list="match-rounds" placeholder="Quarts de finale" class="field mt-2">
+          <datalist id="match-rounds"><option v-for="r in ROUNDS" :key="r" :value="r" /></datalist>
+        </label>
         <div>
           <span class="label">Visibility</span>
           <UiSelect v-model="form.visibility" data-testid="m-visibility" class="mt-2" label="Visibility" :options="visibilityOptions" />
