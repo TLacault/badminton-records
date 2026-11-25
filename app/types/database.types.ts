@@ -197,8 +197,10 @@ export type Database = {
       matches: {
         Row: {
           best_of: number
+          category: string | null
           created_at: string
           created_by: string | null
+          event_name: string | null
           format: string
           id: string
           imported_at: string | null
@@ -209,6 +211,8 @@ export type Database = {
           player_info_fields: string[]
           points_cap: number
           points_to_win: number
+          publish_settings: Json
+          round: string | null
           side1_right_court_slot: number | null
           side2_right_court_slot: number | null
           tagging_status: string
@@ -226,8 +230,10 @@ export type Database = {
         }
         Insert: {
           best_of?: number
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          event_name?: string | null
           format?: string
           id?: string
           imported_at?: string | null
@@ -238,6 +244,8 @@ export type Database = {
           player_info_fields?: string[]
           points_cap?: number
           points_to_win?: number
+          publish_settings?: Json
+          round?: string | null
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
           tagging_status?: string
@@ -255,8 +263,10 @@ export type Database = {
         }
         Update: {
           best_of?: number
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          event_name?: string | null
           format?: string
           id?: string
           imported_at?: string | null
@@ -267,6 +277,8 @@ export type Database = {
           player_info_fields?: string[]
           points_cap?: number
           points_to_win?: number
+          publish_settings?: Json
+          round?: string | null
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
           tagging_status?: string
