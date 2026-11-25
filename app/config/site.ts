@@ -62,11 +62,11 @@ export const site = {
      * `<brand> · <page>`, so pages set only their own half and this word is
      * written once rather than repeated at the end of a dozen page titles.
      */
-    brand: "Bad Records",
+    brand: "Badminton Records",
     /**
      * The landing page's half — the one page whose subject is the site
      * itself. Composed the same way as any other, giving
-     * "Bad Records · Tim Lacault".
+     * "Badminton Records · Tim Lacault".
      */
     title: {
       fr: "Tim Lacault",

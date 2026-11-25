@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Pencil, Tag } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Pencil, Tag } from '@lucide/vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -27,14 +27,20 @@ const id = route.params.id as string
           Match
         </h1>
       </div>
-      <NuxtLink
-        data-testid="open-tagger"
-        :to="`/admin/matches/${id}/tag`"
-        class="btn btn-primary"
-      >
-        <Tag :size="16" aria-hidden="true" />
-        Open tagging tool
-      </NuxtLink>
+      <div class="flex flex-wrap gap-2">
+        <NuxtLink
+          data-testid="open-tagger"
+          :to="`/admin/matches/${id}/tag`"
+          class="btn btn-primary"
+        >
+          <Tag :size="16" aria-hidden="true" />
+          Open tagging tool
+        </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${id}/publish`" class="btn btn-ghost">
+          <Clapperboard :size="16" aria-hidden="true" />
+          YouTube version
+        </NuxtLink>
+      </div>
     </div>
 
     <MatchForm class="mt-8" :match-id="id" />

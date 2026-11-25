@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { site } from "~/config/site";
-
 withDefaults(
   defineProps<{
     /** `mark` is the emblem alone; `lockup` is the full club logo with its
@@ -18,24 +16,23 @@ withDefaults(
 <template>
   <span class="inline-flex items-center gap-2.5">
     <!--
-      The club emblem is white line art. Inverting it in light mode is the only
-      way to keep the official shape untouched while staying legible on paper;
-      recolouring the file would fork the asset per theme.
+      The Badminton Records mark (brand/png/logo.png, trimmed). Full colour with
+      its own dark outline, so it reads on both themes without inverting.
     -->
     <img
       :src="assetUrl('/brand/logo-mark.png')"
-      :alt="`${site.club.name} logo`"
-      :class="[size, 'w-auto shrink-0 invert dark:invert-0']"
-      :width="variant === 'lockup' ? 477 : 443"
-      :height="variant === 'lockup' ? 563 : 268"
+      alt="Badminton Records"
+      :class="[size, 'w-auto shrink-0']"
+      width="495"
+      height="512"
       decoding="async"
     />
     <span
       v-if="wordmark && variant === 'mark'"
       class="font-display text-[0.95rem] font-bold uppercase leading-none tracking-[0.14em]"
     >
-      <span class="text-ink">Tim Lacault</span>
-      <span class="ml-1 text-accent">UST</span>
+      <span class="text-ink">Badminton</span>
+      <span class="ml-1 text-accent">Records</span>
     </span>
   </span>
 </template>
