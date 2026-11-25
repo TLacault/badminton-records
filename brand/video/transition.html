@@ -1,0 +1,69 @@
+<!doctype html>
+<html
+  lang="fr"
+  data-composition-variables='[
+    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"kind","type":"enum","label":"Kind","default":"set","options":[{"value":"set","label":"End of set"},{"value":"break","label":"Break"}]},
+    {"id":"title","type":"string","label":"Title","default":"FIN DU SET 1"},
+    {"id":"score","type":"string","label":"Score","default":"21 – 17"},
+    {"id":"names","type":"string","label":"Sides","default":"TIM & ADRIEN · THOMAS & ANTHONY"}
+  ]'
+>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Barlow Condensed BR"; src: url("assets/fonts/BarlowCondensed-BlackItalic.ttf"); font-weight: 900; font-style: italic; }
+  @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
+  html, body { margin: 0; background: transparent; }
+  /* Transparent: laid over the cut, which lands at 1.0 s while the frame is covered. */
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; --c: #cb2543; color: #fff; }
+  .slash { position: absolute; top: -300px; height: 1680px; }
+  #card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #logo { height: 220px; }
+  #title { margin-top: 10px; font: italic 700 54px/1 "Poppins BR"; letter-spacing: 4px; }
+  #score { font: italic 900 230px/0.9 "Barlow Condensed BR"; letter-spacing: 4px; }
+  #names { font: italic 700 36px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="transition" data-start="0" data-duration="2" data-width="1920" data-height="1080" data-fps="30">
+  <div id="wipe" data-layout-allow-overflow data-layout-ignore>
+    <div class="slash" id="b" style="left:-200px;width:2700px;background:#08070a"></div>
+    <div class="slash" id="a" style="left:-200px;width:500px;background:var(--c)"></div>
+    <div class="slash" id="c" style="left:-200px;width:160px;background:var(--c)"></div>
+  </div>
+  <div id="card">
+    <img id="logo" src="assets/logo.png" alt="">
+    <div id="title" data-var-text="title">FIN DU SET 1</div>
+    <div id="score" data-var-text="score">21 – 17</div>
+    <div id="names" data-var-text="names">TIM &amp; ADRIEN · THOMAS &amp; ANTHONY</div>
+  </div>
+</div>
+<script src="assets/gsap-3.14.2.min.js"></script>
+<script>
+  const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+  const root = document.getElementById("root");
+  if (v.colour) root.style.setProperty("--c", v.colour);
+  const isSet = (v.kind || "set") === "set";
+  if (!isSet) for (const id of ["title", "score", "names"]) document.getElementById(id).style.display = "none";
+
+  const tl = gsap.timeline({ paused: true });
+  // In: colour leads, ink covers the frame by 0.5 s; the cut happens under it at 1.0 s.
+  tl.fromTo("#a", { x: -900, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.7, ease: "power3.inOut" }, 0);
+  tl.fromTo("#b", { x: -3400, skewX: -24 }, { x: -200, skewX: -24, duration: 0.5, ease: "power3.inOut" }, 0.05);
+  // A set end holds the card longer than a plain break.
+  const hold = isSet ? 1.3 : 1.1;
+  tl.fromTo("#logo", { scale: 1.8, opacity: 0, filter: "blur(10px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "expo.out" }, 0.4);
+  if (isSet) {
+    tl.fromTo("#title", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.5);
+    tl.fromTo("#score", { scale: 1.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: "expo.out" }, 0.55);
+    tl.fromTo("#names", { opacity: 0 }, { opacity: 0.85, duration: 0.2, ease: "power2.out" }, 0.65);
+  }
+  tl.to("#card", { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power2.in" }, hold);
+  // Out: the ink leaves to the right, a thin colour slash chases it.
+  tl.to("#b", { x: 2600, skewX: -24, duration: 0.55, ease: "power3.inOut" }, hold + 0.05);
+  tl.fromTo("#c", { x: -600, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.55, ease: "power3.inOut" }, hold);
+  window.__timelines["transition"] = tl;
+</script>
+</body>
+</html>

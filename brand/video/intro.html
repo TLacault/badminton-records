@@ -1,0 +1,129 @@
+<!doctype html>
+<html
+  lang="fr"
+  data-composition-variables='[
+    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
+    {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
+    {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
+    {"id":"s1a","type":"string","label":"Side 1 player 1","default":"TIM LACAULT"},
+    {"id":"s1b","type":"string","label":"Side 1 player 2","default":"ADRIEN ROUX"},
+    {"id":"s2a","type":"string","label":"Side 2 player 1","default":"THOMAS MARTIN"},
+    {"id":"s2b","type":"string","label":"Side 2 player 2","default":"ANTHONY LEROY"},
+    {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"}
+  ]'
+>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Barlow Condensed BR"; src: url("assets/fonts/BarlowCondensed-BlackItalic.ttf"); font-weight: 900; font-style: italic; }
+  @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
+  html, body { margin: 0; background: #08070a; }
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
+  .full { position: absolute; inset: 0; }
+  #bg-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  #shade { background: radial-gradient(70% 70% at 50% 45%, rgba(8,7,10,.55), rgba(8,7,10,.92)); }
+  .slash { position: absolute; top: -200px; height: 1480px; background: var(--c); }
+  #brand { position: absolute; left: 0; right: 0; top: 230px; display: flex; flex-direction: column; align-items: center; }
+  #logo { height: 400px; }
+  #word { margin-top: 18px; font: italic 900 120px/0.86 "Barlow Condensed BR"; text-transform: uppercase; text-align: center; letter-spacing: .01em; }
+  #word span { display: inline-block; }
+  #word .red { color: var(--c); }
+  #card { position: absolute; inset: 0; }
+  #tag { position: absolute; left: 0; top: 96px; padding: 14px 70px 12px 120px; background: var(--c); font: italic 700 44px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 40px) 100%, 0 100%); }
+  #event { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font: italic 700 64px/1.1 "Poppins BR"; letter-spacing: 2px; }
+  #detail { position: absolute; left: 0; right: 0; top: 335px; text-align: center; font: italic 700 40px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
+  #versus { position: absolute; left: 0; right: 0; top: 450px; display: grid; grid-template-columns: 1fr 220px 1fr; align-items: center; }
+  .side { font: italic 900 104px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
+  #side1 { text-align: right; }
+  #side2 { text-align: left; color: var(--c); }
+  #vs { text-align: center; font: italic 900 150px/1 "Barlow Condensed BR"; color: #fff; -webkit-text-stroke: 0; }
+  #place { position: absolute; right: 0; top: 880px; padding: 22px 120px 20px 90px; background: var(--c); font: italic 700 40px/1 "Poppins BR"; letter-spacing: 3px; clip-path: polygon(40px 0, 100% 0, 100% 100%, 0 100%); }
+  #corner { position: absolute; left: 60px; top: 60px; height: 0; }
+  #wipe .slash { top: -300px; height: 1680px; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="intro" data-start="0" data-duration="6" data-width="1920" data-height="1080" data-fps="30">
+  <div id="bg-wrap" class="full"><img id="bg" src="assets/background.jpg" alt=""></div>
+  <div id="shade" class="full"></div>
+
+  <div id="slashes" class="full" data-layout-allow-overflow data-layout-ignore>
+    <div class="slash" id="sl1" style="left:-260px;width:240px"></div>
+    <div class="slash" id="sl2" style="left:-120px;width:60px;opacity:.6"></div>
+    <div class="slash" id="sl3" style="right:-260px;width:240px"></div>
+    <div class="slash" id="sl4" style="right:-120px;width:60px;opacity:.6"></div>
+  </div>
+
+  <div id="brand">
+    <img id="logo" src="assets/logo.png" alt="">
+    <div id="word"><span id="w1">Badminton</span> <span id="w2" class="red">Records</span></div>
+  </div>
+
+  <div id="card">
+    <div id="tag"><span id="tag-t" data-var-text="tag">TOURNOIS</span></div>
+    <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
+    <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
+    <div id="versus">
+      <div id="side1" class="side"><div id="s1a" data-var-text="s1a">TIM LACAULT</div><div id="s1b" data-var-text="s1b">ADRIEN ROUX</div></div>
+      <div id="vs">VS</div>
+      <div id="side2" class="side"><div id="s2a" data-var-text="s2a">THOMAS MARTIN</div><div id="s2b" data-var-text="s2b">ANTHONY LEROY</div></div>
+    </div>
+    <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
+  </div>
+
+  <div id="wipe" class="full" data-layout-allow-overflow data-layout-ignore>
+    <div class="slash" id="wp1" style="left:0;width:900px"></div>
+    <div class="slash" id="wp2" style="left:-300px;width:2600px;background:#08070a"></div>
+  </div>
+</div>
+
+<script src="assets/gsap-3.14.2.min.js"></script>
+<script>
+  const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+  const root = document.getElementById("root");
+  if (v.colour) root.style.setProperty("--c", v.colour);
+  // Empty lines collapse: singles have one name a side, a free-play card has no event.
+  for (const id of ["s1b", "s2b", "event", "place"]) {
+    const el = document.getElementById(id);
+    if (id in v && !String(v[id]).trim()) el.style.display = "none";
+  }
+
+  const tl = gsap.timeline({ paused: true });
+  // The hall behind, pushed in slowly the whole time.
+  tl.fromTo("#bg", { scale: 1.08 }, { scale: 1.0, duration: 6, ease: "none" }, 0);
+
+  // Brush slashes sweep in from both edges.
+  tl.fromTo("#sl1", { x: -500, skewX: -24 }, { x: 160, skewX: -24, duration: 0.5, ease: "expo.out" }, 0.05);
+  tl.fromTo("#sl2", { x: -500, skewX: -24 }, { x: 340, skewX: -24, duration: 0.55, ease: "expo.out" }, 0.12);
+  tl.fromTo("#sl3", { x: 500, skewX: -24 }, { x: -160, skewX: -24, duration: 0.5, ease: "expo.out" }, 0.05);
+  tl.fromTo("#sl4", { x: 500, skewX: -24 }, { x: -340, skewX: -24, duration: 0.55, ease: "expo.out" }, 0.12);
+
+  // Logo slams in, the name snaps under it.
+  tl.fromTo("#logo", { scale: 2.6, opacity: 0, filter: "blur(16px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.35, ease: "expo.out" }, 0.3);
+  tl.fromTo("#brand", { x: 0 }, { x: 0, keyframes: [{ x: -10, duration: 0.04 }, { x: 8, duration: 0.04 }, { x: -4, duration: 0.04 }, { x: 0, duration: 0.04 }] }, 0.62);
+  tl.fromTo("#w1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.72);
+  tl.fromTo("#w2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.8);
+
+  // The brand clears the stage for the card; the slashes widen into a frame.
+  tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 1.9);
+  tl.to(["#sl1", "#sl3"], { opacity: 0.35, duration: 0.4, ease: "power2.inOut" }, 1.9);
+
+  // Match card.
+  tl.fromTo("#tag", { x: -700 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.15);
+  tl.fromTo("#event", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.3);
+  tl.fromTo("#detail", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.4);
+  tl.fromTo("#side1", { x: -900, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 2.5);
+  tl.fromTo("#side2", { x: 900, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 2.5);
+  tl.fromTo("#vs", { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "expo.out" }, 2.75);
+  tl.fromTo("#place", { x: 900 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.9);
+
+  // Out: a colour wipe covers the frame and the match cuts in behind it.
+  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.55, ease: "power3.in" }, 5.3);
+  // Ink follows the colour and holds the last frames dark: the match cuts in from black.
+  tl.fromTo("#wp2", { x: -3200, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, 5.42);
+
+  window.__timelines["intro"] = tl;
+</script>
+</body>
+</html>

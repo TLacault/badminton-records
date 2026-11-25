@@ -1,0 +1,80 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          ".superpowers/brainstorm/996747-1795586450/content/thumbnail-layout.html"
+        ],
+        "createdAt": "2026-11-25T06:01:33.402Z",
+        "reason": "Claude: the overflow:hidden box is the 1280x720 thumbnail canvas, cropping is the point"
+      },
+      {
+        "rule": "all-caps-body",
+        "value": "*",
+        "files": [
+          ".superpowers/brainstorm/996747-1795586450/content/thumbnail-layout.html"
+        ],
+        "createdAt": "2026-11-25T06:01:54.888Z",
+        "reason": "Claude: uppercase is short thumbnail labels (names, tag, event line), esport display type, not body text"
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "brand/video/intro.html"
+        ],
+        "createdAt": "2026-11-25T22:33:55.354Z",
+        "reason": "Claude: 1920x1080 video frame, clipping at the frame edge is the point"
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "brand/video/transition.html"
+        ],
+        "createdAt": "2026-11-25T22:35:09.322Z",
+        "reason": "Claude: transparent 1920x1080 video overlay; text renders on the ink wipe, the frame edge clips by design"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "brand/video/transition.html"
+        ],
+        "createdAt": "2026-11-25T22:35:09.330Z",
+        "reason": "Claude: transparent 1920x1080 video overlay; text renders on the ink wipe, the frame edge clips by design"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "brand/video/outro.html"
+        ],
+        "createdAt": "2026-11-25T22:36:12.805Z",
+        "reason": "Claude: transparent video overlay; text renders over darkened footage, the static checker sees white on nothing"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "brand/video/scoreboard.html"
+        ],
+        "createdAt": "2026-11-25T22:37:00.474Z",
+        "reason": "Claude: transparent video overlay frames, text sits on the board's ink fill"
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "brand/video/scoreboard.html"
+        ],
+        "createdAt": "2026-11-25T22:37:00.482Z",
+        "reason": "Claude: transparent video overlay frames, text sits on the board's ink fill"
+      }
+    ]
+  }
+}

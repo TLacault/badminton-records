@@ -1,0 +1,98 @@
+<!doctype html>
+<html
+  lang="fr"
+  data-composition-variables='[
+    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"s1","type":"string","label":"Side 1","default":"TIM & ADRIEN"},
+    {"id":"s2","type":"string","label":"Side 2","default":"THOMAS & ANTHONY"},
+    {"id":"corner","type":"enum","label":"Corner","default":"tl","options":[{"value":"tl","label":"Top left"},{"value":"tr","label":"Top right"},{"value":"bl","label":"Bottom left"},{"value":"br","label":"Bottom right"}]},
+    {"id":"states","type":"string","label":"Boards (JSON)","default":"[{\"sets\":[[0,0]],\"serving\":1,\"winner\":null},{\"sets\":[[1,0]],\"serving\":1,\"winner\":null},{\"sets\":[[21,17],[3,5]],\"serving\":2,\"winner\":null}]"}
+  ]'
+>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Barlow Condensed BR"; src: url("assets/fonts/BarlowCondensed-BlackItalic.ttf"); font-weight: 900; font-style: italic; }
+  @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
+  html, body { margin: 0; background: transparent; }
+  /*
+   * A still per frame: frame i is board i. The render reads them as a PNG
+   * sequence and ffmpeg shows each for as long as that score stands.
+   */
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; --c: #cb2543; color: #fff; }
+  .board { position: absolute; display: grid; grid-template-columns: 14px auto auto; background: rgba(8, 7, 10, .86); opacity: 0; }
+  .tl { left: 48px; top: 44px; } .tr { right: 48px; top: 44px; } .bl { left: 48px; bottom: 44px; } .br { right: 48px; bottom: 44px; }
+  .bar { grid-row: span 2; background: var(--c); }
+  .name { display: flex; align-items: center; gap: 14px; padding: 0 26px 0 20px; height: 62px; font: italic 700 30px/1 "Poppins BR"; letter-spacing: 1.5px; text-transform: uppercase; }
+  .serve { width: 14px; height: 14px; border-radius: 50%; background: var(--c); flex: none; }
+  .serve.off { background: transparent; }
+  .cells { display: flex; }
+  .cell { width: 64px; height: 62px; display: grid; place-items: center; font: italic 900 46px/1 "Barlow Condensed BR"; color: rgba(255,255,255,.5); }
+  .cell.live { background: var(--c); color: #fff; }
+  .cell.won { color: #fff; }
+  .row2 { border-top: 2px solid rgba(255,255,255,.08); }
+  .winner .name { color: var(--c); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="scoreboard" data-start="0" data-duration="320" data-width="1920" data-height="1080" data-fps="1">
+  <div id="boards"></div>
+</div>
+<script src="assets/gsap-3.14.2.min.js"></script>
+<script>
+  const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+  const root = document.getElementById("root");
+  if (v.colour) root.style.setProperty("--c", v.colour);
+  const corner = ["tl", "tr", "bl", "br"].includes(v.corner) ? v.corner : "tl";
+  const states = JSON.parse(v.states || "[]");
+  const names = [v.s1 || "", v.s2 || ""];
+  const host = document.getElementById("boards");
+
+  // Generated, not authored: one board per score, a stack the timeline flips through.
+  states.forEach((st, i) => {
+    const b = document.createElement("div");
+    b.className = `board ${corner}`;
+    b.id = `b${i}`;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    b.appendChild(bar);
+    for (const side of [0, 1]) {
+      const name = document.createElement("div");
+      name.className = "name" + (side ? " row2" : "") + (st.winner === side + 1 ? " winner" : "");
+      const dot = document.createElement("span");
+      dot.className = "serve" + (st.serving === side + 1 && !st.winner ? "" : " off");
+      name.appendChild(dot);
+      name.appendChild(document.createTextNode(names[side]));
+      b.appendChild(name);
+      const cells = document.createElement("div");
+      cells.className = "cells" + (side ? " row2" : "");
+      st.sets.forEach((score, k) => {
+        const live = k === st.sets.length - 1 && !st.winner;
+        const c = document.createElement("div");
+        c.className = "cell" + (live ? " live" : score[side] > score[1 - side] ? " won" : "");
+        c.textContent = String(score[side]);
+        cells.appendChild(c);
+      });
+      b.appendChild(cells);
+    }
+    // name, cells for side 1 then side 2: place them on the grid's two rows
+    host.appendChild(b);
+  });
+  // Grid: bar | names | cells, two rows.
+  for (const b of host.children) {
+    const [bar, n1, c1, n2, c2] = b.children;
+    n1.style.gridRow = "1"; c1.style.gridRow = "1"; n2.style.gridRow = "2"; c2.style.gridRow = "2";
+    n1.style.gridColumn = n2.style.gridColumn = "2"; c1.style.gridColumn = c2.style.gridColumn = "3";
+    bar.style.gridColumn = "1"; bar.style.gridRow = "1 / span 2";
+  }
+
+  const tl = gsap.timeline({ paused: true });
+  states.forEach((_, i) => {
+    tl.set(`#b${i}`, { opacity: 1 }, i);
+    tl.set(`#b${i}`, { opacity: 0 }, i + 1);
+  });
+  tl.set({}, {}, 320);
+  window.__timelines["scoreboard"] = tl;
+</script>
+</body>
+</html>
