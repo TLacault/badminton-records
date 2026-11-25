@@ -74,6 +74,42 @@
         ],
         "createdAt": "2026-11-25T22:37:00.482Z",
         "reason": "Claude: transparent video overlay frames, text sits on the board's ink fill"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/intro.html"
+        ],
+        "createdAt": "2026-11-25T22:45:25.923Z",
+        "reason": "Claude: tracked text is short uppercase broadcast labels (tags, names, event lines) in a video overlay, not body copy"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/transition.html"
+        ],
+        "createdAt": "2026-11-25T22:45:25.932Z",
+        "reason": "Claude: tracked text is short uppercase broadcast labels (tags, names, event lines) in a video overlay, not body copy"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/outro.html"
+        ],
+        "createdAt": "2026-11-25T22:45:25.940Z",
+        "reason": "Claude: tracked text is short uppercase broadcast labels (tags, names, event lines) in a video overlay, not body copy"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "brand/video/outro.html"
+        ],
+        "createdAt": "2026-11-25T22:45:25.948Z",
+        "reason": "Claude: the family-colour bar is the broadcast device shared with the scoreboard and Tim's thumbnail bands"
       }
     ]
   }
