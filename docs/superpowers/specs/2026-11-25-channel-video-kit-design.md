@@ -71,7 +71,7 @@ the editor, adjusts trim/crop/text, clicks render, and gets an upload-ready fold
 
 ### Families (colour-coded, French copy)
 
-| Family | Colour | Template | Match types mapped (my call, see open points) |
+| Family | Colour | Template | Match types mapped (my call) |
 |---|---|---|---|
 | Tournois | `#CB2543` | `brand/thumbnail/tournois.png` | `tournament`, `championship` |
 | Interclub | `#537EFF` | `brand/thumbnail/interclub.png` | `interclubs` |
