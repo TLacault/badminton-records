@@ -220,6 +220,15 @@
         ],
         "createdAt": "2026-11-26T02:54:29.752Z",
         "reason": "Claude: Tim asked for a HIGHLIGHTS title 'with flare' in the video openers; the glow and the white shine sweep are that flare, rendered to video, not UI chrome"
+      },
+      {
+        "rule": "radial-spotlight-glow",
+        "value": "*",
+        "files": [
+          "brand/video/short-frame.html"
+        ],
+        "createdAt": "2026-11-26T04:19:06.793Z",
+        "reason": "Claude: Tim asked for slowly moving, glowing, floating elements in the portrait bands during highlights; the drifting colour glows are that ambient layer in a video frame, kept dim on purpose"
       }
     ]
   }
