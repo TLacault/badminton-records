@@ -31,7 +31,7 @@ interface VideosResponse {
   items: Array<{
     id: string
     contentDetails: { duration: string }
-    snippet?: { thumbnails?: Record<string, { url: string, width: number }> }
+    snippet?: { title?: string, thumbnails?: Record<string, { url: string, width: number }> }
   }>
 }
 
@@ -48,9 +48,13 @@ export function parseIsoDuration(iso: string): number | null {
   )
 }
 
-/** Widest thumbnail on offer; YouTube omits the larger sizes on older uploads. */
-function bestThumbnail(thumbnails?: Record<string, { url: string, width: number }>) {
-  const all = Object.values(thumbnails ?? {})
+/**
+ * Widest thumbnail on offer; YouTube omits the larger sizes on older uploads.
+ * Capped at 1280: a 2560 custom thumbnail makes the API list `qhddefault.jpg`,
+ * which the CDN answers with a 404 placeholder.
+ */
+export function bestThumbnail(thumbnails?: Record<string, { url: string, width: number }>) {
+  const all = Object.values(thumbnails ?? {}).filter(t => t.width <= 1280)
   if (!all.length) return null
   return all.reduce((a, b) => (b.width > a.width ? b : a)).url
 }
@@ -130,6 +134,7 @@ export async function attachDetails(videos: ChannelVideo[], key: string) {
       if (!item) continue
       v.durationSeconds = parseIsoDuration(item.contentDetails.duration)
       v.thumbnailUrl = bestThumbnail(item.snippet?.thumbnails) ?? v.thumbnailUrl
+      v.title = item.snippet?.title ?? v.title
     }
   }
   return videos

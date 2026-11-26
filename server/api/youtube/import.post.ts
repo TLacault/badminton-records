@@ -10,8 +10,9 @@ import {
  *
  * Idempotent: existing rows keep everything an admin can edit. Re-running
  * after a match was retitled or tagged must not clobber that, so the only
- * columns touched on a known video are the thumbnail and duration — which
- * YouTube fills in late when a video is imported while still processing.
+ * columns touched on a known video are the ones YouTube owns: the thumbnail
+ * and duration (filled in late while a video processes) and `youtube_title`
+ * (renamed by the publish flow). The admin's own `title` is never touched.
  * The unique index on `youtube_video_id` is the insert backstop.
  */
 export default defineEventHandler(async (event) => {
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: existing } = await client
     .from('matches')
-    .select('id, youtube_video_id, youtube_thumbnail_url, youtube_duration_seconds')
+    .select('id, youtube_video_id, youtube_title, youtube_thumbnail_url, youtube_duration_seconds')
     .not('youtube_video_id', 'is', null)
   const known = new Map((existing ?? []).map(r => [r.youtube_video_id!, r]))
 
@@ -56,8 +57,10 @@ export default defineEventHandler(async (event) => {
     if (!row) return []
     const thumb = v.thumbnailUrl ?? row.youtube_thumbnail_url
     const duration = v.durationSeconds ?? row.youtube_duration_seconds
+    const title = v.title || row.youtube_title
     return thumb !== row.youtube_thumbnail_url || duration !== row.youtube_duration_seconds
-      ? [{ id: row.id, youtube_thumbnail_url: thumb, youtube_duration_seconds: duration }]
+      || title !== row.youtube_title
+      ? [{ id: row.id, youtube_title: title, youtube_thumbnail_url: thumb, youtube_duration_seconds: duration }]
       : []
   })
   for (const { id, ...patch } of stale) {

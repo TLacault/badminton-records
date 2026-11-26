@@ -13,12 +13,13 @@ const client = useSupabaseClient<Database>()
 type AdminMatch = ListRow & {
   visibility: string
   youtube_video_id: string | null
+  youtube_title: string | null
 }
 
 const { data: matches, refresh } = await useAsyncData('admin-matches', async () => {
   const { data } = await client
     .from('matches')
-    .select(`${LIST_SELECT}, visibility, youtube_video_id`)
+    .select(`${LIST_SELECT}, visibility, youtube_video_id, youtube_title`)
     .order('played_on', { ascending: false, nullsFirst: false })
   return (data ?? []) as unknown as AdminMatch[]
 }, {
@@ -231,9 +232,9 @@ async function setTaggingStatus(id: string, next: string) {
             </div>
 
             <div class="pointer-events-none min-w-0 flex-1 basis-64">
-              <!-- The fixture from the roster, not the YouTube upload name. -->
+              <!-- The name the video carries on YouTube; the roster fixture when there is none. -->
               <p class="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
-                {{ title }}
+                {{ m.youtube_title || title }}
               </p>
               <!-- No date and no venue: the session header above carries both
                    for the whole evening, and repeating them per row printed a
