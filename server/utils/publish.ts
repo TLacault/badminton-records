@@ -1,5 +1,5 @@
 import type { RenderRequest } from '~~/shared/publish'
-import type { ReelBrand } from '~~/shared/reel'
+import type { Orientation, ReelBrand } from '~~/shared/reel'
 import type { SourceFacts } from './publishFfmpeg'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -58,7 +58,7 @@ type Report = (progress: number | null, message?: string) => void
  * intro of a match re-renders only when its card text changes.
  */
 async function hyperframes(
-  composition: 'intro' | 'outro' | 'transition' | 'scoreboard' | 'short-intro' | 'short-outro' | 'short-frame',
+  composition: 'intro' | 'outro' | 'transition' | 'scoreboard' | 'short-intro' | 'short-outro' | 'short-frame' | 'wide-outro',
   variables: Record<string, string>,
   format: 'mp4' | 'mov' | 'png-sequence',
   report: Report,
@@ -110,11 +110,19 @@ export function sanitiseBrand(raw: Partial<ReelBrand> | null | undefined): ReelB
 }
 
 /**
- * The vertical reel's branding for one match: the still behind the clips and
- * the two quick bookends. Each is cached on its text, so only the first call
- * for a match draws anything. Returns file names in HF_CACHE (no extension).
+ * A clip's branding for one match: portrait gets the still behind the clips and
+ * the quick brand + HIGHLIGHTS intro, landscape the YouTube intro with
+ * HIGHLIGHTS on its brand beat (the clip fills the picture, so no still).
+ * Each piece is cached on its text, so only the first call draws anything.
+ * Returns file names in HF_CACHE (no extension).
  */
-export async function reelBrand(brand: ReelBrand, report: Report = () => {}) {
+export async function reelBrand(brand: ReelBrand, orientation: Orientation, report: Report = () => {}) {
+  const name = (path: string | null) => path && path.slice(HF_CACHE.length + 1).replace(/\.(mp4|png)$/, '')
+  if (orientation === 'landscape') {
+    const intro = await hyperframes('intro', { ...brand.intro, highlights: 'HIGHLIGHTS', colour: brand.colour }, 'mp4', report)
+    const outro = await hyperframes('wide-outro', { ...brand.outro, colour: brand.colour }, 'mp4', report)
+    return { frame: null, intro: name(intro)!, outro: name(outro)!, paths: { frame: null, intro, outro } }
+  }
   const frameDir = await hyperframes('short-frame', { ...brand.frame, colour: brand.colour }, 'png-sequence', report, ['--fps', '1'])
   const framePng = `${frameDir}.png`
   if (!(await exists(framePng))) {
@@ -122,10 +130,9 @@ export async function reelBrand(brand: ReelBrand, report: Report = () => {}) {
     if (!first) throw new Error('The frame render produced no picture')
     await copyFile(join(frameDir, first), framePng)
   }
-  const intro = await hyperframes('short-intro', { ...brand.intro, colour: brand.colour }, 'mp4', report)
+  const intro = await hyperframes('short-intro', { colour: brand.colour }, 'mp4', report)
   const outro = await hyperframes('short-outro', { ...brand.outro, colour: brand.colour }, 'mp4', report)
-  const name = (path: string) => path.slice(HF_CACHE.length + 1).replace(/\.(mp4|png)$/, '')
-  return { frame: name(framePng), intro: name(intro), outro: name(outro), paths: { frame: framePng, intro, outro } }
+  return { frame: name(framePng), intro: name(intro)!, outro: name(outro)!, paths: { frame: framePng, intro, outro } }
 }
 
 const optional = async (path: string) => (await exists(path) ? path : null)

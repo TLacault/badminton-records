@@ -142,6 +142,12 @@ describe('captions and files', () => {
     expect(project.clips[0]!.speed).toBe(1)
     expect(project.output.height).toBe(1080)
   })
+
+  it('turns captions off in a project from before orientations, keeps them in a newer one', () => {
+    expect(parseProject(JSON.stringify({ captions: true })).captions).toBe(false)
+    expect(parseProject(JSON.stringify({ captions: true, orientation: 'landscape' })).captions).toBe(true)
+    expect(parseProject(JSON.stringify({})).orientation).toBe('portrait')
+  })
 })
 
 /**

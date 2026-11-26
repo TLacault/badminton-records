@@ -1,6 +1,6 @@
 import type { ReelBrand, ReelProject } from '~~/shared/reel'
 import { join } from 'node:path'
-import { activeClips, emptyProject, GRADES, SPEEDS, TRANSITIONS } from '~~/shared/reel'
+import { activeClips, emptyProject, GRADES, ORIENTATIONS, SPEEDS, TRANSITIONS } from '~~/shared/reel'
 import { hasHyperframes, reelBrand, sanitiseBrand } from '../../utils/publish'
 import {
   capabilities,
@@ -41,7 +41,6 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     speed: SPEEDS.includes(Number(clip.speed)) ? Number(clip.speed) : 1,
     zoom: clamp(clip.zoom, 1, 3, 1),
     grade: GRADES.includes(clip.grade!) ? clip.grade! : 'none',
-    showLabel: clip.showLabel !== false,
     // Newlines and the filtergraph's own separators never belong in a caption,
     // whatever the person typing them had in mind.
     label: String(clip.label ?? '').replace(/[\r\n;\\]/g, ' ').slice(0, 120),
@@ -56,6 +55,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     matchId: raw.matchId ?? null,
     videoId: raw.videoId ?? null,
     matchTitle: String(raw.matchTitle ?? '').slice(0, 160),
+    orientation: ORIENTATIONS.includes(raw.orientation!) ? raw.orientation! : 'portrait',
     clips: clips.filter(c => c.to > c.from),
     music: {
       ...base.music,
@@ -71,7 +71,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     intro: raw.intro !== false,
     outro: raw.outro !== false,
     fadeEdges: raw.fadeEdges !== false,
-    captions: raw.captions !== false,
+    captions: raw.captions === true,
     output: {
       height: ([720, 1080, 1440].includes(Number(raw.output?.height)) ? Number(raw.output?.height) : 1080) as 720 | 1080 | 1440,
       fps: (Number(raw.output?.fps) === 60 ? 60 : 30) as 30 | 60,
@@ -104,9 +104,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // The vertical branding is drawn per match (cached); a host without
+  // The branding is drawn per match and orientation (cached); a host without
   // HyperFrames still renders, with black bands and no bookends.
-  const brand = brandText && await hasHyperframes() ? (await reelBrand(brandText)).paths : null
+  const brand = brandText && await hasHyperframes() ? (await reelBrand(brandText, project.orientation)).paths : null
   const music = project.music.videoId ? musicPath(project.music.videoId) : null
   const [source, musicFacts, intro, outro] = await Promise.all([
     probe(sourceFile),

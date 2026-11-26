@@ -4,8 +4,9 @@ import type { ReelProject, TransitionId } from '~~/shared/reel'
 import { TRANSITIONS } from '~~/shared/reel'
 
 /**
- * How the reel is put together: how one clip gives way to the next, whether
- * the bookends are on, and what comes out the far end.
+ * How the reel is put together: how one clip gives way to the next, the
+ * captions, and what comes out the far end. Format and bookends sit in the
+ * page header.
  *
  * The transition is four buttons rather than a menu because it is the one
  * choice here that changes the *feel* of the film, and it wants to be tried
@@ -14,9 +15,8 @@ import { TRANSITIONS } from '~~/shared/reel'
 
 const props = defineProps<{
   project: ReelProject
-  /** Whether this match's vertical intro / outro have been drawn. */
-  hasIntro: boolean
-  hasOutro: boolean
+  /** Whether this match's intro / outro have been drawn for the current format. */
+  drawn: boolean
   drawing?: boolean
 }>()
 
@@ -107,36 +107,8 @@ function pick(id: TransitionId) {
         {{ $t('reel.fadeEdges') }}
       </label>
 
-      <label
-        class="flex items-center gap-2.5 text-sm"
-        :class="hasIntro ? 'cursor-pointer text-ink-muted' : 'text-ink-subtle'"
-      >
-        <input
-          type="checkbox" class="size-4 accent-[var(--ui-accent)]"
-          :checked="project.intro && hasIntro"
-          :disabled="!hasIntro"
-          @change="emit('patch', { intro: ($event.target as HTMLInputElement).checked })"
-        >
-        {{ $t('reel.useIntro') }}
-        <span v-if="!hasIntro" class="ml-auto text-[0.6875rem]">{{ drawing ? $t('reel.bookendDrawing') : $t('reel.bookendMissing') }}</span>
-      </label>
-
-      <label
-        class="flex items-center gap-2.5 text-sm"
-        :class="hasOutro ? 'cursor-pointer text-ink-muted' : 'text-ink-subtle'"
-      >
-        <input
-          type="checkbox" class="size-4 accent-[var(--ui-accent)]"
-          :checked="project.outro && hasOutro"
-          :disabled="!hasOutro"
-          @change="emit('patch', { outro: ($event.target as HTMLInputElement).checked })"
-        >
-        {{ $t('reel.useOutro') }}
-        <span v-if="!hasOutro" class="ml-auto text-[0.6875rem]">{{ drawing ? $t('reel.bookendDrawing') : $t('reel.bookendMissing') }}</span>
-      </label>
-
-      <p v-if="!drawing && (!hasIntro || !hasOutro)" class="text-[0.6875rem] leading-relaxed text-ink-subtle">
-        {{ $t('reel.bookendHint') }}
+      <p v-if="!drawn" class="text-[0.6875rem] leading-relaxed text-ink-subtle">
+        {{ drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint') }}
       </p>
     </div>
 

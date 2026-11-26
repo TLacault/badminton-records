@@ -30,11 +30,15 @@ const props = defineProps<{
   frameUrl?: string | null
 }>()
 
-/** Where the landscape match sits in the vertical frame, as the render places it. */
-const windowStyle = {
-  top: `${(SHORT_FRAME.windowTop / SHORT_FRAME.height) * 100}%`,
-  height: `${(SHORT_FRAME.windowHeight / SHORT_FRAME.height) * 100}%`,
-}
+const portrait = computed(() => props.project.orientation !== 'landscape')
+
+/** Where the match sits: the frame's window in portrait, the whole picture in landscape. */
+const windowStyle = computed(() => portrait.value
+  ? {
+      top: `${(SHORT_FRAME.windowTop / SHORT_FRAME.height) * 100}%`,
+      height: `${(SHORT_FRAME.windowHeight / SHORT_FRAME.height) * 100}%`,
+    }
+  : { top: '0', height: '100%' })
 
 const pieces = computed(() => props.pieces)
 
@@ -138,7 +142,7 @@ const frameStyle = computed(() => ({
 /** The caption lives for its first three and a half seconds, like drawtext's. */
 const caption = computed(() => {
   const current = clip.value
-  if (!current || !props.project.captions || !current.showLabel) return null
+  if (!current || !props.project.captions) return null
   const into = playback.position.value - (piece.value?.startsAt ?? 0)
   if (into < 0 || into > 3.6) return null
   const text = captionFor(current)
@@ -259,7 +263,8 @@ defineExpose({
   <div>
     <div
       data-testid="reel-stage"
-      class="relative mx-auto aspect-[9/16] h-[min(78vh,56rem)] max-w-full overflow-hidden rounded-2xl border border-line bg-black"
+      class="relative mx-auto max-w-full overflow-hidden rounded-2xl border border-line bg-black"
+      :class="portrait ? 'aspect-[9/16] h-[min(78vh,56rem)]' : 'aspect-video w-full'"
     >
       <img v-if="frameUrl" :src="frameUrl" alt="" class="absolute inset-0 h-full w-full">
 
@@ -300,7 +305,7 @@ defineExpose({
         </Transition>
       </div>
 
-      <!-- Intro and outro fill the whole vertical frame. -->
+      <!-- Intro and outro fill the whole picture. -->
       <video
         v-show="active !== 'source'"
         ref="bookendEl"

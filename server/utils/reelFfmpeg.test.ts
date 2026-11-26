@@ -45,6 +45,18 @@ describe('buildRenderPlan', () => {
     expect(graph(plan.args)).toContain('pad=1080:1920:0:560:color=black')
   })
 
+  it('fills a 16:9 picture in landscape, with no frame or bands', () => {
+    const plan = buildRenderPlan({
+      project: project({ orientation: 'landscape', clips: [makeClip(10, 20)] }),
+      source, music: null, intro: null, outro: null,
+      frame: '/hf/short-frame.png',
+      outputPath: '/out.mp4',
+    })
+    expect(graph(plan.args)).toContain('scale=1920:1080:force_original_aspect_ratio=increase')
+    expect(graph(plan.args)).not.toMatch(/overlay|pad=/)
+    expect(plan.args.join(' ')).not.toContain('short-frame')
+  })
+
   it('refuses a reel with nothing in it', () => {
     expect(() => buildRenderPlan({
       project: project(),

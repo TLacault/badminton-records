@@ -24,8 +24,6 @@ export interface ReelClip {
   /** Punch-in. 1 is the frame as filmed, 1.4 is 40% closer. */
   zoom: number
   grade: GradeId
-  /** Prints the caption over this clip. */
-  showLabel: boolean
   /** Overrides the caption built from the match. Empty falls back to it. */
   label: string
   /** The rally this was cut from, or null for a stretch picked by hand. */
@@ -62,8 +60,19 @@ export interface ReelMusic {
  * the bands above and below carry the brand and the match.
  */
 export const SHORT_FRAME = { width: 1080, height: 1920, windowTop: 560, windowHeight: 608 }
-export const SHORT_INTRO_SECONDS = 6
-export const SHORT_OUTRO_SECONDS = 10
+
+/** Portrait = Shorts / Reels / Stories (9:16), landscape = a 16:9 highlights video. */
+export type Orientation = 'portrait' | 'landscape'
+export const ORIENTATIONS: Orientation[] = ['portrait', 'landscape']
+
+/**
+ * Bookend lengths, as the templates time them: portrait opens on the brand and
+ * HIGHLIGHTS only (short-intro.html), landscape keeps the match card (intro.html).
+ */
+export const BOOKEND_SECONDS: Record<Orientation, { intro: number, outro: number }> = {
+  portrait: { intro: 3.5, outro: 10 },
+  landscape: { intro: 6, outro: 10 },
+}
 
 /** Text for the vertical intro, outro and frame (HyperFrames variables). */
 export interface ReelBrand {
@@ -74,7 +83,7 @@ export interface ReelBrand {
 }
 
 export interface ReelOutput {
-  /** The short side, as "1080p" names a vertical video: 1080 → 1080×1920. */
+  /** The short side, as "1080p" names it: 1080 → 1080×1920 portrait, 1920×1080 landscape. */
   height: 720 | 1080 | 1440
   fps: 30 | 60
   /** 0–1. The match's own sound — squeaks and shuttle — under the music. */
@@ -89,6 +98,7 @@ export interface ReelProject {
   videoId: string | null
   /** The fixture, printed on the export panel and in the file name. */
   matchTitle: string
+  orientation: Orientation
   clips: ReelClip[]
   music: ReelMusic
   transition: TransitionId
@@ -99,7 +109,7 @@ export interface ReelProject {
   /** Opens on black and closes on black, however the clips are joined. */
   fadeEdges: boolean
   output: ReelOutput
-  /** Caption defaults, applied to clips as they are added. */
+  /** Prints the set and score (or the clip's own caption) on every shot, or on none. */
   captions: boolean
 }
 

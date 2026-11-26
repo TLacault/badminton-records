@@ -3,7 +3,7 @@ import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { Corner, FamilyId, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, RotateCcw, Scissors, Smartphone, Type } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, Pencil, RotateCcw, Scissors, Smartphone, Type } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
@@ -286,6 +286,10 @@ const heights = [null, 2160, 1440, 1080, 720] as const
       <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost !min-h-9">
         <Smartphone :size="14" aria-hidden="true" />
         Clip
+      </NuxtLink>
+      <NuxtLink :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-ghost !min-h-9">
+        <Pencil :size="14" aria-hidden="true" />
+        Edit match
       </NuxtLink>
     </div>
 

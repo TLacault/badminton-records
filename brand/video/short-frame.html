@@ -3,7 +3,6 @@
   lang="fr"
   data-composition-variables='[
     {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
-    {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
     {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
     {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
     {"id":"s1","type":"string","label":"Side 1","default":"TIM & ADRIEN"},
@@ -20,8 +19,9 @@
   /*
    * The still behind every clip of a vertical reel. The landscape match is laid
    * over the window (y 560 → 1168, full width; shared/reel SHORT_FRAME), so the
-   * two bands carry the brand and the match. Words stay in the 168 → 1330 band
-   * the Shorts / Reels UI leaves alone; below that, only texture.
+   * two bands carry the brand and the match: brand, event and discipline above,
+   * the players below. Words stay in the 168 → 1330 band the Shorts / Reels UI
+   * leaves alone; below that, only texture.
    */
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
   .full { position: absolute; inset: 0; }
@@ -30,18 +30,16 @@
   .slash { position: absolute; background: var(--c); transform: skewX(-24deg); }
   #window { position: absolute; left: 0; right: 0; top: 560px; height: 608px; background: #000; border-top: 8px solid var(--c); border-bottom: 8px solid var(--c); margin-top: -8px; }
 
-  #brand { position: absolute; left: 0; right: 0; top: 180px; display: flex; align-items: center; justify-content: center; gap: 20px; }
-  #logo { height: 92px; }
-  #word { font: italic 900 64px/0.9 "Barlow Condensed BR"; text-transform: uppercase; letter-spacing: .01em; }
+  #brand { position: absolute; left: 0; right: 0; top: 196px; display: flex; align-items: center; justify-content: center; gap: 20px; }
+  #logo { height: 96px; }
+  #word { font: italic 900 68px/0.9 "Barlow Condensed BR"; text-transform: uppercase; letter-spacing: .01em; }
   #word .red { color: var(--c); }
-  #event { position: absolute; left: 60px; right: 60px; top: 312px; text-align: center; font: italic 700 44px/1.1 "Poppins BR"; letter-spacing: 2px; }
-  #detail { position: absolute; left: 60px; right: 60px; top: 372px; text-align: center; font: italic 700 32px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
-  #versus { position: absolute; left: 40px; right: 40px; top: 430px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 76px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
-  #vs { font-size: 52px; color: var(--c); }
+  #event { position: absolute; left: 60px; right: 60px; top: 340px; text-align: center; font: italic 700 54px/1.1 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
+  #detail { position: absolute; left: 60px; right: 60px; top: 424px; text-align: center; font: italic 700 38px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
 
-  #tag { position: absolute; left: 0; top: 1200px; padding: 14px 60px 12px 70px; background: var(--c); font: italic 700 36px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 30px) 100%, 0 100%); }
-  #place { position: absolute; right: 60px; top: 1210px; font: italic 700 30px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
-  #ghost { position: absolute; left: -40px; right: -40px; top: 1420px; text-align: center; font: italic 900 260px/0.85 "Barlow Condensed BR"; text-transform: uppercase; color: transparent; -webkit-text-stroke: 3px rgba(255,255,255,.08); }
+  #versus { position: absolute; left: 40px; right: 40px; top: 1196px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 80px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
+  #vs { font-size: 54px; color: var(--c); }
+  #place { position: absolute; left: 60px; right: 60px; top: 1292px; text-align: center; font: italic 700 28px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
 </style>
 </head>
 <body>
@@ -56,13 +54,11 @@
   <div id="brand"><img id="logo" src="assets/logo.png" alt=""><div id="word">Badminton <span class="red">Records</span></div></div>
   <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
   <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
-  <div id="versus"><span id="s1" data-var-text="s1">TIM &amp; ADRIEN</span><span id="vs">VS</span><span id="s2" data-var-text="s2" style="color:var(--c)">THOMAS &amp; ANTHONY</span></div>
 
   <div id="window"></div>
 
-  <div id="tag" data-var-text="tag">TOURNOIS</div>
+  <div id="versus"><span id="s1" data-var-text="s1">TIM &amp; ADRIEN</span><span id="vs">VS</span><span id="s2" data-var-text="s2" style="color:var(--c)">THOMAS &amp; ANTHONY</span></div>
   <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
-  <div id="ghost">Badminton<br>Records</div>
 </div>
 <script src="assets/gsap-3.14.2.min.js"></script>
 <script>
@@ -72,13 +68,19 @@
   for (const id of ["event", "detail", "place"]) {
     if (id in v && !String(v[id]).trim()) document.getElementById(id).style.display = "none";
   }
-  // Long names shrink to fit the width rather than run off it.
-  const versus = document.getElementById("versus");
-  let size = 76;
-  while (versus.scrollWidth > versus.clientWidth && size > 40) {
-    size -= 4;
-    versus.style.fontSize = `${size}px`;
-  }
+  // Long lines shrink to fit the width rather than run off it.
+  const fit = (el, min) => {
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && size > min) {
+      size -= 2;
+      el.style.fontSize = `${size}px`;
+    }
+  };
+  const event = document.getElementById("event");
+  event.style.overflow = "hidden";
+  fit(event, 30);
+  event.style.overflow = "";
+  fit(document.getElementById("versus"), 40);
   window.__timelines["short-frame"] = gsap.timeline({ paused: true });
 </script>
 </body>

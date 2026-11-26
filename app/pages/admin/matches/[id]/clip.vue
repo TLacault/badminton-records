@@ -2,21 +2,21 @@
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Music, Scissors, Sparkles, Sliders, Undo2 } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import { cardText, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
+  BOOKEND_SECONDS,
   projectFileName,
-  SHORT_INTRO_SECONDS,
-  SHORT_OUTRO_SECONDS,
   timeline,
   totalDuration,
 } from '~~/shared/reel'
 
 /**
- * The clip maker for one match: a vertical (Shorts / Reels / Stories) cut.
+ * The clip maker for one match: a vertical (Shorts / Reels / Stories) or a
+ * landscape highlights cut.
  *
  * A match is already tagged rally by rally, and the good ones are already
  * starred — which means the compilation nobody wanted to sit down and edit is
@@ -86,7 +86,8 @@ onMounted(() => {
   if (!m || !info.value || !family.value) return
   const title = defaultTitle(info.value, family.value.id)
   if (project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title) {
-    const untouched = !project.value.clips.length
+    // The name follows the generated title until someone renames it.
+    const untouched = !project.value.clips.length || project.value.name === project.value.matchTitle
     project.value = {
       ...project.value,
       videoId: m.youtube_video_id,
@@ -143,8 +144,8 @@ const sourceDuration = computed(() =>
 // ── Branding ────────────────────────────────────────────────────────────────
 
 /**
- * The vertical frame and the quick intro / outro are drawn per match by
- * HyperFrames (brand/video/short-*.html), from the same card text as the
+ * The intro / outro (and, portrait, the frame) are drawn per match and
+ * orientation by HyperFrames (brand/video/), from the same card text as the
  * YouTube intro. Drawn once and cached on the server; until then (or on a host
  * without HyperFrames) the preview shows black bands and no bookends.
  */
@@ -178,14 +179,20 @@ const brand = computed<ReelBrand | null>(() => {
   }
 })
 
-const drawn = ref<{ frame: string, intro: string, outro: string } | null>(null)
+type Drawn = { frame: string | null, intro: string, outro: string }
+const drawn = ref<Drawn | null>(null)
 const drawing = ref(false)
+const orientation = computed(() => project.value.orientation)
 
 async function draw() {
+  drawn.value = null
   if (!brand.value || !caps.value?.render) return
   drawing.value = true
+  const wanted = orientation.value
   try {
-    drawn.value = await $fetch<{ frame: string, intro: string, outro: string }>('/api/reel/brand', { method: 'POST', body: brand.value })
+    const result = await $fetch<Drawn>('/api/reel/brand', { method: 'POST', body: { ...brand.value, orientation: wanted } })
+    // A switch while drawing leaves this answer for the other orientation.
+    if (wanted === orientation.value) drawn.value = result
   }
   catch {
     drawn.value = null
@@ -194,10 +201,10 @@ async function draw() {
     drawing.value = false
   }
 }
-watch([() => JSON.stringify(brand.value), () => caps.value?.render], draw, { immediate: true })
+watch([() => JSON.stringify(brand.value), () => caps.value?.render, orientation], draw, { immediate: true })
 
-const media = (kind: string, id: string | undefined) => (id ? `/api/reel/media/${kind}/${id}` : null)
-const bookends = computed(() => (drawn.value ? { intro: SHORT_INTRO_SECONDS, outro: SHORT_OUTRO_SECONDS } : {}))
+const media = (kind: string, id: string | null | undefined) => (id ? `/api/reel/media/${kind}/${id}` : null)
+const bookends = computed(() => (drawn.value ? BOOKEND_SECONDS[orientation.value] : {}))
 
 // ── The edit ────────────────────────────────────────────────────────────────
 
@@ -356,6 +363,40 @@ useSeoMeta({
           <Clapperboard :size="14" aria-hidden="true" />
           YouTube version
         </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-ghost !min-h-9">
+          <Pencil :size="14" aria-hidden="true" />
+          Edit match
+        </NuxtLink>
+
+        <!-- The format and the bookends: the choices that change the whole film. -->
+        <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.format')">
+          <button
+            v-for="o in [{ id: 'portrait', icon: Smartphone }, { id: 'landscape', icon: Monitor }] as const"
+            :key="o.id"
+            type="button"
+            class="flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
+            :class="project.orientation === o.id ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
+            :aria-pressed="project.orientation === o.id"
+            @click="patch({ orientation: o.id })"
+          >
+            <component :is="o.icon" :size="14" aria-hidden="true" />
+            {{ $t(`reel.${o.id}`) }}
+          </button>
+        </div>
+        <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.bookends')">
+          <button
+            v-for="b in ['intro', 'outro'] as const"
+            :key="b"
+            type="button"
+            class="min-h-8 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
+            :class="project[b] ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
+            :aria-pressed="project[b]"
+            :title="drawn ? undefined : (drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint'))"
+            @click="patch({ [b]: !project[b] })"
+          >
+            {{ $t(`reel.${b}`) }}
+          </button>
+        </div>
 
         <p class="ml-auto flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">
           <span>{{ $t('reel.clipCount', { n: clipPieces.length }) }}</span>
@@ -397,7 +438,7 @@ useSeoMeta({
             :music-url="music.audioUrl.value"
             :intro-url="media('brand', drawn?.intro)"
             :outro-url="media('brand', drawn?.outro)"
-            :frame-url="media('frame', drawn?.frame)"
+            :frame-url="orientation === 'portrait' ? media('frame', drawn?.frame) : null"
           />
 
           <ReelRibbon
@@ -472,8 +513,7 @@ useSeoMeta({
             <ReelLookPanel
               v-else-if="tab === 'look'"
               :project="project"
-              :has-intro="Boolean(drawn)"
-              :has-outro="Boolean(drawn)"
+              :drawn="Boolean(drawn)"
               :drawing="drawing"
               @patch="(change: Partial<ReelProject>) => patch(change)"
             />

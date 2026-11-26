@@ -211,16 +211,6 @@ const NUDGES = [-1, -0.25, 0.25, 1]
       </div>
 
       <div class="mt-3 flex items-center gap-2">
-        <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-muted">
-          <input
-            type="checkbox"
-            class="size-4 accent-[var(--ui-accent)]"
-            :checked="clip.showLabel"
-            @change="emit('patch', { showLabel: ($event.target as HTMLInputElement).checked })"
-          >
-          {{ $t('reel.showCaption') }}
-        </label>
-
         <div class="ml-auto flex items-center gap-1">
           <button
             type="button"

@@ -38,6 +38,7 @@ export function emptyProject(): ReelProject {
     matchId: null,
     videoId: null,
     matchTitle: '',
+    orientation: 'portrait',
     clips: [],
     music: {
       kind: 'none',
@@ -57,7 +58,7 @@ export function emptyProject(): ReelProject {
     outro: true,
     fadeEdges: true,
     output: { height: 1080, fps: 30, matchAudio: 0.35 },
-    captions: true,
+    captions: false,
   }
 }
 
@@ -70,7 +71,6 @@ export function makeClip(from: number, to: number, extra: Partial<ReelClip> = {}
     speed: 1,
     zoom: 1,
     grade: 'none',
-    showLabel: true,
     label: '',
     rallyIdx: null,
     score: null,
@@ -339,10 +339,12 @@ export function parseProject(raw: string): ReelProject {
   return {
     ...base,
     ...parsed,
+    // Before orientations, captions defaulted on; they are off unless chosen now.
+    captions: parsed.orientation ? parsed.captions === true : false,
     version: 1,
     music: { ...base.music, ...(parsed.music ?? {}) },
     output: { ...base.output, ...(parsed.output ?? {}) },
-    clips: (parsed.clips ?? []).map(clip => makeClip(clip.from ?? 0, clip.to ?? 0, {
+    clips: (parsed.clips ?? []).map(({ showLabel: _, ...clip }: Partial<ReelClip> & { showLabel?: unknown }) => makeClip(clip.from ?? 0, clip.to ?? 0, {
       ...clip,
       // Regenerated rather than trusted: two projects merged by hand must not
       // end up with two clips answering to the same id.

@@ -10,7 +10,8 @@
     {"id":"s1b","type":"string","label":"Side 1 player 2","default":"ADRIEN ROUX"},
     {"id":"s2a","type":"string","label":"Side 2 player 1","default":"THOMAS MARTIN"},
     {"id":"s2b","type":"string","label":"Side 2 player 2","default":"ANTHONY LEROY"},
-    {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"}
+    {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"},
+    {"id":"highlights","type":"string","label":"Word under the brand (clips: HIGHLIGHTS; empty for the full match)","default":""}
   ]'
 >
 <head>
@@ -29,12 +30,19 @@
   #word { margin-top: 18px; font: italic 900 120px/0.86 "Barlow Condensed BR"; text-transform: uppercase; text-align: center; letter-spacing: .01em; }
   #word span { display: inline-block; }
   #word .red { color: var(--c); }
+  #hl { position: relative; margin-top: 30px; width: 1200px; text-align: center; display: none; }
+  .hl-t { font: italic 900 150px/1 "Barlow Condensed BR"; letter-spacing: .04em; white-space: nowrap; }
+  #hl-text { position: relative; color: var(--c); text-shadow: 0 0 48px color-mix(in srgb, var(--c) 70%, transparent); }
+  #hl-shine { position: absolute; inset: 0; color: transparent; background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.95) 50%, transparent 60%) no-repeat; background-size: 300% 100%; background-position: 120% 0; -webkit-background-clip: text; background-clip: text; }
+  #hl-line { position: absolute; left: -200px; right: -200px; top: 50%; height: 6px; margin-top: -3px; background: linear-gradient(90deg, transparent, #fff 50%, transparent); box-shadow: 0 0 28px 8px color-mix(in srgb, var(--c) 70%, transparent); }
+  #hl-core { position: absolute; left: 50%; top: 50%; width: 380px; height: 380px; margin: -190px 0 0 -190px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.7) 10%, color-mix(in srgb, var(--c) 50%, transparent) 30%, transparent 65%); }
   #card { position: absolute; inset: 0; }
   #tag { position: absolute; left: 0; top: 96px; padding: 14px 70px 12px 120px; background: var(--c); font: italic 700 44px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 40px) 100%, 0 100%); }
   #event { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font: italic 700 64px/1.1 "Poppins BR"; letter-spacing: 2px; }
   #detail { position: absolute; left: 0; right: 0; top: 335px; text-align: center; font: italic 700 40px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
-  #versus { position: absolute; left: 0; right: 0; top: 450px; display: grid; grid-template-columns: 1fr 220px 1fr; align-items: center; }
-  .side { font: italic 900 104px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
+  #versus { position: absolute; left: 70px; right: 70px; top: 450px; display: grid; grid-template-columns: 1fr 220px 1fr; align-items: center; }
+  .side { min-width: 0; font: italic 900 104px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
+  .side div { white-space: nowrap; }
   #side1 { text-align: right; }
   #side2 { text-align: left; color: var(--c); }
   #vs { text-align: center; font: italic 900 150px/1 "Barlow Condensed BR"; color: #fff; -webkit-text-stroke: 0; }
@@ -58,6 +66,12 @@
   <div id="brand">
     <img id="logo" src="assets/logo.png" alt="">
     <div id="word"><span id="w1">Badminton</span> <span id="w2" class="red">Records</span></div>
+    <div id="hl" data-layout-allow-overflow>
+      <div id="hl-line"></div>
+      <div id="hl-text" class="hl-t" data-var-text="highlights">HIGHLIGHTS</div>
+      <div id="hl-shine" class="hl-t" aria-hidden="true">HIGHLIGHTS</div>
+      <div id="hl-core"></div>
+    </div>
   </div>
 
   <div id="card">
@@ -89,6 +103,27 @@
     if (id in v && !String(v[id]).trim()) el.style.display = "none";
   }
 
+  // Long names shrink to fit their half rather than wrap into a third line.
+  for (const id of ["s1a", "s1b", "s2a", "s2b"]) {
+    const el = document.getElementById(id);
+    el.style.overflow = "hidden";
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && size > 56) {
+      size -= 2;
+      el.style.fontSize = `${size}px`;
+    }
+    el.style.overflow = "";
+  }
+
+  // A clip's intro adds a word under the brand (HIGHLIGHTS); the full match has none.
+  const highlights = String(v.highlights ?? "").trim();
+  if (highlights) {
+    document.getElementById("hl").style.display = "block";
+    document.getElementById("hl-text").textContent = highlights;
+    document.getElementById("hl-shine").textContent = highlights;
+    document.getElementById("brand").style.top = "150px";
+  }
+
   const tl = gsap.timeline({ paused: true });
   // The hall behind, pushed in slowly the whole time.
   tl.fromTo("#bg", { scale: 1.08 }, { scale: 1.0, duration: 6, ease: "none" }, 0);
@@ -104,6 +139,14 @@
   tl.fromTo("#brand", { x: 0 }, { x: 0, keyframes: [{ x: -10, duration: 0.04 }, { x: 8, duration: 0.04 }, { x: -4, duration: 0.04 }, { x: 0, duration: 0.04 }] }, 0.62);
   tl.fromTo("#w1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.72);
   tl.fromTo("#w2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.8);
+
+  // HIGHLIGHTS (clips only): a light line opens, the word punches in, a flare crosses it.
+  tl.fromTo("#hl-line", { scaleX: 0, opacity: 1 }, { scaleX: 1, duration: 0.35, ease: "expo.out" }, 1.0);
+  tl.to("#hl-line", { opacity: 0.25, duration: 0.5, ease: "power2.out" }, 1.35);
+  tl.fromTo("#hl-text", { scale: 1.5, opacity: 0, filter: "blur(14px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, 1.05);
+  tl.fromTo("#hl-core", { x: -640, scale: 0.4, opacity: 0 }, { x: 640, scale: 1.1, duration: 0.75, ease: "power2.inOut" }, 1.1);
+  tl.to("#hl-core", { keyframes: [{ opacity: 1, duration: 0.2 }, { opacity: 1, duration: 0.35 }, { opacity: 0, duration: 0.2 }] }, 1.1);
+  tl.fromTo("#hl-shine", { backgroundPosition: "120% 0" }, { backgroundPosition: "-20% 0", duration: 0.65, ease: "power2.inOut" }, 1.2);
 
   // The brand clears the stage for the card; the slashes widen into a frame.
   tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 1.9);

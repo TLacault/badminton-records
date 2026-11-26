@@ -120,9 +120,9 @@ function videoChain(
     'format=yuv420p',
   )
 
-  const caption = project.captions && clip.showLabel ? captionFor(clip) : ''
+  const caption = project.captions ? captionFor(clip) : ''
   if (caption) {
-    // Sized off the window, which is small in a vertical frame: ~38 px at 1080 wide.
+    // Sized off the picture: ~38 px in a vertical frame's window, ~68 px on a 1080p landscape.
     const size = Math.round(height / 16)
     const pad = Math.round(height / 18)
     // Held for three seconds and faded at both ends: a caption that stays for
@@ -165,13 +165,15 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
   const clips = activeClips(project)
   if (!clips.length) throw new Error('Nothing to render: the reel has no clips')
 
-  // Vertical: `output.height` is the short side. The landscape clip is cut to
-  // the window, full width, and laid over the frame at its place.
+  // `output.height` is the short side. Portrait: the landscape clip is cut to
+  // the window, full width, and laid over the frame at its place. Landscape:
+  // the clip is the whole picture.
   const even = (x: number) => Math.round(x / 2) * 2
-  const width = project.output.height
-  const height = even((width * SHORT_FRAME.height) / SHORT_FRAME.width)
-  const windowHeight = even((width * SHORT_FRAME.windowHeight) / SHORT_FRAME.width)
-  const windowTop = even((width * SHORT_FRAME.windowTop) / SHORT_FRAME.width)
+  const portrait = project.orientation !== 'landscape'
+  const width = portrait ? project.output.height : even((project.output.height * 16) / 9)
+  const height = portrait ? even((width * SHORT_FRAME.height) / SHORT_FRAME.width) : project.output.height
+  const windowHeight = portrait ? even((width * SHORT_FRAME.windowHeight) / SHORT_FRAME.width) : height
+  const windowTop = portrait ? even((width * SHORT_FRAME.windowTop) / SHORT_FRAME.width) : 0
   const overlap = project.transition === 'cut' ? 0 : Math.max(0.05, project.transitionSeconds)
 
   const args: string[] = ['-hide_banner', '-nostdin', '-y']
@@ -204,8 +206,9 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     // chewing through forty minutes of match for every one of twenty clips.
     args.push('-ss', round(clip.from), '-to', round(clip.to), '-i', source.path)
     const at = index++
-    filters.push(`[${at}:v]${videoChain(clip, project, width, windowHeight, font)}[w${i}]`)
-    if (frame) {
+    // Landscape: the clip is the whole picture already, nothing to sit in.
+    filters.push(`[${at}:v]${videoChain(clip, project, width, windowHeight, font)}[${portrait ? 'w' : 'v'}${i}]`)
+    if (portrait && frame) {
       // One looped input per clip, cut to its length: a single split frame
       // would buffer every picture until the last clip asks for it.
       args.push('-framerate', String(project.output.fps), '-loop', '1', '-t', round(outSeconds(clip)), '-i', frame)
@@ -215,7 +218,7 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
         `[f${i}][w${i}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`,
       )
     }
-    else {
+    else if (portrait) {
       filters.push(`[w${i}]pad=${width}:${height}:0:${windowTop}:color=black[v${i}]`)
     }
     if (source.hasAudio) filters.push(`[${at}:a]${audioChain(clip, project)}[a${i}]`)
