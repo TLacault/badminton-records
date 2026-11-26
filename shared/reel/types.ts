@@ -124,6 +124,8 @@ export interface ReelProject {
   output: ReelOutput
   /** Prints the set and score (or the clip's own caption) on every shot, or on none. */
   captions: boolean
+  /** The 16:9 thumbnail: template (null = the family's), band overrides (null = generated), bands shown. */
+  thumbnail: { template: string | null, lines: [string | null, string | null], show: [boolean, boolean] }
 }
 
 /** A segment as the renderer sees it: source in/out plus its length on screen. */

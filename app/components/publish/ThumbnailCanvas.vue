@@ -6,13 +6,17 @@ import { drawThumbnail, exportThumbnail, loadImage, loadThumbnailFont, THUMB_H, 
  * Live thumbnail: Tim's template + the two bands, redrawn on every keystroke.
  * What is on screen is exactly what is downloaded or saved into the kit.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   template: string
   lines: string[]
   colour: string
   matchId: string
   fileStem: string
-}>()
+  /** A clip's word under the tag ("HIGHLIGHTS"); empty for the full match. */
+  highlights?: string
+  /** The upload kit is the full match's; a clip's thumbnail is only downloaded. */
+  saveable?: boolean
+}>(), { highlights: '', saveable: true })
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref<string | null>(null)
@@ -24,7 +28,7 @@ async function redraw() {
   try {
     await loadThumbnailFont('/api/publish/brand/fonts/Poppins-BoldItalic.ttf')
     if (!image || !image.src.endsWith(`/${props.template}`)) image = await loadImage(`/api/publish/brand/thumbnail/${props.template}`)
-    drawThumbnail(canvas.value.getContext('2d')!, image, props.lines, props.colour)
+    drawThumbnail(canvas.value.getContext('2d')!, image, props.lines, props.colour, props.highlights)
     error.value = null
   }
   catch (cause) {
@@ -33,7 +37,7 @@ async function redraw() {
 }
 
 onMounted(redraw)
-watch(() => [props.template, props.colour, ...props.lines], redraw)
+watch(() => [props.template, props.colour, props.highlights, ...props.lines], redraw)
 
 async function download(width: number) {
   if (!canvas.value) return
@@ -69,7 +73,7 @@ async function save() {
       {{ error }}
     </p>
     <div class="mt-3 flex flex-wrap gap-2">
-      <button type="button" class="btn btn-sm btn-primary" @click="save">
+      <button v-if="saveable" type="button" class="btn btn-sm btn-primary" @click="save">
         <Save :size="15" aria-hidden="true" />
         Save to upload kit
       </button>

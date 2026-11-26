@@ -221,7 +221,7 @@ export default {
     undo: "Annuler",
     projectName: "Nom du clip",
     previewNote: "L'aperçu approche l'étalonnage et les raccords ; l'export est ce que ffmpeg monte vraiment.",
-    tabs: { clips: "Plans", music: "Musique", look: "Style", export: "Export" },
+    tabs: { clips: "Plans", music: "Musique", look: "Style", thumbnail: "Miniature", export: "Export" },
 
     emptyStage: "Ajoute un plan pour commencer",
     noSource: "Aucune vidéo rattachée — voir l'onglet Export",

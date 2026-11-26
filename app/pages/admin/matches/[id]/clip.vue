@@ -2,9 +2,9 @@
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Image as ImageIcon, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { cardText, clipTitle, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
+import { cardText, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
@@ -45,7 +45,7 @@ const music = useReelMusic(project, patch)
 const renderJob = useReelJob()
 
 const selectedId = ref<string | null>(null)
-const tab = ref<'clips' | 'music' | 'look' | 'export'>('clips')
+const tab = ref<'clips' | 'music' | 'look' | 'thumbnail' | 'export'>('clips')
 const stage = ref<{
   position: number
   duration: number
@@ -249,6 +249,33 @@ function playClip(id: string) {
   if (!stage.value?.playing) stage.value?.toggle()
 }
 
+// ── Thumbnail ───────────────────────────────────────────────────────────────
+
+/** The YouTube editor's 16:9 thumbnail, with HIGHLIGHTS under the tag. */
+const { data: templates } = await useFetch<string[]>('/api/publish/templates', { default: () => [] })
+const thumbDefaults = computed(() => (info.value && family.value ? defaultThumbnailLines(info.value, family.value.id) : ['', '']))
+const thumbLines = computed(() => [0, 1]
+  .filter(i => project.value.thumbnail.show[i])
+  .map(i => (project.value.thumbnail.lines[i] ?? thumbDefaults.value[i]!).toUpperCase())
+  .filter(Boolean))
+const thumbTemplate = computed(() => project.value.thumbnail.template ?? family.value?.template ?? 'tournois.png')
+
+function patchThumbnail(change: Partial<ReelProject['thumbnail']>) {
+  patch({ thumbnail: { ...project.value.thumbnail, ...change } })
+}
+
+function thumbLine(i: 0 | 1, value: string) {
+  const lines = [...project.value.thumbnail.lines] as ReelProject['thumbnail']['lines']
+  lines[i] = value || null
+  patchThumbnail({ lines })
+}
+
+function thumbShow(i: 0 | 1, value: boolean) {
+  const show = [...project.value.thumbnail.show] as ReelProject['thumbnail']['show']
+  show[i] = value
+  patchThumbnail({ show })
+}
+
 // ── Music ───────────────────────────────────────────────────────────────────
 
 function patchMusic(change: Partial<ReelMusic>) {
@@ -339,6 +366,7 @@ const TABS = [
   { id: 'clips', icon: Scissors },
   { id: 'music', icon: Music },
   { id: 'look', icon: Sparkles },
+  { id: 'thumbnail', icon: ImageIcon },
   { id: 'export', icon: Sliders },
 ] as const
 
@@ -477,7 +505,7 @@ useSeoMeta({
         <!-- The panels. One column on a desktop, a tab strip on a phone —
              the same four panels either way. -->
         <div class="min-w-0">
-          <div class="grid grid-cols-4 gap-1 rounded-xl border border-line bg-bg-deep p-1">
+          <div class="grid grid-cols-5 gap-1 rounded-xl border border-line bg-bg-deep p-1">
             <button
               v-for="entry in TABS"
               :key="entry.id"
@@ -535,6 +563,36 @@ useSeoMeta({
               :drawing="drawing"
               @patch="(change: Partial<ReelProject>) => patch(change)"
             />
+
+            <div v-else-if="tab === 'thumbnail'" class="flex flex-col gap-4">
+              <PublishThumbnailCanvas
+                :template="thumbTemplate"
+                :lines="thumbLines"
+                :colour="family?.colour ?? '#cb2543'"
+                :match-id="matchId"
+                :file-stem="`clip-thumbnail-${matchId.slice(0, 8)}`"
+                highlights="HIGHLIGHTS"
+                :saveable="false"
+              />
+              <label class="block">
+                <span class="label">Template</span>
+                <select :value="thumbTemplate" class="field mt-2" @change="patchThumbnail({ template: ($event.target as HTMLSelectElement).value })">
+                  <option v-for="t in templates" :key="t" :value="t">{{ t }}</option>
+                </select>
+              </label>
+              <div v-for="i in [0, 1] as const" :key="i">
+                <label class="flex items-center gap-2">
+                  <input :checked="project.thumbnail.show[i]" type="checkbox" class="accent-[var(--ui-accent)]" @change="thumbShow(i, ($event.target as HTMLInputElement).checked)">
+                  <span class="label">Band {{ i + 1 }}</span>
+                </label>
+                <input
+                  :value="project.thumbnail.lines[i] ?? ''"
+                  :placeholder="thumbDefaults[i]"
+                  class="field mt-2 uppercase"
+                  @input="thumbLine(i, ($event.target as HTMLInputElement).value)"
+                >
+              </div>
+            </div>
 
             <ReelExportPanel
               v-else

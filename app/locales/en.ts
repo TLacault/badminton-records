@@ -224,7 +224,7 @@ export default {
     undo: "Undo",
     projectName: "Clip name",
     previewNote: "The preview approximates the grade and the joins; the export is what ffmpeg actually cuts.",
-    tabs: { clips: "Shots", music: "Music", look: "Look", export: "Export" },
+    tabs: { clips: "Shots", music: "Music", look: "Look", thumbnail: "Thumbnail", export: "Export" },
 
     emptyStage: "Add a shot to start the clip",
     noSource: "No video attached yet — see the Export panel",

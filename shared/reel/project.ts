@@ -61,6 +61,7 @@ export function emptyProject(): ReelProject {
     fadeEdges: true,
     output: { height: 1080, fps: 30, matchAudio: 0.35 },
     captions: false,
+    thumbnail: { template: null, lines: [null, null], show: [true, true] },
   }
 }
 
@@ -350,6 +351,7 @@ export function parseProject(raw: string): ReelProject {
       landscape: { ...base.details.landscape, ...parsed.details?.landscape },
     },
     output: { ...base.output, ...(parsed.output ?? {}) },
+    thumbnail: { ...base.thumbnail, ...parsed.thumbnail },
     clips: (parsed.clips ?? []).map(({ showLabel: _, ...clip }: Partial<ReelClip> & { showLabel?: unknown }) => makeClip(clip.from ?? 0, clip.to ?? 0, {
       ...clip,
       // Regenerated rather than trusted: two projects merged by hand must not
