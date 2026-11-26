@@ -6,8 +6,11 @@
     {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
     {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
     {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
-    {"id":"s1","type":"string","label":"Side 1","default":"TIM & ADRIEN"},
-    {"id":"s2","type":"string","label":"Side 2","default":"THOMAS & ANTHONY"}
+    {"id":"s1a","type":"string","label":"Side 1 player 1","default":"TIM LACAULT"},
+    {"id":"s1b","type":"string","label":"Side 1 player 2","default":"ADRIEN ROUX"},
+    {"id":"s2a","type":"string","label":"Side 2 player 1","default":"THOMAS MARTIN"},
+    {"id":"s2b","type":"string","label":"Side 2 player 2","default":"ANTHONY LEROY"},
+    {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"}
   ]'
 >
 <head>
@@ -16,83 +19,127 @@
   @font-face { font-family: "Barlow Condensed BR"; src: url("assets/fonts/BarlowCondensed-BlackItalic.ttf"); font-weight: 900; font-style: italic; }
   @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
   html, body { margin: 0; background: #08070a; }
-  /* 2.5 s vertical opener (SHORT_INTRO_SECONDS): the matchup is on frame 0, it is the hook. */
+  /*
+   * intro.html recomposed for 9:16, same beats and timing (6 s, SHORT_INTRO_SECONDS):
+   * brand 0.3 → 1.9 s, match card from 2.15 s, wipe out at 5.3 s.
+   * Words stay in the 168 → 1330 px band the Shorts / Reels UI leaves free.
+   */
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
   .full { position: absolute; inset: 0; }
-  #bg { width: 100%; height: 100%; object-fit: cover; opacity: .5; }
-  #shade { background: radial-gradient(80% 60% at 50% 45%, rgba(8,7,10,.5), rgba(8,7,10,.95)); }
+  #bg-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  #shade { background: radial-gradient(80% 60% at 50% 45%, rgba(8,7,10,.55), rgba(8,7,10,.92)); }
   .slash { position: absolute; top: -300px; height: 2520px; background: var(--c); }
-  #brand { position: absolute; left: 0; right: 0; top: 240px; display: flex; flex-direction: column; align-items: center; }
-  #logo { height: 220px; }
-  #word { margin-top: 10px; font: italic 900 84px/0.9 "Barlow Condensed BR"; text-transform: uppercase; }
+  #brand { position: absolute; left: 0; right: 0; top: 480px; display: flex; flex-direction: column; align-items: center; }
+  #logo { height: 360px; }
+  #word { margin-top: 18px; font: italic 900 110px/0.86 "Barlow Condensed BR"; text-transform: uppercase; text-align: center; }
+  #word span { display: inline-block; }
   #word .red { color: var(--c); }
-  #tag { position: absolute; left: 0; top: 650px; padding: 14px 60px 12px 70px; background: var(--c); font: italic 700 40px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 30px) 100%, 0 100%); }
-  #event { position: absolute; left: 60px; right: 60px; top: 760px; text-align: center; font: italic 700 48px/1.15 "Poppins BR"; letter-spacing: 2px; }
-  #detail { position: absolute; left: 60px; right: 60px; top: 880px; text-align: center; font: italic 700 34px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
-  .side { position: absolute; left: 40px; right: 40px; text-align: center; font: italic 900 120px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
-  #s1 { top: 960px; }
-  #vs { position: absolute; left: 0; right: 0; top: 1085px; text-align: center; font: italic 900 96px/1 "Barlow Condensed BR"; color: var(--c); }
-  #s2 { top: 1185px; color: var(--c); }
-  #wipe1 { left: 0; width: 700px; }
-  #wipe2 { left: -300px; width: 1900px; background: #08070a; }
+  #card { position: absolute; inset: 0; }
+  #tag { position: absolute; left: 0; top: 200px; padding: 14px 60px 12px 80px; background: var(--c); font: italic 700 42px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%); }
+  #event { position: absolute; left: 50px; right: 50px; top: 320px; text-align: center; font: italic 700 52px/1.15 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
+  #detail { position: absolute; left: 50px; right: 50px; top: 400px; text-align: center; font: italic 700 36px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
+  .side { position: absolute; left: 40px; right: 40px; text-align: center; font: italic 900 108px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
+  .side div { white-space: nowrap; }
+  #side1 { top: 510px; }
+  #vs { position: absolute; left: 0; right: 0; top: 740px; text-align: center; font: italic 900 150px/1 "Barlow Condensed BR"; }
+  #side2 { top: 920px; color: var(--c); }
+  #place { position: absolute; right: 0; top: 1180px; padding: 20px 80px 18px 70px; background: var(--c); font: italic 700 36px/1 "Poppins BR"; letter-spacing: 3px; clip-path: polygon(34px 0, 100% 0, 100% 100%, 0 100%); }
+  #wipe .slash { top: -400px; height: 2720px; }
 </style>
 </head>
 <body>
-<div id="root" data-composition-id="short-intro" data-start="0" data-duration="2.5" data-width="1080" data-height="1920" data-fps="30">
-  <img id="bg" class="full" src="assets/background.jpg" alt="">
+<div id="root" data-composition-id="short-intro" data-start="0" data-duration="6" data-width="1080" data-height="1920" data-fps="30">
+  <div id="bg-wrap" class="full"><img id="bg" src="assets/background.jpg" alt=""></div>
   <div id="shade" class="full"></div>
+
   <div id="slashes" class="full" data-layout-allow-overflow data-layout-ignore>
-    <div class="slash" id="sl1" style="left:-200px;width:150px;top:-60px;height:640px"></div>
-    <div class="slash" id="sl2" style="right:-200px;width:150px;top:1340px;height:700px"></div>
+    <div class="slash" id="sl1" style="left:-260px;width:200px"></div>
+    <div class="slash" id="sl2" style="left:-120px;width:50px;opacity:.6"></div>
+    <div class="slash" id="sl3" style="right:-260px;width:200px"></div>
+    <div class="slash" id="sl4" style="right:-120px;width:50px;opacity:.6"></div>
   </div>
 
-  <div id="brand"><img id="logo" src="assets/logo.png" alt=""><div id="word">Badminton <span class="red">Records</span></div></div>
-  <div id="tag" data-var-text="tag">TOURNOIS</div>
-  <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
-  <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
-  <div id="s1" class="side" data-var-text="s1">TIM &amp; ADRIEN</div>
-  <div id="vs">VS</div>
-  <div id="s2" class="side" data-var-text="s2">THOMAS &amp; ANTHONY</div>
+  <div id="brand">
+    <img id="logo" src="assets/logo.png" alt="">
+    <div id="word"><span id="w1">Badminton</span><br><span id="w2" class="red">Records</span></div>
+  </div>
+
+  <div id="card">
+    <div id="tag"><span data-var-text="tag">TOURNOIS</span></div>
+    <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
+    <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
+    <div id="side1" class="side"><div id="s1a" data-var-text="s1a">TIM LACAULT</div><div id="s1b" data-var-text="s1b">ADRIEN ROUX</div></div>
+    <div id="vs">VS</div>
+    <div id="side2" class="side"><div id="s2a" data-var-text="s2a">THOMAS MARTIN</div><div id="s2b" data-var-text="s2b">ANTHONY LEROY</div></div>
+    <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
+  </div>
 
   <div id="wipe" class="full" data-layout-allow-overflow data-layout-ignore>
-    <div class="slash" id="wipe1"></div>
-    <div class="slash" id="wipe2"></div>
+    <div class="slash" id="wp1" style="left:0;width:700px"></div>
+    <div class="slash" id="wp2" style="left:-300px;width:1900px;background:#08070a"></div>
   </div>
 </div>
+
 <script src="assets/gsap-3.14.2.min.js"></script>
 <script>
   const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
   const root = document.getElementById("root");
   if (v.colour) root.style.setProperty("--c", v.colour);
-  for (const id of ["event", "detail"]) {
-    if (id in v && !String(v[id]).trim()) document.getElementById(id).style.display = "none";
-  }
-  // Long lines shrink to one line instead of wrapping into the next block.
-  for (const [id, start, min] of [["s1", 120, 56], ["s2", 120, 56], ["event", 48, 28]]) {
+  // Empty lines collapse: singles have one name a side, a free-play card has no event.
+  for (const id of ["s1b", "s2b", "event", "place"]) {
     const el = document.getElementById(id);
-    let size = start;
-    el.style.whiteSpace = "nowrap";
+    if (id in v && !String(v[id]).trim()) el.style.display = "none";
+  }
+  // Long lines shrink to fit the width rather than wrap into the next block.
+  const fit = (el, min) => {
+    let size = parseFloat(getComputedStyle(el).fontSize);
     while (el.scrollWidth > el.clientWidth && size > min) {
       size -= 2;
       el.style.fontSize = `${size}px`;
     }
+  };
+  fit(document.getElementById("event"), 28);
+  for (const id of ["s1a", "s1b", "s2a", "s2b"]) {
+    const el = document.getElementById(id);
+    el.style.overflow = "hidden";
+    fit(el, 56);
+    el.style.overflow = "";
   }
 
   const tl = gsap.timeline({ paused: true });
-  tl.fromTo("#bg", { scale: 1.1 }, { scale: 1, duration: 2.5, ease: "none" }, 0);
-  tl.fromTo("#sl1", { x: -300, skewX: -24 }, { x: 260, skewX: -24, duration: 0.35, ease: "expo.out" }, 0);
-  tl.fromTo("#sl2", { x: 300, skewX: -24 }, { x: -260, skewX: -24, duration: 0.35, ease: "expo.out" }, 0);
-  // The matchup is already up on frame 0 (it is the thumbnail); it lands harder in the first beat.
-  tl.fromTo("#s1", { x: -120 }, { x: 0, duration: 0.4, ease: "expo.out" }, 0);
-  tl.fromTo("#s2", { x: 120 }, { x: 0, duration: 0.4, ease: "expo.out" }, 0);
-  tl.fromTo("#vs", { scale: 1.8 }, { scale: 1, duration: 0.3, ease: "expo.out" }, 0.08);
-  tl.fromTo("#logo", { scale: 1.8, opacity: 0, filter: "blur(12px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, 0.15);
-  tl.fromTo("#word", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.2, ease: "power4.out" }, 0.35);
-  tl.fromTo("#tag", { x: -600 }, { x: 0, duration: 0.35, ease: "expo.out" }, 0.4);
-  tl.fromTo(["#event", "#detail"], { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out", stagger: 0.08 }, 0.5);
-  // Out: colour then ink sweep the frame; the first clip cuts in from black.
-  tl.fromTo("#wipe1", { x: -1200, skewX: -24 }, { x: 1800, skewX: -24, duration: 0.4, ease: "power3.in" }, 2.0);
-  tl.fromTo("#wipe2", { x: -2400, skewX: -24 }, { x: 0, skewX: -24, duration: 0.38, ease: "power3.in" }, 2.08);
+  // The hall behind, pushed in slowly the whole time.
+  tl.fromTo("#bg", { scale: 1.08 }, { scale: 1.0, duration: 6, ease: "none" }, 0);
+
+  // Brush slashes sweep in from both edges.
+  // A steep angle: at the landscape -24° a 1920 px-tall slash would cross the whole card.
+  tl.fromTo("#sl1", { x: -400, skewX: -6 }, { x: 60, skewX: -6, duration: 0.5, ease: "expo.out" }, 0.05);
+  tl.fromTo("#sl2", { x: -400, skewX: -6 }, { x: 170, skewX: -6, duration: 0.55, ease: "expo.out" }, 0.12);
+  tl.fromTo("#sl3", { x: 400, skewX: -6 }, { x: -60, skewX: -6, duration: 0.5, ease: "expo.out" }, 0.05);
+  tl.fromTo("#sl4", { x: 400, skewX: -6 }, { x: -170, skewX: -6, duration: 0.55, ease: "expo.out" }, 0.12);
+
+  // Logo slams in, the name snaps under it.
+  tl.fromTo("#logo", { scale: 2.6, opacity: 0, filter: "blur(16px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.35, ease: "expo.out" }, 0.3);
+  tl.fromTo("#brand", { x: 0 }, { x: 0, keyframes: [{ x: -10, duration: 0.04 }, { x: 8, duration: 0.04 }, { x: -4, duration: 0.04 }, { x: 0, duration: 0.04 }] }, 0.62);
+  tl.fromTo("#w1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.72);
+  tl.fromTo("#w2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" }, 0.8);
+
+  // The brand clears the stage for the card; the slashes fade back into a frame.
+  tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 1.9);
+  tl.to(["#sl1", "#sl3"], { opacity: 0.35, duration: 0.4, ease: "power2.inOut" }, 1.9);
+
+  // Match card.
+  tl.fromTo("#tag", { x: -700 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.15);
+  tl.fromTo("#event", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.3);
+  tl.fromTo("#detail", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.4);
+  tl.fromTo("#side1", { x: -1100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 2.5);
+  tl.fromTo("#side2", { x: 1100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 2.5);
+  tl.fromTo("#vs", { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "expo.out" }, 2.75);
+  tl.fromTo("#place", { x: 900 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.9);
+
+  // Out: a colour wipe covers the frame, ink follows and holds the last frames dark.
+  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2000, skewX: -24, duration: 0.55, ease: "power3.in" }, 5.3);
+  tl.fromTo("#wp2", { x: -2600, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, 5.42);
+
   window.__timelines["short-intro"] = tl;
 </script>
 </body>

@@ -3,7 +3,7 @@ import type { ReelBrand } from '~~/shared/reel'
 import type { SourceFacts } from './publishFfmpeg'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFile, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { INTRO_SECONDS, OUTRO_SECONDS } from '~~/shared/publish'
@@ -64,7 +64,9 @@ async function hyperframes(
   report: Report,
   extra: string[] = [],
 ): Promise<string> {
-  const key = createHash('sha1').update(JSON.stringify([composition, variables, format, extra, 2])).digest('hex').slice(0, 16)
+  // The template's own text is in the key: editing brand/video/*.html redraws instead of serving the old cut.
+  const template = await readFile(join(VIDEO_DIR, `${composition}.html`), 'utf8')
+  const key = createHash('sha1').update(JSON.stringify([composition, template, variables, format, extra, 2])).digest('hex').slice(0, 16)
   const ext = format === 'png-sequence' ? '' : `.${format}`
   const out = join(HF_CACHE, `${composition}-${key}${ext}`)
   if (await exists(out)) return out

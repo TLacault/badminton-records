@@ -158,7 +158,16 @@ const brand = computed<ReelBrand | null>(() => {
   return {
     colour: f.colour,
     frame: { tag: card.tag, event: card.event, detail: card.detail, place: card.place, s1: sides[0]!, s2: sides[1]! },
-    intro: { tag: card.tag, event: card.event, detail: card.detail, s1: sides[0]!, s2: sides[1]! },
+    intro: {
+      tag: card.tag,
+      event: card.event,
+      detail: card.detail,
+      s1a: (i.sides[0].full[0] ?? '').toUpperCase(),
+      s1b: (i.sides[0].full[1] ?? '').toUpperCase(),
+      s2a: (i.sides[1].full[0] ?? '').toUpperCase(),
+      s2b: (i.sides[1].full[1] ?? '').toUpperCase(),
+      place: card.place,
+    },
     outro: {
       s1: sides[0]!,
       s2: sides[1]!,

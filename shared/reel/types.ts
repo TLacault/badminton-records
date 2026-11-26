@@ -62,8 +62,8 @@ export interface ReelMusic {
  * the bands above and below carry the brand and the match.
  */
 export const SHORT_FRAME = { width: 1080, height: 1920, windowTop: 560, windowHeight: 608 }
-export const SHORT_INTRO_SECONDS = 2.5
-export const SHORT_OUTRO_SECONDS = 3
+export const SHORT_INTRO_SECONDS = 6
+export const SHORT_OUTRO_SECONDS = 10
 
 /** Text for the vertical intro, outro and frame (HyperFrames variables). */
 export interface ReelBrand {
