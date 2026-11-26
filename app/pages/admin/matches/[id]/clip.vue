@@ -631,6 +631,8 @@ useSeoMeta({
                 :file-stem="`clip-thumbnail-${matchId.slice(0, 8)}`"
                 highlights="HIGHLIGHTS"
                 :saveable="false"
+                :vertical="project.orientation === 'portrait'"
+                :tag="family?.label.toUpperCase() ?? ''"
               />
               <div v-for="i in [0, 1] as const" :key="i">
                 <label class="flex items-center gap-2">
