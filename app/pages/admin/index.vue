@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
-import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, SlidersHorizontal, Timer, TriangleAlert, Video } from '@lucide/vue'
+import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, SlidersHorizontal, Smartphone, Timer, TriangleAlert, Video } from '@lucide/vue'
 import { disciplineCode, LIST_SELECT } from '~/utils/matchSummary'
 import { groupBySession } from '~/utils/sessions'
 import { applyFilters, decorate, emptyFilters } from '~/utils/videoFilters'
@@ -278,6 +278,24 @@ async function setTaggingStatus(id: string, next: string) {
                 <component :is="m.visibility === 'public' ? EyeOff : Eye" :size="14" aria-hidden="true" />
                 {{ m.visibility === 'public' ? 'Unpublish' : 'Publish' }}
               </button>
+
+              <!-- Straight to the match's two video editors. -->
+              <NuxtLink
+                :to="`/admin/matches/${m.id}/publish`"
+                class="btn btn-sm btn-ghost !px-2.5"
+                title="YouTube version"
+                :aria-label="`YouTube version of ${title}`"
+              >
+                <Clapperboard :size="14" aria-hidden="true" />
+              </NuxtLink>
+              <NuxtLink
+                :to="`/admin/matches/${m.id}/clip`"
+                class="btn btn-sm btn-ghost !px-2.5"
+                title="Clip"
+                :aria-label="`Clip of ${title}`"
+              >
+                <Smartphone :size="14" aria-hidden="true" />
+              </NuxtLink>
 
               <!-- Who played, which format, how it is scored: the once-per-match
                    setup, kept out of the way of the tagging the row leads to. -->

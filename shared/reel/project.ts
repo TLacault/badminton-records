@@ -1,6 +1,7 @@
 import type { BreakInput, RallyState } from '../badminton/types'
 import type { GradeId, ReelClip, ReelProject, RenderSegment, TransitionId } from './types'
 import { highlightSpans } from '../badminton/playback'
+import { DEFAULT_DETAILS } from './types'
 
 /**
  * Everything a reel knows how to do to itself before a pixel is drawn: how
@@ -39,6 +40,7 @@ export function emptyProject(): ReelProject {
     videoId: null,
     matchTitle: '',
     orientation: 'portrait',
+    details: JSON.parse(JSON.stringify(DEFAULT_DETAILS)),
     clips: [],
     music: {
       kind: 'none',
@@ -343,6 +345,10 @@ export function parseProject(raw: string): ReelProject {
     captions: parsed.orientation ? parsed.captions === true : false,
     version: 1,
     music: { ...base.music, ...(parsed.music ?? {}) },
+    details: {
+      portrait: { ...base.details.portrait, ...parsed.details?.portrait },
+      landscape: { ...base.details.landscape, ...parsed.details?.landscape },
+    },
     output: { ...base.output, ...(parsed.output ?? {}) },
     clips: (parsed.clips ?? []).map(({ showLabel: _, ...clip }: Partial<ReelClip> & { showLabel?: unknown }) => makeClip(clip.from ?? 0, clip.to ?? 0, {
       ...clip,

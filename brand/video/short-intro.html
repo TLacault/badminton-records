@@ -2,7 +2,16 @@
 <html
   lang="fr"
   data-composition-variables='[
-    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"}
+    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
+    {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
+    {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
+    {"id":"s1a","type":"string","label":"Side 1 player 1","default":"TIM LACAULT"},
+    {"id":"s1b","type":"string","label":"Side 1 player 2","default":"ADRIEN ROUX"},
+    {"id":"s2a","type":"string","label":"Side 2 player 1","default":"THOMAS MARTIN"},
+    {"id":"s2b","type":"string","label":"Side 2 player 2","default":"ANTHONY LEROY"},
+    {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"},
+    {"id":"details","type":"string","label":"Match card after HIGHLIGHTS (1 / 0)","default":"0"}
   ]'
 >
 <head>
@@ -12,9 +21,9 @@
   @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
   html, body { margin: 0; background: #08070a; }
   /*
-   * The portrait clip opener (3.5 s, BOOKEND_SECONDS.portrait): intro.html's
-   * brand beat, then HIGHLIGHTS with a flare, then the wipe. No match card:
-   * the frame around every clip already carries the match.
+   * The portrait clip opener: intro.html's brand beat with HIGHLIGHTS and a
+   * flare. details=1 adds the match card (6.5 s); details=0 wipes out after the
+   * brand and the render is cut at 3.5 s (shared/reel bookendSeconds).
    * Words stay in the 168 → 1330 px band the Shorts / Reels UI leaves free.
    */
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
@@ -33,11 +42,21 @@
   #hl-shine { position: absolute; inset: 0; color: transparent; background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.95) 50%, transparent 60%) no-repeat; background-size: 300% 100%; background-position: 120% 0; -webkit-background-clip: text; background-clip: text; }
   #hl-line { position: absolute; left: -100px; right: -100px; top: 50%; height: 6px; margin-top: -3px; background: linear-gradient(90deg, transparent, #fff 50%, transparent); box-shadow: 0 0 28px 8px color-mix(in srgb, var(--c) 70%, transparent); }
   #hl-core { position: absolute; left: 50%; top: 50%; width: 420px; height: 420px; margin: -210px 0 0 -210px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.7) 10%, color-mix(in srgb, var(--c) 50%, transparent) 30%, transparent 65%); }
+  #card { position: absolute; inset: 0; }
+  #tag { position: absolute; left: 0; top: 200px; padding: 14px 60px 12px 80px; background: var(--c); font: italic 700 42px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%); }
+  #event { position: absolute; left: 50px; right: 50px; top: 320px; text-align: center; font: italic 700 52px/1.15 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
+  #detail { position: absolute; left: 50px; right: 50px; top: 400px; text-align: center; font: italic 700 36px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
+  .side { position: absolute; left: 40px; right: 40px; text-align: center; font: italic 900 108px/0.95 "Barlow Condensed BR"; text-transform: uppercase; }
+  .side div { white-space: nowrap; }
+  #side1 { top: 510px; }
+  #vs { position: absolute; left: 0; right: 0; top: 740px; text-align: center; font: italic 900 150px/1 "Barlow Condensed BR"; }
+  #side2 { top: 920px; color: var(--c); }
+  #place { position: absolute; right: 0; top: 1180px; padding: 20px 80px 18px 70px; background: var(--c); font: italic 700 36px/1 "Poppins BR"; letter-spacing: 3px; clip-path: polygon(34px 0, 100% 0, 100% 100%, 0 100%); }
   #wipe .slash { top: -400px; height: 2720px; }
 </style>
 </head>
 <body>
-<div id="root" data-composition-id="short-intro" data-start="0" data-duration="3.5" data-width="1080" data-height="1920" data-fps="30">
+<div id="root" data-composition-id="short-intro" data-start="0" data-duration="6.5" data-width="1080" data-height="1920" data-fps="30">
   <div id="bg-wrap" class="full"><img id="bg" src="assets/background.jpg" alt=""></div>
   <div id="shade" class="full"></div>
 
@@ -59,6 +78,16 @@
     </div>
   </div>
 
+  <div id="card">
+    <div id="tag"><span data-var-text="tag">TOURNOIS</span></div>
+    <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
+    <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
+    <div id="side1" class="side"><div id="s1a" data-var-text="s1a">TIM LACAULT</div><div id="s1b" data-var-text="s1b">ADRIEN ROUX</div></div>
+    <div id="vs">VS</div>
+    <div id="side2" class="side"><div id="s2a" data-var-text="s2a">THOMAS MARTIN</div><div id="s2b" data-var-text="s2b">ANTHONY LEROY</div></div>
+    <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
+  </div>
+
   <div id="wipe" class="full" data-layout-allow-overflow data-layout-ignore>
     <div class="slash" id="wp1" style="left:0;width:700px"></div>
     <div class="slash" id="wp2" style="left:-300px;width:1900px;background:#08070a"></div>
@@ -70,9 +99,31 @@
   const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
   const root = document.getElementById("root");
   if (v.colour) root.style.setProperty("--c", v.colour);
+  const details = String(v.details ?? "0") === "1";
+  if (!details) document.getElementById("card").style.display = "none";
+  // Empty lines collapse: singles have one name a side, a free-play card has no event.
+  for (const id of ["s1b", "s2b", "event", "place"]) {
+    const el = document.getElementById(id);
+    if (id in v && !String(v[id]).trim()) el.style.display = "none";
+  }
+  // Long lines shrink to fit the width rather than wrap into the next block.
+  const fit = (el, min) => {
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && size > min) {
+      size -= 2;
+      el.style.fontSize = `${size}px`;
+    }
+  };
+  fit(document.getElementById("event"), 28);
+  for (const id of ["s1a", "s1b", "s2a", "s2b"]) {
+    const el = document.getElementById(id);
+    el.style.overflow = "hidden";
+    fit(el, 56);
+    el.style.overflow = "";
+  }
 
   const tl = gsap.timeline({ paused: true });
-  tl.fromTo("#bg", { scale: 1.08 }, { scale: 1.0, duration: 3.5, ease: "none" }, 0);
+  tl.fromTo("#bg", { scale: 1.08 }, { scale: 1.0, duration: 6.5, ease: "none" }, 0);
 
   // Brush slashes sweep in from both edges (steep: a portrait slash at -24° would cross everything).
   tl.fromTo("#sl1", { x: -400, skewX: -6 }, { x: 60, skewX: -6, duration: 0.5, ease: "expo.out" }, 0.05);
@@ -94,9 +145,23 @@
   tl.to("#hl-core", { keyframes: [{ opacity: 1, duration: 0.2 }, { opacity: 1, duration: 0.4 }, { opacity: 0, duration: 0.2 }] }, 1.1);
   tl.fromTo("#hl-shine", { backgroundPosition: "120% 0" }, { backgroundPosition: "-20% 0", duration: 0.7, ease: "power2.inOut" }, 1.2);
 
+  // Match card (details=1): the brand clears at 2.4 s, the card holds to the wipe.
+  const out = details ? 5.8 : 2.85;
+  if (details) {
+    tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 2.4);
+    tl.to(["#sl1", "#sl3"], { opacity: 0.35, duration: 0.4, ease: "power2.inOut" }, 2.4);
+    tl.fromTo("#tag", { x: -700 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.65);
+    tl.fromTo("#event", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.8);
+    tl.fromTo("#detail", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 2.9);
+    tl.fromTo("#side1", { x: -1100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 3.0);
+    tl.fromTo("#side2", { x: 1100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 3.0);
+    tl.fromTo("#vs", { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "expo.out" }, 3.25);
+    tl.fromTo("#place", { x: 900 }, { x: 0, duration: 0.45, ease: "expo.out" }, 3.4);
+  }
+
   // Out: a colour wipe covers the frame, ink follows and holds the last frames dark.
-  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2000, skewX: -24, duration: 0.55, ease: "power3.in" }, 2.85);
-  tl.fromTo("#wp2", { x: -2600, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, 2.97);
+  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2000, skewX: -24, duration: 0.55, ease: "power3.in" }, out);
+  tl.fromTo("#wp2", { x: -2600, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, out + 0.12);
 
   window.__timelines["short-intro"] = tl;
 </script>

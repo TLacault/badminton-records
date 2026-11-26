@@ -3,6 +3,7 @@
   lang="fr"
   data-composition-variables='[
     {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
     {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
     {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
     {"id":"s1","type":"string","label":"Side 1","default":"TIM & ADRIEN"},
@@ -20,7 +21,7 @@
    * The still behind every clip of a vertical reel. The landscape match is laid
    * over the window (y 560 → 1168, full width; shared/reel SHORT_FRAME), so the
    * two bands carry the brand and the match: brand, event and discipline above,
-   * the players below. Words stay in the 168 → 1330 band the Shorts / Reels UI
+   * the players, tag and venue below, the outlined wordmark under them. Words stay in the 168 → 1330 band the Shorts / Reels UI
    * leaves alone; below that, only texture.
    */
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
@@ -37,9 +38,11 @@
   #event { position: absolute; left: 60px; right: 60px; top: 340px; text-align: center; font: italic 700 54px/1.1 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
   #detail { position: absolute; left: 60px; right: 60px; top: 424px; text-align: center; font: italic 700 38px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
 
-  #versus { position: absolute; left: 40px; right: 40px; top: 1196px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 80px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
+  #versus { position: absolute; left: 40px; right: 40px; top: 1188px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 80px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
   #vs { font-size: 54px; color: var(--c); }
-  #place { position: absolute; left: 60px; right: 60px; top: 1292px; text-align: center; font: italic 700 28px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
+  #tag { position: absolute; left: 0; top: 1278px; padding: 12px 56px 10px 70px; background: var(--c); font: italic 700 32px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%); }
+  #place { position: absolute; right: 60px; top: 1287px; font: italic 700 28px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
+  #ghost { position: absolute; left: -40px; right: -40px; top: 1420px; text-align: center; font: italic 900 260px/0.85 "Barlow Condensed BR"; text-transform: uppercase; color: transparent; -webkit-text-stroke: 3px rgba(255,255,255,.08); }
 </style>
 </head>
 <body>
@@ -58,7 +61,9 @@
   <div id="window"></div>
 
   <div id="versus"><span id="s1" data-var-text="s1">TIM &amp; ADRIEN</span><span id="vs">VS</span><span id="s2" data-var-text="s2" style="color:var(--c)">THOMAS &amp; ANTHONY</span></div>
+  <div id="tag" data-var-text="tag">TOURNOIS</div>
   <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
+  <div id="ghost">Badminton<br>Records</div>
 </div>
 <script src="assets/gsap-3.14.2.min.js"></script>
 <script>

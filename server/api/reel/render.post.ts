@@ -56,6 +56,10 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     videoId: raw.videoId ?? null,
     matchTitle: String(raw.matchTitle ?? '').slice(0, 160),
     orientation: ORIENTATIONS.includes(raw.orientation!) ? raw.orientation! : 'portrait',
+    details: Object.fromEntries(ORIENTATIONS.map(o => [o, {
+      intro: Boolean(raw.details?.[o]?.intro ?? base.details[o].intro),
+      outro: Boolean(raw.details?.[o]?.outro ?? base.details[o].outro),
+    }])) as ReelProject['details'],
     clips: clips.filter(c => c.to > c.from),
     music: {
       ...base.music,
@@ -106,7 +110,7 @@ export default defineEventHandler(async (event) => {
 
   // The branding is drawn per match and orientation (cached); a host without
   // HyperFrames still renders, with black bands and no bookends.
-  const brand = brandText && await hasHyperframes() ? (await reelBrand(brandText, project.orientation)).paths : null
+  const brand = brandText && await hasHyperframes() ? (await reelBrand(brandText, project.orientation, project.details[project.orientation])).paths : null
   const music = project.music.videoId ? musicPath(project.music.videoId) : null
   const [source, musicFacts, intro, outro] = await Promise.all([
     probe(sourceFile),

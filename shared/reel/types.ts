@@ -65,13 +65,24 @@ export const SHORT_FRAME = { width: 1080, height: 1920, windowTop: 560, windowHe
 export type Orientation = 'portrait' | 'landscape'
 export const ORIENTATIONS: Orientation[] = ['portrait', 'landscape']
 
+/** The match card in the intro, the result in the outro. */
+export interface BookendDetails { intro: boolean, outro: boolean }
+
+/** Off in portrait (the frame carries the match), on in landscape, until changed. */
+export const DEFAULT_DETAILS: Record<Orientation, BookendDetails> = {
+  portrait: { intro: false, outro: false },
+  landscape: { intro: true, outro: true },
+}
+
 /**
- * Bookend lengths, as the templates time them: portrait opens on the brand and
- * HIGHLIGHTS only (short-intro.html), landscape keeps the match card (intro.html).
+ * Bookend lengths, as the templates time them (brand/video/*-intro, *-outro):
+ * without details the intro is the brand + HIGHLIGHTS only and the outro the end card only.
  */
-export const BOOKEND_SECONDS: Record<Orientation, { intro: number, outro: number }> = {
-  portrait: { intro: 3.5, outro: 10 },
-  landscape: { intro: 6, outro: 10 },
+export function bookendSeconds(orientation: Orientation, details: BookendDetails): { intro: number, outro: number } {
+  return {
+    intro: details.intro ? (orientation === 'portrait' ? 6.5 : 6) : 3.5,
+    outro: details.outro ? 10 : 5,
+  }
 }
 
 /** Text for the vertical intro, outro and frame (HyperFrames variables). */
@@ -99,6 +110,8 @@ export interface ReelProject {
   /** The fixture, printed on the export panel and in the file name. */
   matchTitle: string
   orientation: Orientation
+  /** Per orientation, so switching back finds what was chosen there. */
+  details: Record<Orientation, BookendDetails>
   clips: ReelClip[]
   music: ReelMusic
   transition: TransitionId

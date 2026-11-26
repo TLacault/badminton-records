@@ -1,5 +1,6 @@
 import type { BreakInput, RallyState } from '../badminton/types'
 import { describe, expect, it } from 'vitest'
+import { bookendSeconds } from './types'
 import {
   bodyDuration,
   captionFor,
@@ -147,6 +148,14 @@ describe('captions and files', () => {
     expect(parseProject(JSON.stringify({ captions: true })).captions).toBe(false)
     expect(parseProject(JSON.stringify({ captions: true, orientation: 'landscape' })).captions).toBe(true)
     expect(parseProject(JSON.stringify({})).orientation).toBe('portrait')
+  })
+
+  it('keeps the match details per format: off in portrait, on in landscape, by default', () => {
+    const project = parseProject(JSON.stringify({ details: { landscape: { outro: false } } }))
+    expect(project.details.portrait).toEqual({ intro: false, outro: false })
+    expect(project.details.landscape).toEqual({ intro: true, outro: false })
+    expect(bookendSeconds('portrait', project.details.portrait)).toEqual({ intro: 3.5, outro: 5 })
+    expect(bookendSeconds('landscape', { intro: true, outro: true })).toEqual({ intro: 6, outro: 10 })
   })
 })
 

@@ -104,6 +104,16 @@ export function defaultTitle(info: MatchInfo, familyId: FamilyId): string {
   return full.length <= TITLE_MAX ? full : `${full.slice(0, TITLE_MAX - 1)}…`
 }
 
+/**
+ * A highlights clip: "Gradignan 2026 | DH Poules #3 | Highlights". Shorter than
+ * the YouTube title: the place stands for the event when there is one.
+ */
+export function clipTitle(info: MatchInfo, familyId: FamilyId): string {
+  const place = info.venue?.trim() ? `${info.venue.trim()} ${year(info)}`.trim() : defaultTitle(info, familyId).split(' | ')[0]!
+  const disc = [discipline(info.format, info.category, true), info.round].filter(Boolean).join(' ')
+  return [place, disc, 'Highlights'].join(' | ')
+}
+
 /** The card text the intros and the vertical frame print, uppercase. */
 export function cardText(info: MatchInfo, familyId: FamilyId): { tag: string, event: string, detail: string, place: string } {
   const disc = discipline(info.format, info.category)

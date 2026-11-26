@@ -4,11 +4,11 @@ import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
 import { ArrowLeft, Clapperboard, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { cardText, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
+import { cardText, clipTitle, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
-  BOOKEND_SECONDS,
+  bookendSeconds,
   projectFileName,
   timeline,
   totalDuration,
@@ -85,14 +85,16 @@ onMounted(() => {
   const m = bundle.value?.match
   if (!m || !info.value || !family.value) return
   const title = defaultTitle(info.value, family.value.id)
-  if (project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title) {
-    // The name follows the generated title until someone renames it.
-    const untouched = !project.value.clips.length || project.value.name === project.value.matchTitle
+  const name = clipTitle(info.value, family.value.id)
+  // The name follows the generated one until someone renames it (an older draft
+  // was named after the YouTube title).
+  const untouched = !project.value.clips.length || [project.value.matchTitle, title].includes(project.value.name)
+  if (project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title || (untouched && project.value.name !== name)) {
     project.value = {
       ...project.value,
       videoId: m.youtube_video_id,
       matchTitle: title,
-      name: untouched ? title : project.value.name,
+      name: untouched ? name : project.value.name,
     }
   }
 })
@@ -183,16 +185,17 @@ type Drawn = { frame: string | null, intro: string, outro: string }
 const drawn = ref<Drawn | null>(null)
 const drawing = ref(false)
 const orientation = computed(() => project.value.orientation)
+const details = computed(() => project.value.details[orientation.value])
 
 async function draw() {
   drawn.value = null
   if (!brand.value || !caps.value?.render) return
   drawing.value = true
-  const wanted = orientation.value
+  const wanted = JSON.stringify([orientation.value, details.value])
   try {
-    const result = await $fetch<Drawn>('/api/reel/brand', { method: 'POST', body: { ...brand.value, orientation: wanted } })
-    // A switch while drawing leaves this answer for the other orientation.
-    if (wanted === orientation.value) drawn.value = result
+    const result = await $fetch<Drawn>('/api/reel/brand', { method: 'POST', body: { ...brand.value, orientation: orientation.value, details: details.value } })
+    // A switch while drawing leaves this answer for the other choice.
+    if (wanted === JSON.stringify([orientation.value, details.value])) drawn.value = result
   }
   catch {
     drawn.value = null
@@ -201,10 +204,14 @@ async function draw() {
     drawing.value = false
   }
 }
-watch([() => JSON.stringify(brand.value), () => caps.value?.render, orientation], draw, { immediate: true })
+watch([() => JSON.stringify(brand.value), () => caps.value?.render, orientation, () => JSON.stringify(details.value)], draw, { immediate: true })
 
 const media = (kind: string, id: string | null | undefined) => (id ? `/api/reel/media/${kind}/${id}` : null)
-const bookends = computed(() => (drawn.value ? BOOKEND_SECONDS[orientation.value] : {}))
+const bookends = computed(() => (drawn.value ? bookendSeconds(orientation.value, details.value) : {}))
+
+function toggleDetails(part: 'intro' | 'outro') {
+  patch({ details: { ...project.value.details, [orientation.value]: { ...details.value, [part]: !details.value[part] } } })
+}
 
 // ── The edit ────────────────────────────────────────────────────────────────
 
@@ -384,18 +391,29 @@ useSeoMeta({
           </button>
         </div>
         <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.bookends')">
-          <button
-            v-for="b in ['intro', 'outro'] as const"
-            :key="b"
-            type="button"
-            class="min-h-8 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
-            :class="project[b] ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
-            :aria-pressed="project[b]"
-            :title="drawn ? undefined : (drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint'))"
-            @click="patch({ [b]: !project[b] })"
-          >
-            {{ $t(`reel.${b}`) }}
-          </button>
+          <template v-for="b in ['intro', 'outro'] as const" :key="b">
+            <button
+              type="button"
+              class="min-h-8 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
+              :class="project[b] ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
+              :aria-pressed="project[b]"
+              :title="drawn ? undefined : (drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint'))"
+              @click="patch({ [b]: !project[b] })"
+            >
+              {{ $t(`reel.${b}`) }}
+            </button>
+            <!-- The match card in the intro, the result in the outro. -->
+            <button
+              type="button"
+              class="min-h-8 rounded-lg px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 disabled:opacity-40"
+              :class="details[b] ? 'bg-brand/25 text-ink' : 'text-ink-subtle hover:text-ink'"
+              :aria-pressed="details[b]"
+              :disabled="!project[b]"
+              @click="toggleDetails(b)"
+            >
+              + {{ $t(`reel.${b}Details`) }}
+            </button>
+          </template>
         </div>
 
         <p class="ml-auto flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">

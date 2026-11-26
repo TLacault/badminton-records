@@ -7,6 +7,7 @@
     {"id":"s2","type":"string","label":"Side 2","default":"THOMAS & ANTHONY"},
     {"id":"sets","type":"string","label":"Set scores (21-17,19-21)","default":"21-17,19-21,21-15"},
     {"id":"winner","type":"string","label":"Winner side (1, 2 or empty)","default":"1"},
+    {"id":"details","type":"string","label":"Result before the end card (1 / 0; 0 = end card only, cut at 5 s)","default":"1"},
     {"id":"detail","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026 · QUARTS DE FINALE"}
   ]'
 >
@@ -91,6 +92,11 @@
     });
   }
 
+  // details=0: no result, the end card comes straight in and the render is cut at 5 s.
+  const details = String(v.details ?? "1") !== "0";
+  if (!details) document.getElementById("result").style.display = "none";
+  const end = details ? 5.4 : 0.2;
+
   const tl = gsap.timeline({ paused: true });
   // In: the colour sweeps off the last clip.
   tl.fromTo("#in", { x: 0, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.4, ease: "power3.out" }, 0);
@@ -102,11 +108,11 @@
   tl.fromTo(".row .set", { y: 30, opacity: 0 }, { y: 0, opacity: (i, el) => (el.classList.contains("won") ? 1 : 0.45), duration: 0.3, ease: "expo.out", stagger: 0.06 }, 0.9);
   tl.to("#result", { opacity: 0, filter: "blur(10px)", y: -40, duration: 0.25, ease: "power3.in" }, 5.0);
 
-  // End card: 5.4 s → end.
-  tl.fromTo("#e-logo", { scale: 1.8, opacity: 0, filter: "blur(10px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, 5.4);
-  tl.fromTo("#e-thanks", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 5.5);
-  tl.fromTo("#e-cta", { x: 700, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 5.7);
-  tl.fromTo("#e-word", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 6.0);
+  // End card: from 5.4 s (0.2 s without the result) to the end.
+  tl.fromTo("#e-logo", { scale: 1.8, opacity: 0, filter: "blur(10px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, end);
+  tl.fromTo("#e-thanks", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, end + 0.1);
+  tl.fromTo("#e-cta", { x: 700, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, end + 0.3);
+  tl.fromTo("#e-word", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, end + 0.6);
   window.__timelines["short-outro"] = tl;
 </script>
 </body>

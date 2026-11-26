@@ -238,6 +238,8 @@ export default {
     portrait: "Portrait",
     landscape: "Landscape",
     bookends: "Intro and outro",
+    introDetails: "Match",
+    outroDetails: "Score",
     intro: "Intro",
     outro: "Outro",
     mute: "Mute",

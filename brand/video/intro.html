@@ -11,6 +11,7 @@
     {"id":"s2a","type":"string","label":"Side 2 player 1","default":"THOMAS MARTIN"},
     {"id":"s2b","type":"string","label":"Side 2 player 2","default":"ANTHONY LEROY"},
     {"id":"place","type":"string","label":"Venue · date","default":"TALENCE · 24 NOVEMBRE 2026"},
+    {"id":"details","type":"string","label":"Match card (1 / 0; 0 wipes out after the brand, cut at 3.5 s)","default":"1"},
     {"id":"highlights","type":"string","label":"Word under the brand (clips: HIGHLIGHTS; empty for the full match)","default":""}
   ]'
 >
@@ -115,6 +116,10 @@
     el.style.overflow = "";
   }
 
+  // details=0 (a clip without the match card): brand only, wipe at 2.85 s, the render is cut at 3.5 s.
+  const details = String(v.details ?? "1") !== "0";
+  if (!details) document.getElementById("card").style.display = "none";
+
   // A clip's intro adds a word under the brand (HIGHLIGHTS); the full match has none.
   const highlights = String(v.highlights ?? "").trim();
   if (highlights) {
@@ -149,7 +154,8 @@
   tl.fromTo("#hl-shine", { backgroundPosition: "120% 0" }, { backgroundPosition: "-20% 0", duration: 0.65, ease: "power2.inOut" }, 1.2);
 
   // The brand clears the stage for the card; the slashes widen into a frame.
-  tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 1.9);
+  // Without the card the brand holds until the wipe.
+  if (details) tl.to("#brand", { y: -60, opacity: 0, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, 1.9);
   tl.to(["#sl1", "#sl3"], { opacity: 0.35, duration: 0.4, ease: "power2.inOut" }, 1.9);
 
   // Match card.
@@ -162,9 +168,9 @@
   tl.fromTo("#place", { x: 900 }, { x: 0, duration: 0.45, ease: "expo.out" }, 2.9);
 
   // Out: a colour wipe covers the frame and the match cuts in behind it.
-  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.55, ease: "power3.in" }, 5.3);
+  tl.fromTo("#wp1", { x: -1400, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.55, ease: "power3.in" }, details ? 5.3 : 2.85);
   // Ink follows the colour and holds the last frames dark: the match cuts in from black.
-  tl.fromTo("#wp2", { x: -3200, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, 5.42);
+  tl.fromTo("#wp2", { x: -3200, skewX: -24 }, { x: 0, skewX: -24, duration: 0.5, ease: "power3.in" }, details ? 5.42 : 2.97);
 
   window.__timelines["intro"] = tl;
 </script>
