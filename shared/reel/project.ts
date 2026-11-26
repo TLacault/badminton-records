@@ -63,6 +63,7 @@ export function emptyProject(): ReelProject {
     output: { height: 1080, fps: 30, matchAudio: 0.35 },
     scoreboard: { portrait: false, landscape: true },
     thumbnail: { lines: [null, null], show: [true, true] },
+    description: null,
   }
 }
 

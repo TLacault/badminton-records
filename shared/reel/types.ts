@@ -136,6 +136,8 @@ export interface ReelProject {
   scoreboard: Record<Orientation, boolean>
   /** The 16:9 thumbnail (template = the match type's): band overrides (null = generated), bands shown. */
   thumbnail: { lines: [string | null, string | null], show: [boolean, boolean] }
+  /** The upload description; null = generated. The upload title is `name`. */
+  description: string | null
 }
 
 /** A segment as the renderer sees it: source in/out plus its length on screen. */

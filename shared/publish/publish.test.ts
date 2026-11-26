@@ -6,6 +6,7 @@ import {
   boardChanges,
   buildEdit,
   chapterStamp,
+  clipDescription,
   clipTitle,
   defaultDescription,
   defaultSettings,
@@ -171,6 +172,14 @@ describe('text', () => {
     expect(clipTitle({ ...INFO, venue: null, round: null }, 'tournois')).toBe('Tournois des Vendanges 2026 | DH | Highlights')
     const long = { ...INFO, eventName: 'X'.repeat(90) }
     expect(defaultTitle(long, 'tournois').length).toBeLessThanOrEqual(100)
+  })
+
+  it('describes a clip as highlights pointing at the full video', () => {
+    const d = clipDescription(INFO, 'tournois', { setScores: [[21, 15]], winner: 0, matchUrl: null, videoId: 'abc' })
+    expect(d.split('\n')[0]).toMatch(/^Highlights · Tournois des Vendanges 2026/)
+    expect(d).toContain('Match complet : https://youtu.be/abc')
+    expect(d).not.toContain('Chapitres')
+    expect(d).toContain('#badminton #highlights')
   })
 
   it('only publishes chapters YouTube accepts', () => {

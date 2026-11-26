@@ -198,3 +198,18 @@ export function defaultDescription(
   out.push('', tags.join(' '))
   return out.join('\n')
 }
+
+/**
+ * The clip's description: the match's, minus chapters (the clip has none), led
+ * by "Highlights" and pointing at the full video.
+ */
+export function clipDescription(
+  info: MatchInfo,
+  familyId: FamilyId,
+  opts: { setScores: [number, number][], winner: 0 | 1 | null, matchUrl: string | null, videoId: string | null },
+): string {
+  const lines = defaultDescription(info, familyId, { ...opts, chapters: [], total: 0 }).split('\n')
+  lines[0] = `Highlights · ${lines[0]}`
+  if (opts.videoId) lines.splice(lines.indexOf(''), 0, '', `Match complet : https://youtu.be/${opts.videoId}`)
+  return lines.join('\n').replace('#badminton', '#badminton #highlights')
+}

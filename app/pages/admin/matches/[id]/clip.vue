@@ -3,9 +3,9 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Image as ImageIcon, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Copy, Image as ImageIcon, RotateCcw, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { boardAt, boardChanges, boardKey, cardText, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
+import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
@@ -37,6 +37,7 @@ const { t } = useI18n()
 const client = useSupabaseClient<Database>()
 const route = useRoute()
 const matchId = route.params.id as string
+const site = useRequestURL()
 
 const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile } = useReelProject(matchId)
 const { caps, canRender, refresh: refreshCapabilities } = useReelCapabilities()
@@ -275,6 +276,28 @@ function thumbShow(i: 0 | 1, value: boolean) {
   const show = [...project.value.thumbnail.show] as ReelProject['thumbnail']['show']
   show[i] = value
   patchThumbnail({ show })
+}
+
+// ── Upload text ─────────────────────────────────────────────────────────────
+
+/** Like the YouTube editor: generated from the match, overridable; the title is the project name. */
+const generatedName = computed(() => (info.value && family.value ? clipTitle(info.value, family.value.id) : ''))
+const generatedDescription = computed(() => {
+  if (!info.value || !family.value || !derived.value) return ''
+  const result = matchResult(derived.value)
+  return clipDescription(info.value, family.value.id, {
+    setScores: result.sets,
+    winner: result.winner === null ? null : (result.winner - 1) as 0 | 1,
+    matchUrl: `${site.origin}/matches/${matchId}`,
+    videoId: project.value.videoId,
+  })
+})
+const description = computed(() => project.value.description ?? generatedDescription.value)
+const copied = ref<string | null>(null)
+async function copy(what: 'title' | 'description') {
+  await navigator.clipboard.writeText(what === 'title' ? project.value.name : description.value)
+  copied.value = what
+  setTimeout(() => (copied.value = null), 1500)
 }
 
 // ── Music ───────────────────────────────────────────────────────────────────
@@ -620,6 +643,23 @@ useSeoMeta({
                   class="field mt-2 uppercase"
                   @input="thumbLine(i, ($event.target as HTMLInputElement).value)"
                 >
+              </div>
+
+              <label class="mt-2 block">
+                <span class="label flex items-center justify-between">Title <span class="font-mono">{{ project.name.length }}/100</span></span>
+                <input :value="project.name" maxlength="100" class="field mt-2" @input="patch({ name: ($event.target as HTMLInputElement).value })">
+              </label>
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-ghost" @click="copy('title')"><Copy :size="14" aria-hidden="true" /> {{ copied === 'title' ? 'Copied' : 'Copy title' }}</button>
+                <button v-if="project.name !== generatedName" type="button" class="btn btn-sm btn-ghost" @click="patch({ name: generatedName })"><RotateCcw :size="14" aria-hidden="true" /> Generated</button>
+              </div>
+              <label class="block">
+                <span class="label">Description</span>
+                <textarea :value="description" rows="14" class="field mt-2 font-mono text-xs" @input="patch({ description: ($event.target as HTMLTextAreaElement).value })" />
+              </label>
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-ghost" @click="copy('description')"><Copy :size="14" aria-hidden="true" /> {{ copied === 'description' ? 'Copied' : 'Copy description' }}</button>
+                <button v-if="project.description !== null" type="button" class="btn btn-sm btn-ghost" @click="patch({ description: null })"><RotateCcw :size="14" aria-hidden="true" /> Generated</button>
               </div>
             </div>
 
