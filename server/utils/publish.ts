@@ -1,10 +1,10 @@
 import type { BoardState, RenderRequest } from '~~/shared/publish'
 import type { BookendDetails, Orientation, ReelBrand } from '~~/shared/reel'
-import { bookendSeconds } from '~~/shared/reel'
+import { bookendSeconds, FRAME_IN_SECONDS } from '~~/shared/reel'
 import type { SourceFacts } from './publishFfmpeg'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { INTRO_SECONDS, OUTRO_SECONDS } from '~~/shared/publish'
@@ -139,16 +139,11 @@ export async function reelBrand(brand: ReelBrand, orientation: Orientation, deta
   const outro = await cut(await hyperframes(portrait ? 'short-outro' : 'wide-outro', { ...brand.outro, details: flag(details.outro), colour: brand.colour }, 'mp4', report), seconds.outro)
   if (!portrait) return { frame: null, intro: name(intro)!, outro: name(outro)!, paths: { frame: null, frameIn: null, intro, outro } }
 
-  const frameDir = await hyperframes('short-frame', { ...brand.frame, animate: '0', colour: brand.colour }, 'png-sequence', report, ['--fps', '1'])
-  // The bands building in: played after the intro, and backwards before the outro.
-  const frameIn = await hyperframes('short-frame', { ...brand.frame, animate: '1', colour: brand.colour }, 'mp4', report)
-  const framePng = `${frameDir}.png`
-  if (!(await exists(framePng))) {
-    const first = (await readdir(frameDir)).filter(f => f.endsWith('.png')).sort()[0]
-    if (!first) throw new Error('The frame render produced no picture')
-    await copyFile(join(frameDir, first), framePng)
-  }
-  return { frame: name(framePng), intro: name(intro)!, outro: name(outro)!, paths: { frame: framePng, frameIn, intro, outro } }
+  // The frame behind the clips: an 8 s loop of slow ambient motion, and the
+  // bands building in (played after the intro, and backwards before the outro).
+  const frame = await hyperframes('short-frame', { ...brand.frame, mode: 'ambient', colour: brand.colour }, 'mp4', report)
+  const frameIn = await cut(await hyperframes('short-frame', { ...brand.frame, mode: 'in', colour: brand.colour }, 'mp4', report), FRAME_IN_SECONDS)
+  return { frame: name(frame)!, intro: name(intro)!, outro: name(outro)!, paths: { frame, frameIn, intro, outro } }
 }
 
 /**

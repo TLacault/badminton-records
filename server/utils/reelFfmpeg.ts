@@ -1,5 +1,5 @@
 import type { ReelClip, ReelProject } from '~~/shared/reel'
-import { activeClips, outSeconds, SHORT_FRAME } from '~~/shared/reel'
+import { activeClips, FRAME_IN_SECONDS, outSeconds, SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The render, as an argv.
@@ -23,9 +23,9 @@ export interface RenderInputs {
   music: MediaFacts | null
   intro: MediaFacts | null
   outro: MediaFacts | null
-  /** The vertical frame still (PNG, 1080×1920) the clips sit in; null = black bands. */
+  /** The vertical frame (mp4 loop, 1080×1920) the clips sit in; null = black bands. */
   frame?: string | null
-  /** The frame building in (mp4, ≈1.2 s, ends on the still): after the intro, and reversed before the outro. */
+  /** The frame building in (mp4, FRAME_IN_SECONDS, ends on the loop's first frame): after the intro, and reversed before the outro. */
   frameIn?: string | null
   /**
    * Per active clip, an ffconcat list of the full video's scoreboard PNGs
@@ -49,9 +49,6 @@ const GRADE_FILTERS: Record<string, string> = {
   cool: 'colorbalance=rs=-0.07:gs=0:bs=0.1,eq=saturation=1.04',
   faded: 'eq=contrast=0.88:brightness=0.04:saturation=0.72,vignette=PI/5',
 }
-
-/** Length of brand/video/short-frame.html with animate=1. */
-const FRAME_IN_SECONDS = 1.2
 
 const XFADE: Record<string, string> = {
   crossfade: 'fade',
@@ -201,10 +198,10 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     if (portrait && frame) {
       // One looped input per clip, cut to its length: a single split frame
       // would buffer every picture until the last clip asks for it.
-      args.push('-framerate', String(project.output.fps), '-loop', '1', '-t', round(outSeconds(clip)), '-i', frame)
+      args.push('-stream_loop', '-1', '-t', round(outSeconds(clip)), '-i', frame)
       const f = index++
       const norm = `scale=${width}:${height},setsar=1,fps=${project.output.fps},format=yuv420p`
-      filters.push(`[${f}:v]scale=${width}:${height},setsar=1,format=yuv420p[f${i}]`)
+      filters.push(`[${f}:v]${norm}[f${i}]`)
       let base = `f${i}`
       const frameIn = inputs.frameIn ?? null
       // The bands come in on the first clip and go out on the last, so the

@@ -68,6 +68,8 @@ export interface ReelMusic {
  * the bands above and below carry the brand and the match.
  */
 export const SHORT_FRAME = { width: 1080, height: 1920, windowTop: 560, windowHeight: 608 }
+/** The portrait frame's build-in (short-frame.html, mode=in): after the intro, and reversed before the outro. */
+export const FRAME_IN_SECONDS = 1.4
 
 /** Portrait = Shorts / Reels / Stories (9:16), landscape = a 16:9 highlights video. */
 export type Orientation = 'portrait' | 'landscape'

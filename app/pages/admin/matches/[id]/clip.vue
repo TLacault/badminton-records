@@ -515,7 +515,7 @@ useSeoMeta({
             :music-url="music.audioUrl.value"
             :intro-url="media('brand', drawn?.intro)"
             :outro-url="media('brand', drawn?.outro)"
-            :frame-url="orientation === 'portrait' ? media('frame', drawn?.frame) : null"
+            :frame-url="orientation === 'portrait' ? media('brand', drawn?.frame) : null"
             :board-at="boardAtSecond"
             :sides="[brand?.outro.s1 ?? '', brand?.outro.s2 ?? '']"
             :colour="family?.colour"

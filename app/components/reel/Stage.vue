@@ -3,7 +3,7 @@ import type { ReelProject, TimelinePiece } from '~~/shared/reel'
 import type { PieceMedia, ReelControls } from '~/composables/useReelPlayback'
 import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from '@lucide/vue'
 import type { BoardState } from '~~/shared/publish'
-import { SHORT_FRAME } from '~~/shared/reel'
+import { FRAME_IN_SECONDS, SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The preview.
@@ -27,7 +27,7 @@ const props = defineProps<{
   musicUrl: string | null
   introUrl: string | null
   outroUrl: string | null
-  /** The vertical frame still the clips sit in; null = black bands. */
+  /** The portrait frame loop (mp4) the clips sit in; null = black bands. */
   frameUrl?: string | null
   /** The board at a source second (the tagged match), for "print the score"; null = none. */
   boardAt?: ((seconds: number) => BoardState | null) | null
@@ -154,9 +154,9 @@ const board = computed(() => {
 
 /**
  * The portrait frame's bands come in after the intro and leave before the
- * outro, as the render's animated frame does (short-frame.html, animate=1).
+ * outro, as the render's build-in does (short-frame.html, mode=in).
  */
-const FRAME_MOTION = 1.2
+const FRAME_MOTION = FRAME_IN_SECONDS
 const frameOpacity = computed(() => {
   const clips = props.pieces.filter(p => p.kind === 'clip')
   const first = clips[0]
@@ -288,7 +288,17 @@ defineExpose({
       class="relative mx-auto max-w-full overflow-hidden rounded-2xl border border-line bg-black"
       :class="portrait ? 'aspect-[9/16] h-[min(78vh,56rem)]' : 'aspect-video w-full'"
     >
-      <img v-if="frameUrl" :src="frameUrl" alt="" class="absolute inset-0 h-full w-full" :style="{ opacity: frameOpacity }">
+      <video
+        v-if="frameUrl"
+        :src="frameUrl"
+        class="absolute inset-0 h-full w-full"
+        :style="{ opacity: frameOpacity, filter: `blur(${(1 - frameOpacity) * 12}px)`, transform: `scale(${1 + (1 - frameOpacity) * 0.08})` }"
+        autoplay
+        loop
+        muted
+        playsinline
+        aria-hidden="true"
+      />
 
       <!-- The match, in the frame's window. Everything the grade and the
            punch-in do is done here, so the overlays above stay sharp. -->

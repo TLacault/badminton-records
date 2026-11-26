@@ -17,9 +17,8 @@ const DIRS: Record<string, { dir: string, ext: string, type: string }> = {
   source: { dir: SOURCE_DIR, ext: '.mp4', type: 'video/mp4' },
   music: { dir: MUSIC_DIR, ext: '.m4a', type: 'audio/mp4' },
   out: { dir: OUT_DIR, ext: '.mp4', type: 'video/mp4' },
-  // The vertical reel's drawn branding (short-intro-…, short-outro-…, short-frame-…).
+  // A clip's drawn branding (intros, outros, the portrait frame loop).
   brand: { dir: HF_CACHE, ext: '.mp4', type: 'video/mp4' },
-  frame: { dir: HF_CACHE, ext: '.png', type: 'image/png' },
 }
 
 /** Ids are ours: a YouTube id or a render hash. Nothing else opens a file. */

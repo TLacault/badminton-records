@@ -30,10 +30,10 @@ describe('buildRenderPlan', () => {
       music: null,
       intro: null,
       outro: null,
-      frame: '/hf/short-frame.png',
+      frame: '/hf/short-frame.mp4',
       outputPath: '/out.mp4',
     })
-    expect(plan.args.join(' ')).toContain('-loop 1 -t 10 -i /hf/short-frame.png')
+    expect(plan.args.join(' ')).toContain('-stream_loop -1 -t 10 -i /hf/short-frame.mp4')
     // 1080 wide: the clip is 1080×608 and sits 560 px down a 1080×1920 frame.
     expect(graph(plan.args)).toContain('scale=1080:608:force_original_aspect_ratio=increase')
     expect(graph(plan.args)).toContain('scale=1080:1920')
@@ -44,16 +44,16 @@ describe('buildRenderPlan', () => {
     const plan = buildRenderPlan({
       project: project({ clips: [makeClip(10, 20), makeClip(30, 40)] }),
       source, music: null, intro: null, outro: null,
-      frame: '/hf/short-frame.png',
+      frame: '/hf/short-frame.mp4',
       frameIn: '/hf/short-frame-in.mp4',
       outputPath: '/out.mp4',
     })
     const g = graph(plan.args)
     expect(plan.args.filter(a => a === '/hf/short-frame-in.mp4')).toHaveLength(2)
     expect(g).toMatch(/\[f0\]\[fin0\]overlay=0:0:eof_action=pass/)
-    // Second clip is 10 s: the reversed build starts 1.2 s before its end.
+    // Second clip is 10 s: the reversed build starts 1.4 s before its end.
     expect(g).toContain('reverse,')
-    expect(g).toContain('setpts=PTS-STARTPTS+8.8/TB[fout1]')
+    expect(g).toContain('setpts=PTS-STARTPTS+8.6/TB[fout1]')
     expect(g).not.toContain('fin1')
   })
 
@@ -90,7 +90,7 @@ describe('buildRenderPlan', () => {
     const plan = buildRenderPlan({
       project: project({ orientation: 'landscape', clips: [makeClip(10, 20)] }),
       source, music: null, intro: null, outro: null,
-      frame: '/hf/short-frame.png',
+      frame: '/hf/short-frame.mp4',
       outputPath: '/out.mp4',
     })
     expect(graph(plan.args)).toContain('scale=1920:1080:force_original_aspect_ratio=increase')
