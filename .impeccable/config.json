@@ -164,6 +164,42 @@
         ],
         "createdAt": "2026-11-26T00:05:00.273Z",
         "reason": "decorative ghost/outline type in a rendered video frame, not UI text"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/short-frame.html"
+        ],
+        "createdAt": "2026-11-26T00:14:17.626Z",
+        "reason": "tracking is only on short uppercase card labels in a rendered video frame, matching brand/video/intro.html"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/short-intro.html"
+        ],
+        "createdAt": "2026-11-26T00:14:17.635Z",
+        "reason": "tracking is only on short uppercase card labels in a rendered video frame, matching brand/video/intro.html"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "brand/video/short-outro.html"
+        ],
+        "createdAt": "2026-11-26T00:14:17.645Z",
+        "reason": "tracking is only on short uppercase card labels in a rendered video frame, matching brand/video/intro.html"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "brand/video/short-outro.html"
+        ],
+        "createdAt": "2026-11-26T00:14:17.653Z",
+        "reason": "result table mirrors the approved landscape outro.html (crimson left bar is the brand's scoreboard bar)"
       }
     ]
   }
