@@ -48,7 +48,6 @@ export interface EditPlan {
 
 export function defaultSettings(): PublishSettings {
   return {
-    family: null,
     trimIn: null,
     trimOut: null,
     sourceOffsetSeconds: 0,
@@ -60,7 +59,7 @@ export function defaultSettings(): PublishSettings {
     scoreboardCorner: 'tl',
     keepBreaks: [],
     outputHeight: null,
-    thumbnail: { template: null, lines: [null, null], show: [true, true] },
+    thumbnail: { lines: [null, null], show: [true, true] },
     title: null,
     description: null,
   }
@@ -74,7 +73,8 @@ export function readSettings(raw: unknown): PublishSettings {
   return {
     ...base,
     ...r,
-    thumbnail: { ...base.thumbnail, ...(r.thumbnail ?? {}) },
+    // The family and template always follow the match type now; older rows may still carry an override.
+    thumbnail: { lines: r.thumbnail?.lines ?? base.thumbnail.lines, show: r.thumbnail?.show ?? base.thumbnail.show },
     keepBreaks: Array.isArray(r.keepBreaks) ? r.keepBreaks : [],
   }
 }
@@ -90,7 +90,7 @@ export function toOutput(segments: readonly Span[], t: number): number {
   return out
 }
 
-function boardAt(derived: DerivedMatch, t: number): BoardState {
+export function boardAt(derived: DerivedMatch, t: number): BoardState {
   const p = playbackAt(derived, t)
   const sets: [number, number][] = []
   for (const set of derived.sets) {
@@ -107,7 +107,23 @@ function boardAt(derived: DerivedMatch, t: number): BoardState {
   }
 }
 
-const boardKey = (b: BoardState) => `${b.sets.map(s => s.join('-')).join('_')}|${b.serving ?? 0}|${b.winner ?? 0}`
+export const boardKey = (b: BoardState) => `${b.sets.map(s => s.join('-')).join('_')}|${b.serving ?? 0}|${b.winner ?? 0}`
+
+/**
+ * What the board reads across a source window [from, to): the board at `from`,
+ * then a new one a beat after each point lands, as the full video shows it.
+ * `at` is source seconds; repeats are merged.
+ */
+export function boardChanges(derived: DerivedMatch, from: number, to: number): { at: number, board: BoardState }[] {
+  const out = [{ at: from, board: boardAt(derived, from + 1e-3) }]
+  for (const r of derived.rallyStates) {
+    const at = r.endsAtSeconds + SCORE_DELAY_SECONDS
+    if (at <= from || at >= to) continue
+    const board = boardAt(derived, r.endsAtSeconds + 1e-3)
+    if (boardKey(board) !== boardKey(out.at(-1)!.board)) out.push({ at, board })
+  }
+  return out
+}
 
 /**
  * The edit: what is kept, where the stings go, what the board shows when, and

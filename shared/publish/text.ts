@@ -24,8 +24,9 @@ export function familyForType(slug: string | null): FamilyId {
   return 'jeux_libres'
 }
 
-export function familyOf(info: MatchInfo, settings: Pick<PublishSettings, 'family'>): Family {
-  return FAMILIES[settings.family ?? familyForType(info.typeSlug)]
+/** The family (tag, colour, thumbnail template) always follows the match type set in Edit match. */
+export function familyOf(info: MatchInfo): Family {
+  return FAMILIES[familyForType(info.typeSlug)]
 }
 
 const DISCIPLINE: Record<MatchFormat, Record<Category | 'none', [string, string]>> = {
@@ -77,7 +78,7 @@ export function defaultThumbnailLines(info: MatchInfo, family: FamilyId): [strin
 
 /** The lines the thumbnail actually draws: overrides first, hidden lines dropped. */
 export function thumbnailLines(info: MatchInfo, settings: PublishSettings): string[] {
-  const defaults = defaultThumbnailLines(info, familyOf(info, settings).id)
+  const defaults = defaultThumbnailLines(info, familyOf(info).id)
   return [0, 1]
     .filter(i => settings.thumbnail.show[i])
     .map(i => (settings.thumbnail.lines[i] ?? defaults[i]!).toUpperCase())

@@ -1,5 +1,5 @@
 import type { ReelClip, ReelProject } from '~~/shared/reel'
-import { activeClips, captionFor, outSeconds, SHORT_FRAME } from '~~/shared/reel'
+import { activeClips, outSeconds, SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The render, as an argv.
@@ -25,9 +25,14 @@ export interface RenderInputs {
   outro: MediaFacts | null
   /** The vertical frame still (PNG, 1080×1920) the clips sit in; null = black bands. */
   frame?: string | null
+  /** The frame building in (mp4, ≈1.2 s, ends on the still): after the intro, and reversed before the outro. */
+  frameIn?: string | null
+  /**
+   * Per active clip, an ffconcat list of the full video's scoreboard PNGs
+   * (transparent 1920×1080), each held as long as that score stands; null = none.
+   */
+  scoreLists?: (string | null)[]
   outputPath: string
-  /** Overridden in tests; on a real host it is whatever fontconfig resolves. */
-  font?: string
 }
 
 export interface RenderPlan {
@@ -45,24 +50,13 @@ const GRADE_FILTERS: Record<string, string> = {
   faded: 'eq=contrast=0.88:brightness=0.04:saturation=0.72,vignette=PI/5',
 }
 
+/** Length of brand/video/short-frame.html with animate=1. */
+const FRAME_IN_SECONDS = 1.2
+
 const XFADE: Record<string, string> = {
   crossfade: 'fade',
   fadeblack: 'fadeblack',
   flash: 'fadewhite',
-}
-
-/**
- * A caption, ready to sit inside `text='…'`.
- *
- * Filtergraph quoting is not shell quoting: inside single quotes nothing is
- * escaped and a backslash is a backslash, so the only character that can hurt
- * is the quote itself — closed, escaped, reopened, exactly as a shell would.
- * Everything else the caption might contain (`:` `,` `;` `%` `{}`) is handled
- * by quoting plus `expansion=none` on the filter, which is what stops drawtext
- * reading `%{...}` in a player's nickname as a directive.
- */
-export function escapeDrawtext(text: string): string {
-  return text.replace(/'/g, "'\\''")
 }
 
 /** atempo only stretches between 0.5x and 2x, so a bigger change is chained. */
@@ -98,7 +92,6 @@ function videoChain(
   project: ReelProject,
   width: number,
   height: number,
-  font: string,
 ): string {
   const steps: string[] = ['setpts=PTS-STARTPTS']
 
@@ -120,21 +113,6 @@ function videoChain(
     'format=yuv420p',
   )
 
-  const caption = project.captions ? captionFor(clip) : ''
-  if (caption) {
-    // Sized off the picture: ~38 px in a vertical frame's window, ~68 px on a 1080p landscape.
-    const size = Math.round(height / 16)
-    const pad = Math.round(height / 18)
-    // Held for three seconds and faded at both ends: a caption that stays for
-    // the whole clip stops being information and becomes furniture.
-    const alpha = 'if(lt(t,0.4),t/0.4,if(lt(t,3),1,max(0,1-(t-3)/0.6)))'
-    steps.push(
-      `drawtext=font=${font}:text='${escapeDrawtext(caption)}':expansion=none`
-      + `:fontsize=${size}:fontcolor=white:borderw=${Math.max(2, Math.round(size / 12))}`
-      + `:bordercolor=black@0.75:x=${pad}:y=h-th-${pad}:alpha='${alpha}'`,
-    )
-  }
-
   return steps.join(',')
 }
 
@@ -146,7 +124,7 @@ function audioChain(clip: ReelClip, project: ReelProject): string {
   return steps.join(',')
 }
 
-/** A bookend is normalised too, but never graded, sped up or captioned. */
+/** A bookend is normalised too, but never graded or sped up. */
 function bookendChain(project: ReelProject, width: number, height: number): string {
   return [
     'setpts=PTS-STARTPTS',
@@ -161,7 +139,6 @@ function bookendChain(project: ReelProject, width: number, height: number): stri
 export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
   const { project, source, music, intro, outro, outputPath } = inputs
   const frame = inputs.frame ?? null
-  const font = inputs.font ?? 'Sans'
   const clips = activeClips(project)
   if (!clips.length) throw new Error('Nothing to render: the reel has no clips')
 
@@ -207,16 +184,45 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     args.push('-ss', round(clip.from), '-to', round(clip.to), '-i', source.path)
     const at = index++
     // Landscape: the clip is the whole picture already, nothing to sit in.
-    filters.push(`[${at}:v]${videoChain(clip, project, width, windowHeight, font)}[${portrait ? 'w' : 'v'}${i}]`)
+    const out = `${portrait ? 'w' : 'v'}${i}`
+    const list = project.captions ? inputs.scoreLists?.[i] : null
+    if (list) {
+      // The scoreboard sits on the match picture, after the punch-in and the
+      // grade, so it stays the size and colour it is in the full video.
+      args.push('-f', 'concat', '-safe', '0', '-i', list)
+      const sb = index++
+      filters.push(
+        `[${at}:v]${videoChain(clip, project, width, windowHeight)}[c${i}]`,
+        `[${sb}:v]scale=${width}:${windowHeight},format=rgba[s${i}]`,
+        `[c${i}][s${i}]overlay=0:0:eof_action=repeat,format=yuv420p[${out}]`,
+      )
+    }
+    else filters.push(`[${at}:v]${videoChain(clip, project, width, windowHeight)}[${out}]`)
     if (portrait && frame) {
       // One looped input per clip, cut to its length: a single split frame
       // would buffer every picture until the last clip asks for it.
       args.push('-framerate', String(project.output.fps), '-loop', '1', '-t', round(outSeconds(clip)), '-i', frame)
       const f = index++
-      filters.push(
-        `[${f}:v]scale=${width}:${height},setsar=1,format=yuv420p[f${i}]`,
-        `[f${i}][w${i}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`,
-      )
+      const norm = `scale=${width}:${height},setsar=1,fps=${project.output.fps},format=yuv420p`
+      filters.push(`[${f}:v]scale=${width}:${height},setsar=1,format=yuv420p[f${i}]`)
+      let base = `f${i}`
+      const frameIn = inputs.frameIn ?? null
+      // The bands come in on the first clip and go out on the last, so the
+      // joins with the intro and outro are a movement, not a cut.
+      if (frameIn && i === 0) {
+        args.push('-i', frameIn)
+        const fi = index++
+        filters.push(`[${fi}:v]${norm}[fin${i}]`, `[${base}][fin${i}]overlay=0:0:eof_action=pass[fa${i}]`)
+        base = `fa${i}`
+      }
+      if (frameIn && i === clips.length - 1) {
+        args.push('-i', frameIn)
+        const fo = index++
+        const start = Math.max(0, outSeconds(clip) - FRAME_IN_SECONDS)
+        filters.push(`[${fo}:v]reverse,${norm},setpts=PTS-STARTPTS+${round(start)}/TB[fout${i}]`, `[${base}][fout${i}]overlay=0:0:eof_action=pass[fb${i}]`)
+        base = `fb${i}`
+      }
+      filters.push(`[${base}][w${i}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`)
     }
     else if (portrait) {
       filters.push(`[w${i}]pad=${width}:${height}:0:${windowTop}:color=black[v${i}]`)
@@ -271,7 +277,10 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     // Trimmed to the film rather than faded out early: the song is chosen to
     // be exactly this long, and `duration=first` in the mix would otherwise
     // let a short track end the audio ahead of the picture.
-    args.push('-ss', round(project.music.startAt), '-i', music.path)
+    // Too short for the reel: the song starts over from its top (-stream_loop),
+    // rather than the mix running out into match sound alone.
+    const loops = project.music.loop && music.duration - project.music.startAt < duration
+    args.push(...(loops ? ['-stream_loop', '-1'] : []), '-ss', round(project.music.startAt), '-i', music.path)
     const at = index++
     const fadeOutAt = Math.max(0, duration - project.music.fadeOutSeconds)
     filters.push(

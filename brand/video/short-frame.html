@@ -3,6 +3,7 @@
   lang="fr"
   data-composition-variables='[
     {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"animate","type":"string","label":"1 = the bands animate in (1.2 s mp4, played backwards before the outro); 0 = the still","default":"0"},
     {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
     {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
     {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
@@ -20,8 +21,8 @@
   /*
    * The still behind every clip of a vertical reel. The landscape match is laid
    * over the window (y 560 → 1168, full width; shared/reel SHORT_FRAME), so the
-   * two bands carry the brand and the match: brand, event and discipline above,
-   * the players, tag and venue below, the outlined wordmark under them. Words stay in the 168 → 1330 band the Shorts / Reels UI
+   * two bands carry the brand and the match: brand, event, discipline and players
+   * above, tag and venue below, the outlined wordmark under them. Words stay in the 168 → 1330 band the Shorts / Reels UI
    * leaves alone; below that, only texture.
    */
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
@@ -31,36 +32,37 @@
   .slash { position: absolute; background: var(--c); transform: skewX(-24deg); }
   #window { position: absolute; left: 0; right: 0; top: 560px; height: 608px; background: #000; border-top: 8px solid var(--c); border-bottom: 8px solid var(--c); margin-top: -8px; }
 
-  #brand { position: absolute; left: 0; right: 0; top: 196px; display: flex; align-items: center; justify-content: center; gap: 20px; }
-  #logo { height: 96px; }
+  #brand { position: absolute; left: 0; right: 0; top: 180px; display: flex; align-items: center; justify-content: center; gap: 20px; }
+  #logo { height: 92px; }
   #word { font: italic 900 68px/0.9 "Barlow Condensed BR"; text-transform: uppercase; letter-spacing: .01em; }
   #word .red { color: var(--c); }
-  #event { position: absolute; left: 60px; right: 60px; top: 340px; text-align: center; font: italic 700 54px/1.1 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
-  #detail { position: absolute; left: 60px; right: 60px; top: 424px; text-align: center; font: italic 700 38px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
+  #event { position: absolute; left: 60px; right: 60px; top: 300px; text-align: center; font: italic 700 50px/1.1 "Poppins BR"; letter-spacing: 2px; white-space: nowrap; }
+  #detail { position: absolute; left: 60px; right: 60px; top: 370px; text-align: center; font: italic 700 38px/1.1 "Poppins BR"; letter-spacing: 3px; color: var(--c); }
 
-  #versus { position: absolute; left: 40px; right: 40px; top: 1188px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 80px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
+  #versus { position: absolute; left: 40px; right: 40px; top: 432px; display: flex; justify-content: center; align-items: baseline; gap: 26px; font: italic 900 80px/1.1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; }
   #vs { font-size: 54px; color: var(--c); }
-  #tag { position: absolute; left: 0; top: 1278px; padding: 12px 56px 10px 70px; background: var(--c); font: italic 700 32px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%); }
-  #place { position: absolute; right: 60px; top: 1287px; font: italic 700 28px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
+  #tag { position: absolute; left: 0; top: 1200px; padding: 12px 56px 10px 70px; background: var(--c); font: italic 700 32px/1 "Poppins BR"; letter-spacing: 2px; clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%); }
+  #place { position: absolute; right: 60px; top: 1209px; font: italic 700 28px/1 "Poppins BR"; letter-spacing: 3px; opacity: .85; }
   #ghost { position: absolute; left: -40px; right: -40px; top: 1420px; text-align: center; font: italic 900 260px/0.85 "Barlow Condensed BR"; text-transform: uppercase; color: transparent; -webkit-text-stroke: 3px rgba(255,255,255,.08); }
 </style>
 </head>
 <body>
-<div id="root" data-composition-id="short-frame" data-start="0" data-duration="1" data-width="1080" data-height="1920" data-fps="1">
+<div id="root" data-composition-id="short-frame" data-start="0" data-duration="1.2" data-width="1080" data-height="1920" data-fps="30">
   <img id="bg" class="full" src="assets/background.jpg" alt="">
   <div id="shade" class="full"></div>
-  <div class="slash" style="left:-80px;top:-40px;width:120px;height:600px;opacity:.9"></div>
-  <div class="slash" style="left:70px;top:-40px;width:26px;height:600px;opacity:.5"></div>
-  <div class="slash" style="right:-80px;top:1180px;width:120px;height:800px;opacity:.9"></div>
-  <div class="slash" style="right:70px;top:1180px;width:26px;height:800px;opacity:.5"></div>
+  <div class="slash" id="sl1" style="left:-80px;top:-40px;width:120px;height:600px;opacity:.9"></div>
+  <div class="slash" id="sl2" style="left:70px;top:-40px;width:26px;height:600px;opacity:.5"></div>
+  <div class="slash" id="sl3" style="right:-80px;top:1180px;width:120px;height:800px;opacity:.9"></div>
+  <div class="slash" id="sl4" style="right:70px;top:1180px;width:26px;height:800px;opacity:.5"></div>
 
   <div id="brand"><img id="logo" src="assets/logo.png" alt=""><div id="word">Badminton <span class="red">Records</span></div></div>
   <div id="event" data-var-text="event">TOURNOIS DES VENDANGES 2026</div>
   <div id="detail" data-var-text="detail">DOUBLES HOMMES • QUARTS DE FINALE</div>
 
+  <div id="versus"><span id="s1" data-var-text="s1">TIM &amp; ADRIEN</span><span id="vs">VS</span><span id="s2" data-var-text="s2" style="color:var(--c)">THOMAS &amp; ANTHONY</span></div>
+
   <div id="window"></div>
 
-  <div id="versus"><span id="s1" data-var-text="s1">TIM &amp; ADRIEN</span><span id="vs">VS</span><span id="s2" data-var-text="s2" style="color:var(--c)">THOMAS &amp; ANTHONY</span></div>
   <div id="tag" data-var-text="tag">TOURNOIS</div>
   <div id="place" data-var-text="place">TALENCE · 24 NOVEMBRE 2026</div>
   <div id="ghost">Badminton<br>Records</div>
@@ -86,7 +88,23 @@
   fit(event, 30);
   event.style.overflow = "";
   fit(document.getElementById("versus"), 40);
-  window.__timelines["short-frame"] = gsap.timeline({ paused: true });
+  const tl = gsap.timeline({ paused: true });
+  // animate=1: the bands build in off the intro's dark last frame and land on the still.
+  if (String(v.animate ?? "0") === "1") {
+    tl.fromTo(["#bg", "#shade"], { opacity: 0 }, { opacity: (i) => (i ? 1 : 0.38), duration: 0.4, ease: "power2.out" }, 0);
+    tl.fromTo("#window", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "expo.out" }, 0);
+    tl.fromTo(["#sl1", "#sl2"], { x: -300 }, { x: 0, duration: 0.5, ease: "expo.out", stagger: 0.06 }, 0.05);
+    tl.fromTo(["#sl3", "#sl4"], { x: 300 }, { x: 0, duration: 0.5, ease: "expo.out", stagger: 0.06 }, 0.05);
+    tl.fromTo("#brand", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "expo.out" }, 0.15);
+    tl.fromTo(["#event", "#detail"], { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out", stagger: 0.08 }, 0.3);
+    tl.fromTo("#s1", { x: -500, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 0.45);
+    tl.fromTo("#s2", { x: 500, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 0.45);
+    tl.fromTo("#vs", { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "expo.out" }, 0.6);
+    tl.fromTo("#tag", { x: -500 }, { x: 0, duration: 0.45, ease: "expo.out" }, 0.5);
+    tl.fromTo("#place", { opacity: 0, x: 60 }, { opacity: 0.85, x: 0, duration: 0.35, ease: "expo.out" }, 0.6);
+    tl.fromTo("#ghost", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0.6);
+  }
+  window.__timelines["short-frame"] = tl;
 </script>
 </body>
 </html>

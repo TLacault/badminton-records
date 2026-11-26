@@ -1,7 +1,10 @@
+import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelProject } from '~~/shared/reel'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { activeClips, emptyProject, GRADES, ORIENTATIONS, SPEEDS, TRANSITIONS } from '~~/shared/reel'
-import { hasHyperframes, reelBrand, sanitiseBrand } from '../../utils/publish'
+import { hasHyperframes, reelBrand, sanitiseBrand, scoreboardStills } from '../../utils/publish'
+import { stillsList } from '../../utils/publishFfmpeg'
 import {
   capabilities,
   exists,
@@ -45,6 +48,10 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     // whatever the person typing them had in mind.
     label: String(clip.label ?? '').replace(/[\r\n;\\]/g, ' ').slice(0, 120),
     rallyIdx: clip.rallyIdx ?? null,
+    marks: (Array.isArray(clip.marks) ? clip.marks : []).slice(0, 200).map(m => ({
+      at: clamp(m?.at, 0, 86_400, 0),
+      board: Math.round(clamp(m?.board, 0, 319, 0)),
+    })),
     score: clip.score ? String(clip.score).slice(0, 24) : null,
     setNumber: clip.setNumber ?? null,
   }))
@@ -69,6 +76,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
       volume: clamp(raw.music?.volume, 0, 2, 0.85),
       fadeInSeconds: clamp(raw.music?.fadeInSeconds, 0, 10, 1.2),
       fadeOutSeconds: clamp(raw.music?.fadeOutSeconds, 0.05, 10, 2),
+      loop: raw.music?.loop !== false,
     },
     transition: TRANSITIONS.includes(raw.transition!) ? raw.transition! : 'crossfade',
     transitionSeconds: clamp(raw.transitionSeconds, 0.05, 3, 0.4),
@@ -85,7 +93,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ project?: Partial<ReelProject>, brand?: Partial<ReelBrand> }>(event)
+  const body = await readBody<{ project?: Partial<ReelProject>, brand?: Partial<ReelBrand>, boards?: BoardState[] }>(event)
   const project = sanitise(body?.project ?? {})
   const brandText = sanitiseBrand(body?.brand)
 
@@ -119,10 +127,35 @@ export default defineEventHandler(async (event) => {
     project.outro && brand ? probe(brand.outro) : null,
   ])
 
+  // The board as the editor read it from the tagged match: plain numbers only.
+  const boards: BoardState[] = (Array.isArray(body?.boards) ? body.boards : []).slice(0, 320).map(b => ({
+    sets: (Array.isArray(b?.sets) ? b.sets : []).slice(0, 5).map(s => [Math.round(clamp(s?.[0], 0, 99, 0)), Math.round(clamp(s?.[1], 0, 99, 0))] as [number, number]),
+    serving: b?.serving === 1 || b?.serving === 2 ? b.serving : null,
+    winner: b?.winner === 1 || b?.winner === 2 ? b.winner : null,
+  }))
+
   // Named after the edit rather than after the moment: exporting the same reel
   // twice is a download, not a re-render.
-  const name = renderName({ project, brand, source: source.duration, music: musicFacts?.duration ?? null })
+  const name = renderName({ project, brand, boards, source: source.duration, music: musicFacts?.duration ?? null })
   const outputPath = join(OUT_DIR, `${name}.mp4`)
+
+  // The full video's scoreboard on every shot, when "print the score" is on.
+  let scoreLists: (string | null)[] = []
+  if (project.captions && boards.length && brandText && await hasHyperframes()) {
+    const stills = await scoreboardStills({ colour: brandText.colour, s1: brandText.outro.s1 ?? '', s2: brandText.outro.s2 ?? '' }, boards)
+    scoreLists = await Promise.all(activeClips(project).map(async (clip, i) => {
+      const marks = clip.marks?.length ? clip.marks : null
+      if (!marks) return null
+      const items = marks.map((m, k) => ({
+        path: stills[Math.min(m.board, stills.length - 1)]!,
+        // Output seconds: the source span divided by the speed.
+        seconds: ((marks[k + 1]?.at ?? clip.to - clip.from) - (k ? m.at : 0)) / clip.speed,
+      }))
+      const list = join(OUT_DIR, `${name}-score${i}.ffconcat`)
+      await writeFile(list, stillsList(items))
+      return list
+    }))
+  }
 
   const plan = buildRenderPlan({
     project,
@@ -131,6 +164,8 @@ export default defineEventHandler(async (event) => {
     intro,
     outro,
     frame: brand?.frame ?? null,
+    frameIn: brand?.frameIn ?? null,
+    scoreLists,
     outputPath,
   })
 

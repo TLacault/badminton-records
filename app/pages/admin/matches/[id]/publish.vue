@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
-import type { Corner, FamilyId, MatchInfo, RenderRequest } from '~~/shared/publish'
+import type { Corner, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
 import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, Pencil, RotateCcw, Scissors, Smartphone, Type } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
@@ -100,7 +100,7 @@ watch(settings, () => {
   }, 600)
 }, { deep: true })
 
-const family = computed(() => (info.value ? familyOf(info.value, settings.value) : FAMILIES.jeux_libres))
+const family = computed(() => (info.value ? familyOf(info.value) : FAMILIES.jeux_libres))
 
 // --- source: the local original, attached once and copied next to the renderer
 const videoId = computed(() => match.value?.youtube_video_id ?? null)
@@ -178,10 +178,9 @@ async function copy(what: 'title' | 'description') {
 }
 
 // --- thumbnail
-const { data: templates } = await useFetch<string[]>('/api/publish/templates', { default: () => [] })
 const defaultsLines = computed(() => (info.value ? defaultThumbnailLines(info.value, family.value.id) : ['', '']))
 const lines = computed(() => (info.value ? thumbnailLines(info.value, settings.value) : []))
-const template = computed(() => settings.value.thumbnail.template ?? family.value.template)
+const template = computed(() => family.value.template)
 
 // --- render
 const job = useReelJob()
@@ -263,7 +262,6 @@ async function render(draft: boolean) {
 }
 
 const tab = ref<'edit' | 'thumbnail' | 'text'>('edit')
-const familyOptions = (Object.keys(FAMILIES) as FamilyId[]).map(id => ({ value: id, label: FAMILIES[id].label }))
 const corners: { value: Corner, label: string }[] = [
   { value: 'tl', label: 'Top left' },
   { value: 'tr', label: 'Top right' },
@@ -380,15 +378,11 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 
         <!-- Montage -->
         <div v-if="tab === 'edit'" class="mt-5 flex flex-col gap-5">
-          <div>
-            <span class="label">Family</span>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <button v-for="f in familyOptions" :key="f.value" type="button" class="btn btn-sm" :class="family.id === f.value ? 'btn-primary' : 'btn-ghost'" @click="settings.family = f.value">
-                <span class="size-2.5 rounded-full" :style="{ background: FAMILIES[f.value].colour }" />
-                {{ f.label }}
-              </button>
-            </div>
-          </div>
+          <p class="flex items-center gap-2 text-sm text-ink-muted">
+            <span class="size-2.5 rounded-full" :style="{ background: family.colour }" />
+            {{ family.label }}
+            <span class="text-ink-subtle">· from the match type (Edit match)</span>
+          </p>
 
           <fieldset class="grid grid-cols-2 gap-2">
             <legend class="label mb-2">Pieces</legend>
@@ -496,12 +490,6 @@ const heights = [null, 2160, 1440, 1080, 720] as const
         <!-- Miniature -->
         <div v-else-if="tab === 'thumbnail'" class="mt-5 flex flex-col gap-4">
           <PublishThumbnailCanvas :template="template" :lines="lines" :colour="family.colour" :match-id="matchId" :file-stem="`thumbnail-${matchId.slice(0, 8)}`" />
-          <label class="block">
-            <span class="label">Template</span>
-            <select :value="template" class="field mt-2" @change="settings.thumbnail.template = ($event.target as HTMLSelectElement).value">
-              <option v-for="t in templates" :key="t" :value="t">{{ t }}</option>
-            </select>
-          </label>
           <div v-for="i in [0, 1] as const" :key="i">
             <label class="flex items-center gap-2">
               <input v-model="settings.thumbnail.show[i]" type="checkbox" class="accent-[var(--ui-accent)]">

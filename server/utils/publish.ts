@@ -1,4 +1,4 @@
-import type { RenderRequest } from '~~/shared/publish'
+import type { BoardState, RenderRequest } from '~~/shared/publish'
 import type { BookendDetails, Orientation, ReelBrand } from '~~/shared/reel'
 import { bookendSeconds } from '~~/shared/reel'
 import type { SourceFacts } from './publishFfmpeg'
@@ -137,16 +137,28 @@ export async function reelBrand(brand: ReelBrand, orientation: Orientation, deta
   const portrait = orientation === 'portrait'
   const intro = await cut(await hyperframes(portrait ? 'short-intro' : 'intro', { ...brand.intro, highlights: 'HIGHLIGHTS', details: flag(details.intro), colour: brand.colour }, 'mp4', report), seconds.intro)
   const outro = await cut(await hyperframes(portrait ? 'short-outro' : 'wide-outro', { ...brand.outro, details: flag(details.outro), colour: brand.colour }, 'mp4', report), seconds.outro)
-  if (!portrait) return { frame: null, intro: name(intro)!, outro: name(outro)!, paths: { frame: null, intro, outro } }
+  if (!portrait) return { frame: null, intro: name(intro)!, outro: name(outro)!, paths: { frame: null, frameIn: null, intro, outro } }
 
-  const frameDir = await hyperframes('short-frame', { ...brand.frame, colour: brand.colour }, 'png-sequence', report, ['--fps', '1'])
+  const frameDir = await hyperframes('short-frame', { ...brand.frame, animate: '0', colour: brand.colour }, 'png-sequence', report, ['--fps', '1'])
+  // The bands building in: played after the intro, and backwards before the outro.
+  const frameIn = await hyperframes('short-frame', { ...brand.frame, animate: '1', colour: brand.colour }, 'mp4', report)
   const framePng = `${frameDir}.png`
   if (!(await exists(framePng))) {
     const first = (await readdir(frameDir)).filter(f => f.endsWith('.png')).sort()[0]
     if (!first) throw new Error('The frame render produced no picture')
     await copyFile(join(frameDir, first), framePng)
   }
-  return { frame: name(framePng), intro: name(intro)!, outro: name(outro)!, paths: { frame: framePng, intro, outro } }
+  return { frame: name(framePng), intro: name(intro)!, outro: name(outro)!, paths: { frame: framePng, frameIn, intro, outro } }
+}
+
+/**
+ * The full video's scoreboard, one transparent 1920×1080 PNG per board (cached
+ * on the boards), for the clip render. Returns the picture of each board, in order.
+ */
+export async function scoreboardStills(vars: { colour: string, s1: string, s2: string }, boards: BoardState[], report: Report = () => {}): Promise<string[]> {
+  const seq = await hyperframes('scoreboard', { ...vars, corner: 'tl', states: JSON.stringify(boards.slice(0, 320)) }, 'png-sequence', report, ['--fps', '1'])
+  const frames = (await readdir(seq)).filter(f => f.endsWith('.png')).sort()
+  return boards.slice(0, 320).map((_, i) => join(seq, frames[Math.min(i, frames.length - 1)]!))
 }
 
 const optional = async (path: string) => (await exists(path) ? path : null)

@@ -198,6 +198,17 @@ function clock(seconds: number) {
         {{ $t('reel.autoFitAlways') }}
       </label>
 
+      <label class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-ink-muted">
+        <input
+          type="checkbox"
+          class="size-4 accent-[var(--ui-accent)]"
+          :checked="music.loop"
+          @change="emit('patch', { loop: ($event.target as HTMLInputElement).checked })"
+        >
+        {{ $t('reel.loopMusic') }}
+        <span v-if="duration && music.startAt + need > duration" class="ml-auto text-[0.6875rem] text-accent">{{ $t('reel.musicShort') }}</span>
+      </label>
+
       <div class="mt-4 grid gap-3">
         <label class="block">
           <span class="label">{{ $t('reel.musicVolume') }} · {{ Math.round(music.volume * 100) }}%</span>

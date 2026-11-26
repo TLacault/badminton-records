@@ -3,6 +3,7 @@ import type { MatchInfo } from './types'
 import { describe, expect, it } from 'vitest'
 import { deriveMatch } from '../badminton'
 import {
+  boardChanges,
   buildEdit,
   chapterStamp,
   clipTitle,
@@ -105,6 +106,15 @@ describe('buildEdit', () => {
     const at = (t: number) => plan.scores.find(s => t >= s.from && t < s.to)!.board.sets
     expect(at(12)).toEqual([[0, 0]])
     expect(at(15.5)).toEqual([[1, 0]])
+  })
+
+  it('reads the board across a clip: the score at its start, then each point a beat after it lands', () => {
+    const derived = deriveMatch(CONFIG, rallies())
+    // Points end at 10, 20, 30…: a clip 15 → 32 starts at 1-0 and sees 2-0 at 20.4, then the set at 30.4.
+    const marks = boardChanges(derived, 15, 32)
+    expect(marks.map(m => m.at)).toEqual([15, 20.4, 30.4])
+    expect(marks[0]!.board.sets).toEqual([[1, 0]])
+    expect(marks[1]!.board.sets).toEqual([[2, 0]])
   })
 
   it('trims, and drops stings that fall outside the trim', () => {

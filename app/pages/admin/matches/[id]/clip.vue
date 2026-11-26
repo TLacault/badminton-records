@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
+import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
 import { ArrowLeft, Clapperboard, Image as ImageIcon, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { cardText, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
+import { boardAt, boardChanges, boardKey, cardText, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
@@ -77,7 +78,7 @@ const { data: bundle } = await useAsyncData(`clip-${matchId}`, async () => {
 })
 
 const info = computed(() => (bundle.value?.match ? matchInfoFrom(bundle.value.match, bundle.value.participants) : null))
-const family = computed(() => (info.value ? familyOf(info.value, readSettings(bundle.value?.match?.publish_settings)) : null))
+const family = computed(() => (info.value ? familyOf(info.value) : null))
 
 // The project follows its match: the video and the title come from the row,
 // whatever a saved draft or an opened file said. Assigned, not patched, so it is not an undo step.
@@ -251,14 +252,13 @@ function playClip(id: string) {
 
 // ── Thumbnail ───────────────────────────────────────────────────────────────
 
-/** The YouTube editor's 16:9 thumbnail, with HIGHLIGHTS under the tag. */
-const { data: templates } = await useFetch<string[]>('/api/publish/templates', { default: () => [] })
+/** The YouTube editor's 16:9 thumbnail, with HIGHLIGHTS; the template follows the match type. */
 const thumbDefaults = computed(() => (info.value && family.value ? defaultThumbnailLines(info.value, family.value.id) : ['', '']))
 const thumbLines = computed(() => [0, 1]
   .filter(i => project.value.thumbnail.show[i])
   .map(i => (project.value.thumbnail.lines[i] ?? thumbDefaults.value[i]!).toUpperCase())
   .filter(Boolean))
-const thumbTemplate = computed(() => project.value.thumbnail.template ?? family.value?.template ?? 'tournois.png')
+const thumbTemplate = computed(() => family.value?.template ?? 'jeux_libres.png')
 
 function patchThumbnail(change: Partial<ReelProject['thumbnail']>) {
   patch({ thumbnail: { ...project.value.thumbnail, ...change } })
@@ -295,6 +295,37 @@ watch(filmSeconds, (seconds) => {
 
 onMounted(() => music.rehydrate())
 
+// ── Scoreboard ──────────────────────────────────────────────────────────────
+
+/** The full video's board, read off the tagged match at a source second. */
+const boardAtSecond = computed(() => {
+  const d = derived.value
+  return d && d.rallyStates.length ? (seconds: number) => boardAt(d, seconds) : null
+})
+
+/**
+ * Where the board changes inside each clip, for the render: the distinct
+ * boards once, and per clip the seconds (after its `from`) each one starts.
+ */
+function withBoards(): { project: ReelProject, boards: BoardState[] } {
+  const d = derived.value
+  if (!d || !project.value.captions) return { project: project.value, boards: [] }
+  const boards: BoardState[] = []
+  const index = new Map<string, number>()
+  const clips = project.value.clips.map(clip => ({
+    ...clip,
+    marks: boardChanges(d, clip.from, clip.to).map((m) => {
+      const key = boardKey(m.board)
+      if (!index.has(key)) {
+        index.set(key, boards.length)
+        boards.push(m.board)
+      }
+      return { at: m.at - clip.from, board: index.get(key)! }
+    }),
+  }))
+  return { project: { ...project.value, clips }, boards }
+}
+
 // ── Render ──────────────────────────────────────────────────────────────────
 
 const renderUrl = ref<string | null>(null)
@@ -311,7 +342,7 @@ async function render() {
     await source.upload()
     const started = await $fetch<{ ready: boolean, name: string, job: ReelJob | null }>(
       '/api/reel/render',
-      { method: 'POST', body: { project: project.value, brand: brand.value } },
+      { method: 'POST', body: { ...withBoards(), brand: brand.value } },
     )
     if (!started.ready && started.job) await renderJob.watch(started.job)
     const file = projectFileName(project.value, 'mp4')
@@ -485,6 +516,9 @@ useSeoMeta({
             :intro-url="media('brand', drawn?.intro)"
             :outro-url="media('brand', drawn?.outro)"
             :frame-url="orientation === 'portrait' ? media('frame', drawn?.frame) : null"
+            :board-at="boardAtSecond"
+            :sides="[brand?.outro.s1 ?? '', brand?.outro.s2 ?? '']"
+            :colour="family?.colour"
           />
 
           <ReelRibbon
@@ -574,12 +608,6 @@ useSeoMeta({
                 highlights="HIGHLIGHTS"
                 :saveable="false"
               />
-              <label class="block">
-                <span class="label">Template</span>
-                <select :value="thumbTemplate" class="field mt-2" @change="patchThumbnail({ template: ($event.target as HTMLSelectElement).value })">
-                  <option v-for="t in templates" :key="t" :value="t">{{ t }}</option>
-                </select>
-              </label>
               <div v-for="i in [0, 1] as const" :key="i">
                 <label class="flex items-center gap-2">
                   <input :checked="project.thumbnail.show[i]" type="checkbox" class="accent-[var(--ui-accent)]" @change="thumbShow(i, ($event.target as HTMLInputElement).checked)">

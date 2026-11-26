@@ -50,7 +50,8 @@ const form = reactive({
   // Channel kit: what the YouTube title, thumbnail and intro card print.
   event_name: null as string | null,
   round: null as string | null,
-  category: null as 'men' | 'women' | 'mixed' | null,
+  // Nearly every match is men's: Hommes until said otherwise.
+  category: 'men' as 'men' | 'women' | 'mixed' | null,
   /**
    * Which personal details the public player table prints. Everything we have,
    * by default: a detail is only noise when the player has no value for it,
@@ -87,7 +88,7 @@ const busy = ref(false)
 if (props.matchId) {
   const { data: match } = await client
     .from('matches').select('*').eq('id', props.matchId).single()
-  if (match) Object.assign(form, match)
+  if (match) Object.assign(form, match, { category: match.category ?? 'men' })
 
   const { data: mp } = await client
     .from('match_players').select('slot, player_id').eq('match_id', props.matchId)
@@ -109,6 +110,18 @@ else {
   form.match_type_id
     = matchTypes.value?.find(t => t.slug === DEFAULT_MATCH_TYPE)?.id ?? null
 }
+
+/**
+ * One day of filming is nearly always one event: a match with no event name
+ * takes the one already filled in on another match played the same day.
+ */
+watch(() => form.played_on, async (day) => {
+  if (!day || form.event_name?.trim()) return
+  const { data } = await client.from('matches').select('event_name')
+    .eq('played_on', day).not('event_name', 'is', null).neq('id', props.matchId ?? '00000000-0000-0000-0000-000000000000').limit(1)
+  const name = data?.[0]?.event_name
+  if (name && !form.event_name?.trim()) form.event_name = name
+}, { immediate: true })
 
 /**
  * Autosave state for an existing match. A new one has no row to write to, so
@@ -233,7 +246,6 @@ const saveLabel = computed(() => {
 })
 
 const categoryOptions = [
-  { value: null as 'men' | 'women' | 'mixed' | null, label: 'Not set', icon: CircleDashed },
   { value: 'men' as const, label: 'Hommes', icon: User },
   { value: 'women' as const, label: 'Dames', icon: User },
   { value: 'mixed' as const, label: 'Mixte', icon: Users },

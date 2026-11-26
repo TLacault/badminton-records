@@ -1,7 +1,7 @@
 import type { ReelProject } from '~~/shared/reel'
 import { describe, expect, it } from 'vitest'
 import { emptyProject, makeClip } from '~~/shared/reel'
-import { atempoChain, buildRenderPlan, escapeDrawtext } from './reelFfmpeg'
+import { atempoChain, buildRenderPlan } from './reelFfmpeg'
 
 const source = { path: '/cache/source/abc.mp4', duration: 3600, hasAudio: true }
 
@@ -38,6 +38,47 @@ describe('buildRenderPlan', () => {
     expect(graph(plan.args)).toContain('scale=1080:608:force_original_aspect_ratio=increase')
     expect(graph(plan.args)).toContain('scale=1080:1920')
     expect(graph(plan.args)).toContain('overlay=0:560:shortest=1')
+  })
+
+  it('builds the frame in on the first clip and plays it backwards at the end of the last', () => {
+    const plan = buildRenderPlan({
+      project: project({ clips: [makeClip(10, 20), makeClip(30, 40)] }),
+      source, music: null, intro: null, outro: null,
+      frame: '/hf/short-frame.png',
+      frameIn: '/hf/short-frame-in.mp4',
+      outputPath: '/out.mp4',
+    })
+    const g = graph(plan.args)
+    expect(plan.args.filter(a => a === '/hf/short-frame-in.mp4')).toHaveLength(2)
+    expect(g).toMatch(/\[f0\]\[fin0\]overlay=0:0:eof_action=pass/)
+    // Second clip is 10 s: the reversed build starts 1.2 s before its end.
+    expect(g).toContain('reverse,')
+    expect(g).toContain('setpts=PTS-STARTPTS+8.8/TB[fout1]')
+    expect(g).not.toContain('fin1')
+  })
+
+  it('lays the full video scoreboard over each clip when the score is printed', () => {
+    const plan = buildRenderPlan({
+      project: project({ captions: true, orientation: 'landscape', clips: [makeClip(10, 20)] }),
+      source, music: null, intro: null, outro: null,
+      scoreLists: ['/out/x-score0.ffconcat'],
+      outputPath: '/out.mp4',
+    })
+    expect(plan.args.join(' ')).toContain('-f concat -safe 0 -i /out/x-score0.ffconcat')
+    expect(graph(plan.args)).toContain('scale=1920:1080,format=rgba[s0]')
+    expect(graph(plan.args)).toContain('[c0][s0]overlay=0:0:eof_action=repeat')
+  })
+
+  it('loops a song shorter than the reel, and only then', () => {
+    const run = (loop: boolean, songSeconds: number) => buildRenderPlan({
+      project: project({ clips: [makeClip(10, 40)], music: { ...project().music, videoId: 'abcdefghijk', loop } }),
+      source, intro: null, outro: null,
+      music: { path: '/song.m4a', duration: songSeconds, hasAudio: true },
+      outputPath: '/out.mp4',
+    }).args.join(' ')
+    expect(run(true, 20)).toContain('-stream_loop -1 -ss 0 -i /song.m4a')
+    expect(run(true, 200)).not.toContain('-stream_loop')
+    expect(run(false, 20)).not.toContain('-stream_loop')
   })
 
   it('pads to black bands without a frame', () => {
@@ -155,16 +196,6 @@ describe('buildRenderPlan', () => {
     expect(graph(plan.args)).toContain('atrim=0:10')
     expect(graph(plan.args)).toContain('afade=t=out:st=8:d=2')
     expect(graph(plan.args)).toContain('amix=inputs=2')
-  })
-})
-
-describe('escapeDrawtext', () => {
-  it('leaves alone everything quoting and expansion=none already cover', () => {
-    expect(escapeDrawtext('Set 2 · 15:12, 100%')).toBe('Set 2 · 15:12, 100%')
-  })
-
-  it('closes, escapes and reopens the quote around an apostrophe', () => {
-    expect(escapeDrawtext("Tim's point")).toBe(String.raw`Tim'\''s point`)
   })
 })
 

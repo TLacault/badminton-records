@@ -2,7 +2,8 @@
 import type { ReelProject, TimelinePiece } from '~~/shared/reel'
 import type { PieceMedia, ReelControls } from '~/composables/useReelPlayback'
 import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from '@lucide/vue'
-import { captionFor, SHORT_FRAME } from '~~/shared/reel'
+import type { BoardState } from '~~/shared/publish'
+import { SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The preview.
@@ -10,7 +11,7 @@ import { captionFor, SHORT_FRAME } from '~~/shared/reel'
  * One player is dragged along the edit list rather than a film being built —
  * see `useReelPlayback`. What this component adds is everything the eye needs
  * for the edit to read as a film: the grade and the punch-in as CSS on the
- * frame, the caption where drawtext will put it, and a dip over each join.
+ * frame, the scoreboard where the render lays it, and a dip over each join.
  *
  * None of that is the render. The render is ffmpeg, and it is the truth; this
  * is a rehearsal accurate enough to make decisions from, which is the trade
@@ -28,6 +29,11 @@ const props = defineProps<{
   outroUrl: string | null
   /** The vertical frame still the clips sit in; null = black bands. */
   frameUrl?: string | null
+  /** The board at a source second (the tagged match), for "print the score"; null = none. */
+  boardAt?: ((seconds: number) => BoardState | null) | null
+  /** Side names on the board. */
+  sides?: [string, string]
+  colour?: string
 }>()
 
 const portrait = computed(() => props.project.orientation !== 'landscape')
@@ -139,14 +145,27 @@ const frameStyle = computed(() => ({
   transform: `scale(${clip.value?.zoom ?? 1})`,
 }))
 
-/** The caption lives for its first three and a half seconds, like drawtext's. */
-const caption = computed(() => {
-  const current = clip.value
-  if (!current || !props.project.captions) return null
-  const into = playback.position.value - (piece.value?.startsAt ?? 0)
-  if (into < 0 || into > 3.6) return null
-  const text = captionFor(current)
-  return text ? { text, fading: into > 3 } : null
+/** The full video's scoreboard, at the source second under the playhead. */
+const board = computed(() => {
+  const p = piece.value
+  if (!p?.clip || !props.project.captions || !props.boardAt) return null
+  return props.boardAt(p.from + (playback.position.value - p.startsAt) * p.speed)
+})
+
+/**
+ * The portrait frame's bands come in after the intro and leave before the
+ * outro, as the render's animated frame does (short-frame.html, animate=1).
+ */
+const FRAME_MOTION = 1.2
+const frameOpacity = computed(() => {
+  const clips = props.pieces.filter(p => p.kind === 'clip')
+  const first = clips[0]
+  const last = clips.at(-1)
+  const at = playback.position.value
+  if (!first || !last) return 1
+  const fadeIn = (at - first.startsAt) / FRAME_MOTION
+  const fadeOut = (last.startsAt + last.outSeconds - at) / FRAME_MOTION
+  return Math.max(0, Math.min(1, fadeIn, fadeOut))
 })
 
 /** Black over the join, and over the head and tail of the reel. */
@@ -186,7 +205,10 @@ const veil = computed(() => {
 function syncMusic() {
   const el = musicEl.value
   if (!el || !props.musicUrl) return
-  const wanted = props.project.music.startAt + playback.position.value
+  let wanted = props.project.music.startAt + playback.position.value
+  // Looped, as the render loops it: past the end, the song starts over from its top.
+  const length = props.project.music.duration
+  if (props.project.music.loop && length && wanted >= length) wanted = (wanted - length) % length
   if (Math.abs(el.currentTime - wanted) > 0.25) el.currentTime = wanted
   el.volume = muted.value ? 0 : Math.min(1, props.project.music.volume)
   if (playback.playing.value && el.paused) el.play().catch(() => {})
@@ -266,7 +288,7 @@ defineExpose({
       class="relative mx-auto max-w-full overflow-hidden rounded-2xl border border-line bg-black"
       :class="portrait ? 'aspect-[9/16] h-[min(78vh,56rem)]' : 'aspect-video w-full'"
     >
-      <img v-if="frameUrl" :src="frameUrl" alt="" class="absolute inset-0 h-full w-full">
+      <img v-if="frameUrl" :src="frameUrl" alt="" class="absolute inset-0 h-full w-full" :style="{ opacity: frameOpacity }">
 
       <!-- The match, in the frame's window. Everything the grade and the
            punch-in do is done here, so the overlays above stay sharp. -->
@@ -288,21 +310,37 @@ defineExpose({
           </div>
         </div>
 
-        <Transition
-          enter-active-class="transition duration-200"
-          enter-from-class="opacity-0 translate-y-2"
-          leave-active-class="transition duration-300"
-          leave-to-class="opacity-0"
+        <!-- The scoreboard, sized off the picture as brand/video/scoreboard.html
+             draws it on 1920×1080 (cqw = 1% of the picture's width). -->
+        <div
+          v-if="board"
+          data-testid="reel-scoreboard"
+          class="pointer-events-none absolute inset-0 [container-type:size]"
+          :style="{ '--c': colour ?? '#cb2543' }"
         >
-          <p
-            v-if="caption"
-            data-testid="reel-caption"
-            class="pointer-events-none absolute bottom-2 left-3 font-display text-sm font-bold uppercase tracking-[0.08em] text-white legible sm:text-base"
-            :class="caption.fading ? 'opacity-60' : ''"
-          >
-            {{ caption.text }}
-          </p>
-        </Transition>
+          <div class="absolute grid grid-cols-[0.73cqw_auto_auto] bg-[rgba(8,7,10,.86)] text-white" style="left: 2.5cqw; top: 2.3cqw">
+            <div class="row-span-2 bg-[var(--c)]" />
+            <template v-for="side in [0, 1] as const" :key="side">
+              <div
+                class="flex items-center gap-[0.73cqw] pl-[1.04cqw] pr-[1.35cqw] font-display font-bold uppercase italic"
+                :class="[side ? 'border-t border-white/10' : '', board.winner === side + 1 ? 'text-[var(--c)]' : '']"
+                style="height: 3.23cqw; font-size: 1.56cqw; letter-spacing: .08cqw"
+              >
+                <span class="rounded-full" :class="board.serving === side + 1 && !board.winner ? 'bg-[var(--c)]' : ''" style="width: .73cqw; height: .73cqw" />
+                {{ sides?.[side] }}
+              </div>
+              <div class="flex" :class="side ? 'border-t border-white/10' : ''">
+                <span
+                  v-for="(score, k) in board.sets"
+                  :key="k"
+                  class="grid place-items-center font-display font-black italic"
+                  :class="k === board.sets.length - 1 && !board.winner ? 'bg-[var(--c)]' : score[side]! > score[1 - side]! ? '' : 'text-white/50'"
+                  style="width: 3.33cqw; height: 3.23cqw; font-size: 2.4cqw"
+                >{{ score[side] }}</span>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
 
       <!-- Intro and outro fill the whole picture. -->

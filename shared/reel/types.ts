@@ -28,6 +28,12 @@ export interface ReelClip {
   label: string
   /** The rally this was cut from, or null for a stretch picked by hand. */
   rallyIdx: number | null
+  /**
+   * Render-time only, filled by the editor from the tagged match: where the
+   * scoreboard changes inside this clip (`at` = seconds after `from`, source
+   * time) and which picture of `RenderBoards.boards` it shows.
+   */
+  marks?: { at: number, board: number }[]
   /** Snapshot of what the board read, so a caption survives a re-tag. */
   score: string | null
   setNumber: number | null
@@ -52,6 +58,8 @@ export interface ReelMusic {
   fadeOutSeconds: number
   /** Re-fit `startAt` to the loudest window whenever the reel changes length. */
   autoFit: boolean
+  /** A song shorter than the reel starts over from its beginning rather than leaving silence. */
+  loop: boolean
 }
 
 /**
@@ -124,8 +132,8 @@ export interface ReelProject {
   output: ReelOutput
   /** Prints the set and score (or the clip's own caption) on every shot, or on none. */
   captions: boolean
-  /** The 16:9 thumbnail: template (null = the family's), band overrides (null = generated), bands shown. */
-  thumbnail: { template: string | null, lines: [string | null, string | null], show: [boolean, boolean] }
+  /** The 16:9 thumbnail (template = the match type's): band overrides (null = generated), bands shown. */
+  thumbnail: { lines: [string | null, string | null], show: [boolean, boolean] }
 }
 
 /** A segment as the renderer sees it: source in/out plus its length on screen. */

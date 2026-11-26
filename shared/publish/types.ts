@@ -12,8 +12,6 @@ export interface CropRect { x: number, y: number, w: number, h: number }
  * Missing keys fall back to `defaultSettings()`, so old rows and `{}` both work.
  */
 export interface PublishSettings {
-  /** null = from the match type (familyForType). */
-  family: FamilyId | null
   /** Source seconds; null = start / end of the file. */
   trimIn: number | null
   trimOut: number | null
@@ -30,8 +28,6 @@ export interface PublishSettings {
   /** null = source height (capped at 2160). */
   outputHeight: 720 | 1080 | 1440 | 2160 | null
   thumbnail: {
-    /** File name in brand/thumbnail/; null = the family's template. */
-    template: string | null
     /** null = the generated default for that line. */
     lines: [string | null, string | null]
     show: [boolean, boolean]

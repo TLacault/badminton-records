@@ -13,7 +13,8 @@ export function matchInfoFrom(
   const bySlot: Record<number, Player | null> = {}
   for (const p of participants) bySlot[p.slot] = p.players as Player | null
   const format = m.format as MatchFormat
-  const category = m.category as Category | null
+  // Unset means men's, as the match form defaults it.
+  const category = (m.category ?? 'men') as Category
   const rankKey = format === 'singles' ? 'rank_singles' : category === 'mixed' ? 'rank_mixed' : 'rank_doubles'
   const side = (slots: number[]) => {
     const players = slots.map(s => bySlot[s]).filter((p): p is Player => Boolean(p))
