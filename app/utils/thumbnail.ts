@@ -1,6 +1,6 @@
 /**
  * Draws a YouTube thumbnail: Tim's family template + the two bottom bands
- * (+ HIGHLIGHTS under the tag, for a clip).
+ * (+ HIGHLIGHTS under the logo, for a clip).
  *
  * Every number is measured off his hand-made examples in
  * brand/thumbnail/example/ (2560×1440): the template already carries the
@@ -22,62 +22,74 @@ export const FONT = '"Poppins Thumb"'
 export const FONT_SIZE = 82
 export const LETTER_SPACING = 2
 
-/** Loads Poppins Bold Italic (bands) and Barlow Condensed Black Italic (HIGHLIGHTS) once, from the brand kit. */
+/** Loads Poppins Bold Italic once, from the brand kit. */
 let fontReady: Promise<void> | null = null
 export function loadThumbnailFont(url: string): Promise<void> {
-  fontReady ??= Promise.all([
-    new FontFace('Poppins Thumb', `url(${url})`, { style: 'italic', weight: '700' }).load(),
-    new FontFace('Barlow Thumb', `url(${url.replace('Poppins-BoldItalic', 'BarlowCondensed-BlackItalic')})`, { style: 'italic', weight: '900' }).load(),
-  ]).then((faces) => { faces.forEach(face => document.fonts.add(face)) })
+  fontReady ??= new FontFace('Poppins Thumb', `url(${url})`, { style: 'italic', weight: '700' })
+    .load()
+    .then((face) => { document.fonts.add(face) })
   return fontReady
 }
 
-/** HIGHLIGHTS under the template's top-left tag (which ends ~y 284), clear of the logo (x ≥ ~1140). */
-export const HIGHLIGHT = { left: 150, top: 330, size: 200, maxRight: 1080 }
+export function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error(`Could not load ${url}`))
+    img.src = url
+  })
+}
 
 /**
- * The clip's word under the tag, with the video intro's flare behind it: a
- * light streak across the word, a hot core near its end and a soft glow.
+ * HIGHLIGHTS for a clip, as Tim placed it: under the logo, right-aligned with
+ * the bands, in their Poppins. Measured off his mockup (1450 wide) × 1.766.
+ */
+export const HIGHLIGHT = { right: 2408, baseline: 803, size: 168, maxWidth: 1150 }
+
+/**
+ * The clip's word, with the video intro's flare behind it: a soft glow, a
+ * light streak through the word and thin lines above and below, a hot core.
  */
 function drawHighlights(ctx: CanvasRenderingContext2D, text: string, colour: string) {
   let size = HIGHLIGHT.size
-  const font = (px: number) => `italic 900 ${px}px "Barlow Thumb"`
-  ctx.font = font(size)
-  ctx.letterSpacing = `${Math.round(size * 0.04)}px`
-  while (ctx.measureText(text).width > HIGHLIGHT.maxRight - HIGHLIGHT.left && size > 80) {
+  const setFont = () => {
+    ctx.font = `italic 700 ${size}px ${FONT}`
+    ctx.letterSpacing = `${LETTER_SPACING}px`
+  }
+  setFont()
+  while (ctx.measureText(text).width > HIGHLIGHT.maxWidth && size > 80) {
     size -= 4
-    ctx.font = font(size)
-    ctx.letterSpacing = `${Math.round(size * 0.04)}px`
+    setFont()
   }
   const width = ctx.measureText(text).width
-  const capTop = HIGHLIGHT.top
-  const baseline = capTop + size * 0.72
-  const mid = capTop + size * 0.36
+  const left = HIGHLIGHT.right - width
+  const capTop = HIGHLIGHT.baseline - size * 0.705
+  const mid = (capTop + HIGHLIGHT.baseline) / 2
+  const from = left - 260
+  const to = Math.min(THUMB_W, HIGHLIGHT.right + 120)
 
   ctx.save()
   ctx.globalCompositeOperation = 'screen'
-  // Soft glow behind the word.
-  const glow = ctx.createRadialGradient(HIGHLIGHT.left + width / 2, mid, 0, HIGHLIGHT.left + width / 2, mid, width * 0.7)
+  const glow = ctx.createRadialGradient(left + width / 2, mid, 0, left + width / 2, mid, width * 0.65)
   glow.addColorStop(0, `${colour}66`)
   glow.addColorStop(1, `${colour}00`)
   ctx.fillStyle = glow
-  ctx.fillRect(0, mid - width * 0.7, HIGHLIGHT.left + width * 1.5, width * 1.4)
-  // The streak.
-  const streak = ctx.createLinearGradient(0, 0, HIGHLIGHT.left + width + 60, 0)
+  ctx.fillRect(left - width * 0.2, mid - width * 0.65, width * 1.4, width * 1.3)
+
+  const streak = ctx.createLinearGradient(from, 0, to, 0)
   streak.addColorStop(0, 'rgba(255,255,255,0)')
-  streak.addColorStop(0.55, 'rgba(255,255,255,1)')
+  streak.addColorStop(0.35, 'rgba(255,255,255,1)')
   streak.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.shadowColor = colour
   ctx.shadowBlur = 60
   ctx.fillStyle = streak
-  ctx.fillRect(0, mid - 8, HIGHLIGHT.left + width + 60, 16)
-  // A thinner streak above and below, so the flare shows past the letters.
+  ctx.fillRect(from, mid - 8, to - from, 16)
   ctx.globalAlpha = 0.5
-  ctx.fillRect(0, capTop - 18, HIGHLIGHT.left + width + 60, 4)
-  ctx.fillRect(0, baseline + 14, HIGHLIGHT.left + width + 60, 4)
+  ctx.fillRect(from, capTop - 22, to - from, 4)
+  ctx.fillRect(from, HIGHLIGHT.baseline + 18, to - from, 4)
   ctx.globalAlpha = 1
-  // The hot core, three quarters along.
-  const cx = HIGHLIGHT.left + width * 0.72
+
+  const cx = left + width * 0.3
   const core = ctx.createRadialGradient(cx, mid, 0, cx, mid, size * 1.6)
   core.addColorStop(0, 'rgba(255,255,255,1)')
   core.addColorStop(0.12, 'rgba(255,255,255,0.85)')
@@ -89,24 +101,14 @@ function drawHighlights(ctx: CanvasRenderingContext2D, text: string, colour: str
   ctx.restore()
 
   ctx.save()
-  ctx.font = font(size)
-  ctx.letterSpacing = `${Math.round(size * 0.04)}px`
-  ctx.textAlign = 'left'
+  setFont()
+  ctx.textAlign = 'right'
   ctx.textBaseline = 'alphabetic'
   ctx.shadowColor = colour
   ctx.shadowBlur = 36
   ctx.fillStyle = '#ffffff'
-  ctx.fillText(text, HIGHLIGHT.left, baseline)
+  ctx.fillText(text, HIGHLIGHT.right, HIGHLIGHT.baseline)
   ctx.restore()
-}
-
-export function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`Could not load ${url}`))
-    img.src = url
-  })
 }
 
 /**
