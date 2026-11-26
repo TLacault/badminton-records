@@ -2,7 +2,7 @@ import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelProject } from '~~/shared/reel'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { activeClips, emptyProject, GRADES, ORIENTATIONS, SPEEDS, TRANSITIONS } from '~~/shared/reel'
+import { activeClips, emptyProject, GRADES, ORIENTATIONS, showsScoreboard, SPEEDS, TRANSITIONS } from '~~/shared/reel'
 import { hasHyperframes, reelBrand, sanitiseBrand, scoreboardStills } from '../../utils/publish'
 import { stillsList } from '../../utils/publishFfmpeg'
 import {
@@ -83,7 +83,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     intro: raw.intro !== false,
     outro: raw.outro !== false,
     fadeEdges: raw.fadeEdges !== false,
-    captions: raw.captions === true,
+    scoreboard: { portrait: raw.scoreboard?.portrait === true, landscape: raw.scoreboard?.landscape !== false },
     output: {
       height: ([720, 1080, 1440].includes(Number(raw.output?.height)) ? Number(raw.output?.height) : 1080) as 720 | 1080 | 1440,
       fps: (Number(raw.output?.fps) === 60 ? 60 : 30) as 30 | 60,
@@ -141,7 +141,7 @@ export default defineEventHandler(async (event) => {
 
   // The full video's scoreboard on every shot, when "print the score" is on.
   let scoreLists: (string | null)[] = []
-  if (project.captions && boards.length && brandText && await hasHyperframes()) {
+  if (showsScoreboard(project) && boards.length && brandText && await hasHyperframes()) {
     const stills = await scoreboardStills({ colour: brandText.colour, s1: brandText.outro.s1 ?? '', s2: brandText.outro.s2 ?? '' }, boards)
     scoreLists = await Promise.all(activeClips(project).map(async (clip, i) => {
       const marks = clip.marks?.length ? clip.marks : null

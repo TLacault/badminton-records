@@ -5,7 +5,7 @@ import { TRANSITIONS } from '~~/shared/reel'
 
 /**
  * How the reel is put together: how one clip gives way to the next, the
- * captions, and what comes out the far end. Format and bookends sit in the
+ * scoreboard, and what comes out the far end. Format and bookends sit in the
  * page header.
  *
  * The transition is four buttons rather than a menu because it is the one
@@ -92,8 +92,8 @@ function pick(id: TransitionId) {
       <label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink-muted">
         <input
           type="checkbox" class="size-4 accent-[var(--ui-accent)]"
-          :checked="project.captions"
-          @change="emit('patch', { captions: ($event.target as HTMLInputElement).checked })"
+          :checked="project.scoreboard[project.orientation]"
+          @change="emit('patch', { scoreboard: { ...project.scoreboard, [project.orientation]: ($event.target as HTMLInputElement).checked } })"
         >
         {{ $t('reel.captionsOn') }}
       </label>

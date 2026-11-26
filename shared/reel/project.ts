@@ -61,7 +61,7 @@ export function emptyProject(): ReelProject {
     outro: true,
     fadeEdges: true,
     output: { height: 1080, fps: 30, matchAudio: 0.35 },
-    captions: false,
+    scoreboard: { portrait: false, landscape: true },
     thumbnail: { lines: [null, null], show: [true, true] },
   }
 }
@@ -147,6 +147,11 @@ export function clipFromRally(
 /** How long a clip runs on screen. Slow motion makes a 4s rally last 8. */
 export function outSeconds(clip: ReelClip): number {
   return Math.max(0, (clip.to - clip.from) / (clip.speed || 1))
+}
+
+/** Whether this project's current format prints the scoreboard. */
+export function showsScoreboard(project: ReelProject): boolean {
+  return Boolean(project.scoreboard?.[project.orientation])
 }
 
 export function activeClips(project: ReelProject): ReelClip[] {
@@ -343,8 +348,7 @@ export function parseProject(raw: string): ReelProject {
   return {
     ...base,
     ...parsed,
-    // Before orientations, captions defaulted on; they are off unless chosen now.
-    captions: parsed.orientation ? parsed.captions === true : false,
+    scoreboard: { ...base.scoreboard, ...parsed.scoreboard },
     version: 1,
     music: { ...base.music, ...(parsed.music ?? {}) },
     details: {

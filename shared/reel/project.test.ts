@@ -144,9 +144,9 @@ describe('captions and files', () => {
     expect(project.output.height).toBe(1080)
   })
 
-  it('turns captions off in a project from before orientations, keeps them in a newer one', () => {
-    expect(parseProject(JSON.stringify({ captions: true })).captions).toBe(false)
-    expect(parseProject(JSON.stringify({ captions: true, orientation: 'landscape' })).captions).toBe(true)
+  it('shows the scoreboard by default in landscape only, and keeps a choice per format', () => {
+    expect(parseProject(JSON.stringify({})).scoreboard).toEqual({ portrait: false, landscape: true })
+    expect(parseProject(JSON.stringify({ scoreboard: { portrait: true } })).scoreboard).toEqual({ portrait: true, landscape: true })
     expect(parseProject(JSON.stringify({})).orientation).toBe('portrait')
   })
 

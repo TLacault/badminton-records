@@ -11,7 +11,7 @@ function project(overrides: Partial<ReelProject> = {}): ReelProject {
     videoId: 'abcdefghijk',
     intro: false,
     outro: false,
-    captions: false,
+    scoreboard: { portrait: false, landscape: false },
     fadeEdges: false,
     ...overrides,
   }
@@ -55,11 +55,14 @@ describe('buildRenderPlan', () => {
     expect(g).toContain('reverse,')
     expect(g).toContain('setpts=PTS-STARTPTS+8.6/TB[fout1]')
     expect(g).not.toContain('fin1')
+    // The match fades in once the bands are built, and out before they leave.
+    expect(g).toContain('[w0]format=yuva420p,fade=t=in:st=0.9:d=0.5:alpha=1[wf0]')
+    expect(g).toContain('[w1]format=yuva420p,fade=t=out:st=8.1:d=0.5:alpha=1[wf1]')
   })
 
   it('lays the full video scoreboard over each clip when the score is printed', () => {
     const plan = buildRenderPlan({
-      project: project({ captions: true, orientation: 'landscape', clips: [makeClip(10, 20)] }),
+      project: project({ scoreboard: { portrait: false, landscape: true }, orientation: 'landscape', clips: [makeClip(10, 20)] }),
       source, music: null, intro: null, outro: null,
       scoreLists: ['/out/x-score0.ffconcat'],
       outputPath: '/out.mp4',

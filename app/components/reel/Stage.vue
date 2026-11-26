@@ -3,7 +3,7 @@ import type { ReelProject, TimelinePiece } from '~~/shared/reel'
 import type { PieceMedia, ReelControls } from '~/composables/useReelPlayback'
 import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from '@lucide/vue'
 import type { BoardState } from '~~/shared/publish'
-import { FRAME_IN_SECONDS, SHORT_FRAME } from '~~/shared/reel'
+import { FRAME_IN_SECONDS, SHORT_FRAME, showsScoreboard } from '~~/shared/reel'
 
 /**
  * The preview.
@@ -148,7 +148,7 @@ const frameStyle = computed(() => ({
 /** The full video's scoreboard, at the source second under the playhead. */
 const board = computed(() => {
   const p = piece.value
-  if (!p?.clip || !props.project.captions || !props.boardAt) return null
+  if (!p?.clip || !showsScoreboard(props.project) || !props.boardAt) return null
   return props.boardAt(p.from + (playback.position.value - p.startsAt) * p.speed)
 })
 
@@ -165,6 +165,20 @@ const frameOpacity = computed(() => {
   if (!first || !last) return 1
   const fadeIn = (at - first.startsAt) / FRAME_MOTION
   const fadeOut = (last.startsAt + last.outSeconds - at) / FRAME_MOTION
+  return Math.max(0, Math.min(1, fadeIn, fadeOut))
+})
+
+/** The match fades into the window once the bands are built, and out before they leave (portrait). */
+const VIDEO_FADE = 0.5
+const pictureOpacity = computed(() => {
+  if (!portrait.value || !props.frameUrl) return 1
+  const clips = props.pieces.filter(p => p.kind === 'clip')
+  const first = clips[0]
+  const last = clips.at(-1)
+  const at = playback.position.value
+  if (!first || !last) return 1
+  const fadeIn = (at - first.startsAt - (FRAME_IN_SECONDS - VIDEO_FADE)) / VIDEO_FADE
+  const fadeOut = (last.startsAt + last.outSeconds - FRAME_IN_SECONDS - at) / VIDEO_FADE
   return Math.max(0, Math.min(1, fadeIn, fadeOut))
 })
 
@@ -302,7 +316,7 @@ defineExpose({
 
       <!-- The match, in the frame's window. Everything the grade and the
            punch-in do is done here, so the overlays above stay sharp. -->
-      <div class="absolute inset-x-0 overflow-hidden" :style="windowStyle">
+      <div class="absolute inset-x-0 overflow-hidden" :style="{ ...windowStyle, opacity: pictureOpacity }">
         <div class="absolute inset-0 transition-[filter,transform] duration-300 ease-brand" :style="frameStyle">
           <video
             v-show="active === 'source' && !embedded"

@@ -11,6 +11,7 @@ import {
   clipsFromHighlights,
   bookendSeconds,
   projectFileName,
+  showsScoreboard,
   timeline,
   totalDuration,
 } from '~~/shared/reel'
@@ -309,7 +310,7 @@ const boardAtSecond = computed(() => {
  */
 function withBoards(): { project: ReelProject, boards: BoardState[] } {
   const d = derived.value
-  if (!d || !project.value.captions) return { project: project.value, boards: [] }
+  if (!d || !showsScoreboard(project.value)) return { project: project.value, boards: [] }
   const boards: BoardState[] = []
   const index = new Map<string, number>()
   const clips = project.value.clips.map(clip => ({

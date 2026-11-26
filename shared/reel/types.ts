@@ -132,8 +132,8 @@ export interface ReelProject {
   /** Opens on black and closes on black, however the clips are joined. */
   fadeEdges: boolean
   output: ReelOutput
-  /** Prints the set and score (or the clip's own caption) on every shot, or on none. */
-  captions: boolean
+  /** The full video's scoreboard on every shot, or on none; per orientation (off portrait, on landscape by default). */
+  scoreboard: Record<Orientation, boolean>
   /** The 16:9 thumbnail (template = the match type's): band overrides (null = generated), bands shown. */
   thumbnail: { lines: [string | null, string | null], show: [boolean, boolean] }
 }

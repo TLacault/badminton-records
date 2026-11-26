@@ -1,5 +1,5 @@
 import type { ReelClip, ReelProject } from '~~/shared/reel'
-import { activeClips, FRAME_IN_SECONDS, outSeconds, SHORT_FRAME } from '~~/shared/reel'
+import { activeClips, FRAME_IN_SECONDS, outSeconds, SHORT_FRAME, showsScoreboard } from '~~/shared/reel'
 
 /**
  * The render, as an argv.
@@ -49,6 +49,10 @@ const GRADE_FILTERS: Record<string, string> = {
   cool: 'colorbalance=rs=-0.07:gs=0:bs=0.1,eq=saturation=1.04',
   faded: 'eq=contrast=0.88:brightness=0.04:saturation=0.72,vignette=PI/5',
 }
+
+/** On the first clip the match fades into the window as the bands finish building (portrait). */
+const VIDEO_FADE = 0.5
+const VIDEO_IN_AT = FRAME_IN_SECONDS - VIDEO_FADE
 
 const XFADE: Record<string, string> = {
   crossfade: 'fade',
@@ -182,7 +186,7 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     const at = index++
     // Landscape: the clip is the whole picture already, nothing to sit in.
     const out = `${portrait ? 'w' : 'v'}${i}`
-    const list = project.captions ? inputs.scoreLists?.[i] : null
+    const list = showsScoreboard(project) ? inputs.scoreLists?.[i] : null
     if (list) {
       // The scoreboard sits on the match picture, after the punch-in and the
       // grade, so it stays the size and colour it is in the full video.
@@ -219,7 +223,19 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
         filters.push(`[${fo}:v]reverse,${norm},setpts=PTS-STARTPTS+${round(start)}/TB[fout${i}]`, `[${base}][fout${i}]overlay=0:0:eof_action=pass[fb${i}]`)
         base = `fb${i}`
       }
-      filters.push(`[${base}][w${i}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`)
+      // The match comes in once the bands have built, and goes before they leave:
+      // the window opens empty, then the picture fades up into it.
+      let picture = `w${i}`
+      const fades: string[] = []
+      if (frameIn && i === 0) fades.push(`fade=t=in:st=${round(VIDEO_IN_AT)}:d=${round(VIDEO_FADE)}:alpha=1`)
+      if (frameIn && i === clips.length - 1) {
+        fades.push(`fade=t=out:st=${round(Math.max(0, outSeconds(clip) - FRAME_IN_SECONDS - VIDEO_FADE))}:d=${round(VIDEO_FADE)}:alpha=1`)
+      }
+      if (fades.length) {
+        filters.push(`[w${i}]format=yuva420p,${fades.join(',')}[wf${i}]`)
+        picture = `wf${i}`
+      }
+      filters.push(`[${base}][${picture}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`)
     }
     else if (portrait) {
       filters.push(`[w${i}]pad=${width}:${height}:0:${windowTop}:color=black[v${i}]`)
