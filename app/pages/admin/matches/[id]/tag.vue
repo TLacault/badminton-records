@@ -3,7 +3,7 @@ import type { KeybindActionId } from '~/composables/useKeybinds'
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
-import { Clapperboard, Pencil, RotateCcw } from '@lucide/vue'
+import { Clapperboard, Pencil, RotateCcw, Smartphone } from '@lucide/vue'
 import { currentRallyAt } from '~~/shared/badminton'
 import { youtubeTitle } from '~/utils/matchSummary'
 
@@ -433,6 +433,10 @@ const saveLabel = computed(() => {
         <NuxtLink :to="`/admin/matches/${matchId}/publish`" class="btn btn-sm btn-ghost">
           <Clapperboard :size="14" aria-hidden="true" />
           YouTube version
+        </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost">
+          <Smartphone :size="14" aria-hidden="true" />
+          Clip
         </NuxtLink>
       </div>
     </div>

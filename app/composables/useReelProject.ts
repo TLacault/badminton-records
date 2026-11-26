@@ -4,7 +4,6 @@ import { emptyProject, parseProject, projectFileName } from '~~/shared/reel'
 /** The custom extension. Plain JSON inside, so it diffs and it opens. Older saves are `.reel`. */
 export const REEL_EXTENSION = 'clip'
 
-const STORAGE_KEY = 'ust-reel-project-v1'
 const HISTORY_LIMIT = 40
 
 /**
@@ -20,10 +19,12 @@ const HISTORY_LIMIT = 40
  * rather than a set of inverse operations — a trim, a reorder and a grade all
  * undo the same way, and a new control added later gets undo for free.
  */
-export function useReelProject() {
-  const project = useState<ReelProject>('reel-project', () => emptyProject())
-  const history = useState<string[]>('reel-history', () => [])
-  const restored = useState('reel-restored', () => false)
+export function useReelProject(matchId: string) {
+  // One project per match, like the YouTube version: the clip editor is a page of the match.
+  const STORAGE_KEY = `ust-reel-project-v1:${matchId}`
+  const project = useState<ReelProject>(`reel-project-${matchId}`, () => ({ ...emptyProject(), matchId }))
+  const history = useState<string[]>(`reel-history-${matchId}`, () => [])
+  const restored = useState(`reel-restored-${matchId}`, () => false)
 
   function persist() {
     try {
@@ -40,7 +41,7 @@ export function useReelProject() {
     restored.value = true
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) project.value = parseProject(raw)
+      if (raw) project.value = { ...parseProject(raw), matchId }
     }
     catch {
       // A corrupt draft is not worth a broken editor; start clean.
@@ -125,7 +126,8 @@ export function useReelProject() {
   }
 
   async function openFile(file: File) {
-    const opened = parseProject(await file.text())
+    // A file saved from another match keeps its edit but is cut from this match.
+    const opened = { ...parseProject(await file.text()), matchId, videoId: project.value.videoId, matchTitle: project.value.matchTitle }
     history.value = [...history.value, JSON.stringify(project.value)].slice(-HISTORY_LIMIT)
     project.value = opened
     persist()
@@ -134,7 +136,7 @@ export function useReelProject() {
 
   function reset() {
     edit((draft) => {
-      Object.assign(draft, emptyProject())
+      Object.assign(draft, emptyProject(), { matchId, videoId: draft.videoId, matchTitle: draft.matchTitle, name: draft.matchTitle || draft.name })
     })
   }
 

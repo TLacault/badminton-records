@@ -87,22 +87,39 @@ export function thumbnailLines(info: MatchInfo, settings: PublishSettings): stri
 export const TITLE_MAX = 100
 
 /**
- * "Tournois des Vendanges 2026 · DH Quarts de finale · Tim & Adrien vs Thomas & Anthony"
- * Cut to YouTube's 100 characters by dropping the round, then shortening names.
+ * "Tournois Senior de Gradignan 2026 | DH Finale". Free play has no event to
+ * tell its videos apart, so it gets the players: "Jeux libres 2026 | DH | Tim & Adrien vs Thomas & Anthony".
+ * Cut to YouTube's 100 characters.
  */
 export function defaultTitle(info: MatchInfo, familyId: FamilyId): string {
   const disc = discipline(info.format, info.category, true)
-  const versus = `${sideName(info, 0)} vs ${sideName(info, 1)}`
   const head = familyId === 'tournois'
-    ? eventLine(info) || FAMILIES.tournois.label
+    ? (info.eventName?.trim() ? eventLine(info) : `${FAMILIES.tournois.label} ${year(info)}`.trim())
+    : familyId === 'interclub'
+      ? `Interclub${opponentClub(info) ? ` vs ${opponentClub(info)}` : ''} ${year(info)}`.trim()
+      : `${FAMILIES.jeux_libres.label} ${year(info)}`.trim()
+  const parts = [head, [disc, info.round].filter(Boolean).join(' ')]
+  if (familyId === 'jeux_libres') parts.push(`${sideName(info, 0)} vs ${sideName(info, 1)}`)
+  const full = parts.join(' | ')
+  return full.length <= TITLE_MAX ? full : `${full.slice(0, TITLE_MAX - 1)}…`
+}
+
+/** The card text the intros and the vertical frame print, uppercase. */
+export function cardText(info: MatchInfo, familyId: FamilyId): { tag: string, event: string, detail: string, place: string } {
+  const disc = discipline(info.format, info.category)
+  const date = info.playedOn ? new Date(`${info.playedOn}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const event = familyId === 'tournois'
+    ? (info.eventName?.trim() ? eventLine(info) : `${FAMILIES.tournois.label} ${year(info)}`.trim())
     : familyId === 'interclub'
       ? `Interclub${opponentClub(info) ? ` vs ${opponentClub(info)}` : ''}`
-      : FAMILIES.jeux_libres.label
-  const withRound = [head, [disc, familyId === 'tournois' ? info.round : null].filter(Boolean).join(' '), versus]
-  const full = withRound.join(' · ')
-  if (full.length <= TITLE_MAX) return full
-  const noRound = [head, disc, versus].join(' · ')
-  return noRound.length <= TITLE_MAX ? noRound : `${noRound.slice(0, TITLE_MAX - 1)}…`
+      : `${FAMILIES.jeux_libres.label} ${year(info)}`.trim()
+  const detail = familyId === 'tournois' ? [disc, info.round].filter(Boolean).join(' • ') : disc
+  return {
+    tag: FAMILIES[familyId].label.toUpperCase(),
+    event: event.toUpperCase(),
+    detail: detail.toUpperCase(),
+    place: [info.venue, date].filter(Boolean).join(' · ').toUpperCase(),
+  }
 }
 
 export interface Chapter { at: number, title: string }

@@ -56,8 +56,25 @@ export interface ReelMusic {
   autoFit: boolean
 }
 
+/**
+ * The vertical frame (Shorts / Reels / Stories), in the 1080×1920 units of
+ * brand/video/short-*.html: the landscape match sits full width in the window,
+ * the bands above and below carry the brand and the match.
+ */
+export const SHORT_FRAME = { width: 1080, height: 1920, windowTop: 560, windowHeight: 608 }
+export const SHORT_INTRO_SECONDS = 2.5
+export const SHORT_OUTRO_SECONDS = 3
+
+/** Text for the vertical intro, outro and frame (HyperFrames variables). */
+export interface ReelBrand {
+  colour: string
+  frame: Record<string, string>
+  intro: Record<string, string>
+  outro: Record<string, string>
+}
+
 export interface ReelOutput {
-  /** Height in pixels; the width follows 16:9. */
+  /** The short side, as "1080p" names a vertical video: 1080 → 1080×1920. */
   height: 720 | 1080 | 1440
   fps: 30 | 60
   /** 0–1. The match's own sound — squeaks and shuttle — under the music. */
@@ -107,11 +124,6 @@ export interface ReelCapabilities {
   download: boolean
   /** ffmpeg: an mp4 can be produced. */
   render: boolean
-  intro: boolean
-  outro: boolean
-  /** Bookend lengths, measured with ffprobe. Null when the host has none. */
-  introSeconds: number | null
-  outroSeconds: number | null
   cacheDir: string
   cachedSources: string[]
   cachedBytes: number

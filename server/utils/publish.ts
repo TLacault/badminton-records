@@ -1,8 +1,9 @@
 import type { RenderRequest } from '~~/shared/publish'
+import type { ReelBrand } from '~~/shared/reel'
 import type { SourceFacts } from './publishFfmpeg'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { INTRO_SECONDS, OUTRO_SECONDS } from '~~/shared/publish'
@@ -18,7 +19,7 @@ const exec = promisify(execFile)
  */
 
 export const PUBLISH_DIR = join(CACHE_DIR, 'publish')
-const HF_CACHE = join(CACHE_DIR, 'hyperframes')
+export const HF_CACHE = join(CACHE_DIR, 'hyperframes')
 const BRAND_DIR = join(process.cwd(), 'brand')
 const VIDEO_DIR = join(BRAND_DIR, 'video')
 const AUDIO_DIR = join(BRAND_DIR, 'audio')
@@ -57,7 +58,7 @@ type Report = (progress: number | null, message?: string) => void
  * intro of a match re-renders only when its card text changes.
  */
 async function hyperframes(
-  composition: 'intro' | 'outro' | 'transition' | 'scoreboard',
+  composition: 'intro' | 'outro' | 'transition' | 'scoreboard' | 'short-intro' | 'short-outro' | 'short-frame',
   variables: Record<string, string>,
   format: 'mp4' | 'mov' | 'png-sequence',
   report: Report,
@@ -86,6 +87,43 @@ async function hyperframes(
   ], () => {})
   await rename(partial, out)
   return out
+}
+
+/** Browser text → HyperFrames variables: at most 20 plain one-line strings. */
+export function sanitiseVars(v: unknown): Record<string, string> | null {
+  const text = (x: unknown, max = 160) => String(x ?? '').replace(/[\r\n\t]/g, ' ').slice(0, max)
+  return v && typeof v === 'object'
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).slice(0, 20).map(([k, x]) => [text(k, 20), text(x)]))
+    : null
+}
+
+export function sanitiseBrand(raw: Partial<ReelBrand> | null | undefined): ReelBrand | null {
+  if (!raw) return null
+  return {
+    colour: /^#[0-9a-f]{6}$/i.test(String(raw.colour)) ? String(raw.colour) : '#cb2543',
+    frame: sanitiseVars(raw.frame) ?? {},
+    intro: sanitiseVars(raw.intro) ?? {},
+    outro: sanitiseVars(raw.outro) ?? {},
+  }
+}
+
+/**
+ * The vertical reel's branding for one match: the still behind the clips and
+ * the two quick bookends. Each is cached on its text, so only the first call
+ * for a match draws anything. Returns file names in HF_CACHE (no extension).
+ */
+export async function reelBrand(brand: ReelBrand, report: Report = () => {}) {
+  const frameDir = await hyperframes('short-frame', { ...brand.frame, colour: brand.colour }, 'png-sequence', report, ['--fps', '1'])
+  const framePng = `${frameDir}.png`
+  if (!(await exists(framePng))) {
+    const first = (await readdir(frameDir)).filter(f => f.endsWith('.png')).sort()[0]
+    if (!first) throw new Error('The frame render produced no picture')
+    await copyFile(join(frameDir, first), framePng)
+  }
+  const intro = await hyperframes('short-intro', { ...brand.intro, colour: brand.colour }, 'mp4', report)
+  const outro = await hyperframes('short-outro', { ...brand.outro, colour: brand.colour }, 'mp4', report)
+  const name = (path: string) => path.slice(HF_CACHE.length + 1).replace(/\.(mp4|png)$/, '')
+  return { frame: name(framePng), intro: name(intro), outro: name(outro), paths: { frame: framePng, intro, outro } }
 }
 
 const optional = async (path: string) => (await exists(path) ? path : null)

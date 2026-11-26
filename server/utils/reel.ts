@@ -24,15 +24,6 @@ export const SOURCE_DIR = join(CACHE_DIR, 'source')
 export const MUSIC_DIR = join(CACHE_DIR, 'music')
 export const OUT_DIR = join(CACHE_DIR, 'out')
 
-/**
- * Where an auto-imported intro and outro are looked for.
- *
- * Under `brand/` rather than at `public/clip/`, which would shadow the page:
- * a directory in `public` with the same name as a route makes Nitro redirect
- * `/clip` to `/clip/` and serve the folder instead of the editor.
- */
-export const BOOKEND_DIR = join(process.cwd(), 'public', 'brand', 'reel')
-
 export async function ensureDirs() {
   await Promise.all([SOURCE_DIR, MUSIC_DIR, OUT_DIR].map(dir => mkdir(dir, { recursive: true })))
 }
@@ -65,19 +56,10 @@ let cachedAt = 0
 export async function capabilities(): Promise<ReelCapabilities> {
   if (cached && Date.now() - cachedAt < 30_000) return { ...cached, ...(await cacheStats()) }
   await ensureDirs()
-  const [ytdlp, ffmpeg, ffprobe, intro, outro] = await Promise.all([
+  const [ytdlp, ffmpeg, ffprobe] = await Promise.all([
     has('yt-dlp'),
     has('ffmpeg', '-version'),
     has('ffprobe', '-version'),
-    exists(join(BOOKEND_DIR, 'intro.mp4')),
-    exists(join(BOOKEND_DIR, 'outro.mp4')),
-  ])
-  // Measured here rather than in the browser, so the preview and the render
-  // agree on how long the intro runs. A host with no ffprobe answers null and
-  // the editor falls back to reading the file with a video element.
-  const [introFacts, outroFacts] = await Promise.all([
-    intro && ffprobe ? probe(BOOKENDS.intro).catch(() => null) : null,
-    outro && ffprobe ? probe(BOOKENDS.outro).catch(() => null) : null,
   ])
 
   cached = {
@@ -85,10 +67,6 @@ export async function capabilities(): Promise<ReelCapabilities> {
     // other, and every render measures its inputs before it cuts anything.
     download: ytdlp && ffmpeg && ffprobe,
     render: ffmpeg && ffprobe,
-    intro,
-    outro,
-    introSeconds: introFacts?.duration ?? null,
-    outroSeconds: outroFacts?.duration ?? null,
     cacheDir: CACHE_DIR,
     cachedSources: [],
     cachedBytes: 0,
@@ -353,9 +331,4 @@ export async function readInfo(path: string): Promise<{ title?: string, duration
 /** A stable name for a render, so re-exporting the same edit reuses the file. */
 export function renderName(payload: unknown): string {
   return createHash('sha1').update(JSON.stringify(payload)).digest('hex').slice(0, 16)
-}
-
-export const BOOKENDS = {
-  intro: join(BOOKEND_DIR, 'intro.mp4'),
-  outro: join(BOOKEND_DIR, 'outro.mp4'),
 }

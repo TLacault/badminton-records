@@ -2,7 +2,7 @@
 import type { ReelProject, TimelinePiece } from '~~/shared/reel'
 import type { PieceMedia, ReelControls } from '~/composables/useReelPlayback'
 import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from '@lucide/vue'
-import { captionFor } from '~~/shared/reel'
+import { captionFor, SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The preview.
@@ -26,7 +26,15 @@ const props = defineProps<{
   musicUrl: string | null
   introUrl: string | null
   outroUrl: string | null
+  /** The vertical frame still the clips sit in; null = black bands. */
+  frameUrl?: string | null
 }>()
+
+/** Where the landscape match sits in the vertical frame, as the render places it. */
+const windowStyle = {
+  top: `${(SHORT_FRAME.windowTop / SHORT_FRAME.height) * 100}%`,
+  height: `${(SHORT_FRAME.windowHeight / SHORT_FRAME.height) * 100}%`,
+}
 
 const pieces = computed(() => props.pieces)
 
@@ -251,55 +259,61 @@ defineExpose({
   <div>
     <div
       data-testid="reel-stage"
-      class="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-black"
+      class="relative mx-auto aspect-[9/16] h-[min(78vh,56rem)] max-w-full overflow-hidden rounded-2xl border border-line bg-black"
     >
-      <!-- The frame itself. Everything the grade and the punch-in do is done
-           here, so the overlays above it stay sharp and unfiltered. -->
-      <div class="absolute inset-0 transition-[filter,transform] duration-300 ease-brand" :style="frameStyle">
-        <video
-          v-show="active === 'source' && !embedded"
-          ref="sourceEl"
-          :src="sourceUrl ?? undefined"
-          class="h-full w-full object-cover"
-          playsinline
-          preload="auto"
-        />
-        <div
-          v-show="active === 'source' && embedded"
-          class="pointer-events-none h-full w-full"
-        >
-          <div ref="embedHost" class="h-full w-full" />
+      <img v-if="frameUrl" :src="frameUrl" alt="" class="absolute inset-0 h-full w-full">
+
+      <!-- The match, in the frame's window. Everything the grade and the
+           punch-in do is done here, so the overlays above stay sharp. -->
+      <div class="absolute inset-x-0 overflow-hidden" :style="windowStyle">
+        <div class="absolute inset-0 transition-[filter,transform] duration-300 ease-brand" :style="frameStyle">
+          <video
+            v-show="active === 'source' && !embedded"
+            ref="sourceEl"
+            :src="sourceUrl ?? undefined"
+            class="h-full w-full object-cover"
+            playsinline
+            preload="auto"
+          />
+          <div
+            v-show="active === 'source' && embedded"
+            class="pointer-events-none h-full w-full"
+          >
+            <div ref="embedHost" class="h-full w-full" />
+          </div>
         </div>
-        <video
-          v-show="active !== 'source'"
-          ref="bookendEl"
-          class="h-full w-full object-contain"
-          playsinline
-          preload="auto"
-        />
+
+        <Transition
+          enter-active-class="transition duration-200"
+          enter-from-class="opacity-0 translate-y-2"
+          leave-active-class="transition duration-300"
+          leave-to-class="opacity-0"
+        >
+          <p
+            v-if="caption"
+            data-testid="reel-caption"
+            class="pointer-events-none absolute bottom-2 left-3 font-display text-sm font-bold uppercase tracking-[0.08em] text-white legible sm:text-base"
+            :class="caption.fading ? 'opacity-60' : ''"
+          >
+            {{ caption.text }}
+          </p>
+        </Transition>
       </div>
+
+      <!-- Intro and outro fill the whole vertical frame. -->
+      <video
+        v-show="active !== 'source'"
+        ref="bookendEl"
+        class="absolute inset-0 h-full w-full bg-black object-contain"
+        playsinline
+        preload="auto"
+      />
 
       <div
         class="pointer-events-none absolute inset-0 transition-opacity duration-100"
         :style="{ background: veil.colour, opacity: veil.opacity }"
         aria-hidden="true"
       />
-
-      <Transition
-        enter-active-class="transition duration-200"
-        enter-from-class="opacity-0 translate-y-2"
-        leave-active-class="transition duration-300"
-        leave-to-class="opacity-0"
-      >
-        <p
-          v-if="caption"
-          data-testid="reel-caption"
-          class="pointer-events-none absolute bottom-14 left-5 font-display text-lg font-bold uppercase tracking-[0.08em] text-white legible sm:bottom-16 sm:text-2xl"
-          :class="caption.fading ? 'opacity-60' : ''"
-        >
-          {{ caption.text }}
-        </p>
-      </Transition>
 
       <p
         v-if="!pieces.length || (!sourceUrl && !embedded)"

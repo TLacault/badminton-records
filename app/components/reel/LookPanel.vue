@@ -14,9 +14,10 @@ import { TRANSITIONS } from '~~/shared/reel'
 
 const props = defineProps<{
   project: ReelProject
-  /** Whether the host actually has an intro.mp4 / outro.mp4 to use. */
+  /** Whether this match's vertical intro / outro have been drawn. */
   hasIntro: boolean
   hasOutro: boolean
+  drawing?: boolean
 }>()
 
 const emit = defineEmits<{ patch: [patch: Partial<ReelProject>] }>()
@@ -117,7 +118,7 @@ function pick(id: TransitionId) {
           @change="emit('patch', { intro: ($event.target as HTMLInputElement).checked })"
         >
         {{ $t('reel.useIntro') }}
-        <span v-if="!hasIntro" class="ml-auto text-[0.6875rem]">{{ $t('reel.bookendMissing') }}</span>
+        <span v-if="!hasIntro" class="ml-auto text-[0.6875rem]">{{ drawing ? $t('reel.bookendDrawing') : $t('reel.bookendMissing') }}</span>
       </label>
 
       <label
@@ -131,10 +132,10 @@ function pick(id: TransitionId) {
           @change="emit('patch', { outro: ($event.target as HTMLInputElement).checked })"
         >
         {{ $t('reel.useOutro') }}
-        <span v-if="!hasOutro" class="ml-auto text-[0.6875rem]">{{ $t('reel.bookendMissing') }}</span>
+        <span v-if="!hasOutro" class="ml-auto text-[0.6875rem]">{{ drawing ? $t('reel.bookendDrawing') : $t('reel.bookendMissing') }}</span>
       </label>
 
-      <p v-if="!hasIntro || !hasOutro" class="text-[0.6875rem] leading-relaxed text-ink-subtle">
+      <p v-if="!drawing && (!hasIntro || !hasOutro)" class="text-[0.6875rem] leading-relaxed text-ink-subtle">
         {{ $t('reel.bookendHint') }}
       </p>
     </div>

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
-import type { Category, Corner, FamilyId, MatchInfo, RenderRequest } from '~~/shared/publish'
+import type { Corner, FamilyId, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, RotateCcw, Scissors, Type } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, RotateCcw, Scissors, Smartphone, Type } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
+  cardText,
   defaultDescription,
   defaultThumbnailLines,
   defaultTitle,
-  discipline,
   FAMILIES,
   familyOf,
   matchResult,
@@ -18,7 +18,6 @@ import {
   sideName,
   thumbnailLines,
   toOutput,
-  year,
 } from '~~/shared/publish'
 
 /**
@@ -52,41 +51,7 @@ const { data: bundle } = await useAsyncData(`publish-${matchId}`, async () => {
 })
 
 const match = computed(() => bundle.value?.match ?? null)
-type Player = Database['public']['Tables']['players']['Row']
-const bySlot = computed(() => {
-  const out: Record<number, Player | null> = {}
-  for (const p of bundle.value?.participants ?? []) out[p.slot] = p.players as Player | null
-  return out
-})
-
-const info = computed<MatchInfo | null>(() => {
-  const m = match.value
-  if (!m) return null
-  const format = m.format as MatchFormat
-  const category = m.category as Category | null
-  const rankKey = format === 'singles' ? 'rank_singles' : category === 'mixed' ? 'rank_mixed' : 'rank_doubles'
-  const side = (slots: number[]) => {
-    const players = slots.map(s => bySlot.value[s]).filter((p): p is Player => Boolean(p))
-    return {
-      first: players.map(p => p.first_name),
-      full: players.map(p => `${p.first_name} ${p.last_name}`),
-      club: players[0]?.club ?? null,
-      ranks: players.map(p => p[rankKey]),
-    }
-  }
-  const singles = format === 'singles'
-  return {
-    id: m.id,
-    format,
-    category,
-    typeSlug: (m.match_types as { slug: string } | null)?.slug ?? null,
-    eventName: m.event_name,
-    round: m.round,
-    venue: m.venue,
-    playedOn: m.played_on,
-    sides: [side(singles ? [1] : [1, 2]), side(singles ? [3] : [3, 4])],
-  }
-})
+const info = computed<MatchInfo | null>(() => (match.value ? matchInfoFrom(match.value, bundle.value?.participants ?? []) : null))
 
 const derived = computed(() => {
   const m = match.value
@@ -222,20 +187,7 @@ const template = computed(() => settings.value.thumbnail.template ?? family.valu
 const job = useReelJob()
 const renderResult = ref<{ dir: string, video: string } | null>(null)
 const upper = (s: string) => s.toUpperCase()
-const placeLine = computed(() => {
-  const i = info.value
-  if (!i) return ''
-  const date = i.playedOn ? new Date(`${i.playedOn}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
-  return upper([i.venue, date].filter(Boolean).join(' · '))
-})
-const cardLines = computed(() => {
-  const i = info.value
-  if (!i) return { event: '', detail: '' }
-  const disc = discipline(i.format, i.category)
-  if (family.value.id === 'tournois') return { event: defaultsLines.value[0] ?? '', detail: upper([disc, i.round].filter(Boolean).join(' • ')) }
-  if (family.value.id === 'interclub') return { event: upper(`Interclub${i.sides[1].club ? ` vs ${i.sides[1].club}` : ''}`), detail: upper(disc) }
-  return { event: upper(`${FAMILIES.jeux_libres.label}${year(i) ? ` ${year(i)}` : ''}`), detail: upper(disc) }
-})
+const card = computed(() => (info.value ? cardText(info.value, family.value.id) : { tag: '', event: '', detail: '', place: '' }))
 
 function request(draft: boolean): RenderRequest | null {
   const p = plan.value
@@ -262,14 +214,14 @@ function request(draft: boolean): RenderRequest | null {
     },
     intro: settings.value.intro
       ? {
-          tag: upper(family.value.label),
-          event: cardLines.value.event,
-          detail: cardLines.value.detail,
+          tag: card.value.tag,
+          event: card.value.event,
+          detail: card.value.detail,
           s1a: upper(i.sides[0].full[0] ?? ''),
           s1b: upper(i.sides[0].full[1] ?? ''),
           s2a: upper(i.sides[1].full[0] ?? ''),
           s2b: upper(i.sides[1].full[1] ?? ''),
-          place: placeLine.value,
+          place: card.value.place,
         }
       : null,
     outro: settings.value.outro
@@ -278,7 +230,7 @@ function request(draft: boolean): RenderRequest | null {
           s2: sides[1],
           sets: result.value.sets.map(s => s.join('-')).join(','),
           winner: result.value.winner ? String(result.value.winner) : '',
-          detail: [cardLines.value.event, cardLines.value.detail].filter(Boolean).join(' · '),
+          detail: [card.value.event, card.value.detail].filter(Boolean).join(' · '),
         }
       : null,
     colour: family.value.colour,
@@ -323,13 +275,19 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 
 <template>
   <div v-if="match && info" class="mx-auto max-w-7xl">
-    <NuxtLink
-      :to="`/admin/matches/${matchId}/tag`"
-      class="flex w-fit min-h-9 items-center gap-2 font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
-    >
-      <ArrowLeft :size="14" aria-hidden="true" />
-      Tagging
-    </NuxtLink>
+    <div class="flex flex-wrap items-center gap-3">
+      <NuxtLink
+        :to="`/admin/matches/${matchId}/tag`"
+        class="flex w-fit min-h-9 items-center gap-2 font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
+      >
+        <ArrowLeft :size="14" aria-hidden="true" />
+        Tagging
+      </NuxtLink>
+      <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost !min-h-9">
+        <Smartphone :size="14" aria-hidden="true" />
+        Clip
+      </NuxtLink>
+    </div>
 
     <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
       <div>

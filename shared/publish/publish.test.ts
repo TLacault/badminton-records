@@ -154,7 +154,8 @@ describe('text', () => {
   })
 
   it('titles stay within 100 characters', () => {
-    expect(defaultTitle(INFO, 'tournois')).toBe('Tournois des Vendanges 2026 · DH Quarts de finale · Tim & Adrien vs Thomas & Anthony')
+    expect(defaultTitle(INFO, 'tournois')).toBe('Tournois des Vendanges 2026 | DH Quarts de finale')
+    expect(defaultTitle({ ...INFO, eventName: null, round: 'Finale' }, 'tournois')).toBe('Tournois 2026 | DH Finale')
     const long = { ...INFO, eventName: 'X'.repeat(90) }
     expect(defaultTitle(long, 'tournois').length).toBeLessThanOrEqual(100)
   })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Clapperboard, Menu, ShieldCheck, Video, Waypoints, X } from '@lucide/vue'
+import { BookOpen, Menu, ShieldCheck, Video, Waypoints, X } from '@lucide/vue'
 import { site } from '~/config/site'
 
 const route = useRoute()
@@ -17,17 +17,6 @@ const links = computed(() => [
       ? route.path.startsWith('/videos') || route.path.startsWith('/matches')
       : route.path.startsWith(pillar.to),
   })),
-  // A tool rather than a pillar: it makes something out of the videos instead
-  // of being a section of the site, so it is written here and not in site.ts,
-  // whose entries also compose the landing page.
-  {
-    id: 'clip',
-    to: '/clip',
-    label: { fr: 'Clip', en: 'Clip' },
-    icon: Clapperboard,
-    ready: true,
-    active: route.path.startsWith('/clip'),
-  },
 ])
 
 const open = ref(false)

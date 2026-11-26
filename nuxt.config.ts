@@ -76,9 +76,10 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  // The highlight cutter was called Reel; old links and bookmarks still land.
+  // The clip editor now lives on each match (/admin/matches/:id/clip); old links land on the list.
   routeRules: {
-    '/reel': { redirect: '/clip' },
+    '/reel': { redirect: '/admin' },
+    '/clip': { redirect: '/admin' },
   },
   nitro: {
     prerender: {

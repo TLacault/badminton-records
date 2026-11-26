@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Clapperboard, Pencil, Tag } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Pencil, Smartphone, Tag } from '@lucide/vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -39,6 +39,10 @@ const id = route.params.id as string
         <NuxtLink :to="`/admin/matches/${id}/publish`" class="btn btn-ghost">
           <Clapperboard :size="16" aria-hidden="true" />
           YouTube version
+        </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${id}/clip`" class="btn btn-ghost">
+          <Smartphone :size="16" aria-hidden="true" />
+          Clip
         </NuxtLink>
       </div>
     </div>

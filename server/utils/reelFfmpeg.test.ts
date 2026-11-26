@@ -23,6 +23,28 @@ function graph(args: string[]): string {
 }
 
 describe('buildRenderPlan', () => {
+  it('lays each landscape clip into the vertical frame at its window', () => {
+    const plan = buildRenderPlan({
+      project: project({ clips: [makeClip(10, 20)] }),
+      source,
+      music: null,
+      intro: null,
+      outro: null,
+      frame: '/hf/short-frame.png',
+      outputPath: '/out.mp4',
+    })
+    expect(plan.args.join(' ')).toContain('-loop 1 -t 10 -i /hf/short-frame.png')
+    // 1080 wide: the clip is 1080×608 and sits 560 px down a 1080×1920 frame.
+    expect(graph(plan.args)).toContain('scale=1080:608:force_original_aspect_ratio=increase')
+    expect(graph(plan.args)).toContain('scale=1080:1920')
+    expect(graph(plan.args)).toContain('overlay=0:560:shortest=1')
+  })
+
+  it('pads to black bands without a frame', () => {
+    const plan = buildRenderPlan({ project: project({ clips: [makeClip(10, 20)] }), source, music: null, intro: null, outro: null, outputPath: '/out.mp4' })
+    expect(graph(plan.args)).toContain('pad=1080:1920:0:560:color=black')
+  })
+
   it('refuses a reel with nothing in it', () => {
     expect(() => buildRenderPlan({
       project: project(),

@@ -1,6 +1,6 @@
 import type { BoardState, Corner, RenderRequest } from '~~/shared/publish'
 import { requireAdmin } from '../../utils/auth'
-import { renderPublish, sourceFacts, hasHyperframes } from '../../utils/publish'
+import { hasHyperframes, renderPublish, sanitiseVars, sourceFacts } from '../../utils/publish'
 import { capabilities, exists, parseVideoId, sourcePath, startJob } from '../../utils/reel'
 
 /**
@@ -19,10 +19,7 @@ const num = (v: unknown, min: number, max: number, fallback = min) => {
 const text = (v: unknown, max = 160) => String(v ?? '').replace(/[\r\n\t]/g, ' ').slice(0, max)
 const DAY = 86_400
 const span = (s: { from?: unknown, to?: unknown }) => ({ from: num(s.from, 0, DAY), to: num(s.to, 0, DAY) })
-const vars = (v: unknown) =>
-  v && typeof v === 'object'
-    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).slice(0, 20).map(([k, x]) => [text(k, 20), text(x)]))
-    : null
+const vars = sanitiseVars
 const board = (b: Partial<BoardState>): BoardState => ({
   sets: (b.sets ?? []).slice(0, 5).map(s => [num(s?.[0], 0, 99), num(s?.[1], 0, 99)] as [number, number]),
   serving: b.serving === 1 || b.serving === 2 ? b.serving : null,

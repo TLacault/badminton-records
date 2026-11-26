@@ -1,8 +1,8 @@
-import type { ReelProject } from '~~/shared/reel'
+import type { ReelBrand, ReelProject } from '~~/shared/reel'
 import { join } from 'node:path'
 import { activeClips, emptyProject, GRADES, SPEEDS, TRANSITIONS } from '~~/shared/reel'
+import { hasHyperframes, reelBrand, sanitiseBrand } from '../../utils/publish'
 import {
-  BOOKENDS,
   capabilities,
   exists,
   musicPath,
@@ -81,8 +81,9 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ project?: Partial<ReelProject> }>(event)
+  const body = await readBody<{ project?: Partial<ReelProject>, brand?: Partial<ReelBrand> }>(event)
   const project = sanitise(body?.project ?? {})
+  const brandText = sanitiseBrand(body?.brand)
 
   const caps = await capabilities()
   if (!caps.render) {
@@ -103,17 +104,20 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // The vertical branding is drawn per match (cached); a host without
+  // HyperFrames still renders, with black bands and no bookends.
+  const brand = brandText && await hasHyperframes() ? (await reelBrand(brandText)).paths : null
   const music = project.music.videoId ? musicPath(project.music.videoId) : null
   const [source, musicFacts, intro, outro] = await Promise.all([
     probe(sourceFile),
     music && await exists(music) ? probe(music) : null,
-    project.intro && await exists(BOOKENDS.intro) ? probe(BOOKENDS.intro) : null,
-    project.outro && await exists(BOOKENDS.outro) ? probe(BOOKENDS.outro) : null,
+    project.intro && brand ? probe(brand.intro) : null,
+    project.outro && brand ? probe(brand.outro) : null,
   ])
 
   // Named after the edit rather than after the moment: exporting the same reel
   // twice is a download, not a re-render.
-  const name = renderName({ project, source: source.duration, music: musicFacts?.duration ?? null })
+  const name = renderName({ project, brand, source: source.duration, music: musicFacts?.duration ?? null })
   const outputPath = join(OUT_DIR, `${name}.mp4`)
 
   const plan = buildRenderPlan({
@@ -122,6 +126,7 @@ export default defineEventHandler(async (event) => {
     music: musicFacts,
     intro,
     outro,
+    frame: brand?.frame ?? null,
     outputPath,
   })
 

@@ -1,6 +1,7 @@
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { HF_CACHE } from '../../../../utils/publish'
 import { MUSIC_DIR, OUT_DIR, SOURCE_DIR } from '../../../../utils/reel'
 
 /**
@@ -16,6 +17,9 @@ const DIRS: Record<string, { dir: string, ext: string, type: string }> = {
   source: { dir: SOURCE_DIR, ext: '.mp4', type: 'video/mp4' },
   music: { dir: MUSIC_DIR, ext: '.m4a', type: 'audio/mp4' },
   out: { dir: OUT_DIR, ext: '.mp4', type: 'video/mp4' },
+  // The vertical reel's drawn branding (short-intro-…, short-outro-…, short-frame-…).
+  brand: { dir: HF_CACHE, ext: '.mp4', type: 'video/mp4' },
+  frame: { dir: HF_CACHE, ext: '.png', type: 'image/png' },
 }
 
 /** Ids are ours: a YouTube id or a render hash. Nothing else opens a file. */
@@ -23,7 +27,7 @@ const SAFE = /^[\w-]{6,64}$/
 
 export default defineEventHandler(async (event) => {
   const kind = getRouterParam(event, 'kind') ?? ''
-  const id = (getRouterParam(event, 'id') ?? '').replace(/\.(mp4|m4a)$/, '')
+  const id = (getRouterParam(event, 'id') ?? '').replace(/\.(mp4|m4a|png)$/, '')
   const spec = DIRS[kind]
   if (!spec || !SAFE.test(id)) throw createError({ statusCode: 400, statusMessage: 'Bad media request' })
 

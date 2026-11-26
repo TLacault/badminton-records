@@ -1,5 +1,5 @@
 import type { ReelClip, ReelProject } from '~~/shared/reel'
-import { activeClips, captionFor, outSeconds } from '~~/shared/reel'
+import { activeClips, captionFor, outSeconds, SHORT_FRAME } from '~~/shared/reel'
 
 /**
  * The render, as an argv.
@@ -23,6 +23,8 @@ export interface RenderInputs {
   music: MediaFacts | null
   intro: MediaFacts | null
   outro: MediaFacts | null
+  /** The vertical frame still (PNG, 1080×1920) the clips sit in; null = black bands. */
+  frame?: string | null
   outputPath: string
   /** Overridden in tests; on a real host it is whatever fontconfig resolves. */
   font?: string
@@ -120,7 +122,8 @@ function videoChain(
 
   const caption = project.captions && clip.showLabel ? captionFor(clip) : ''
   if (caption) {
-    const size = Math.round(height / 24)
+    // Sized off the window, which is small in a vertical frame: ~38 px at 1080 wide.
+    const size = Math.round(height / 16)
     const pad = Math.round(height / 18)
     // Held for three seconds and faded at both ends: a caption that stays for
     // the whole clip stops being information and becomes furniture.
@@ -157,12 +160,18 @@ function bookendChain(project: ReelProject, width: number, height: number): stri
 
 export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
   const { project, source, music, intro, outro, outputPath } = inputs
+  const frame = inputs.frame ?? null
   const font = inputs.font ?? 'Sans'
   const clips = activeClips(project)
   if (!clips.length) throw new Error('Nothing to render: the reel has no clips')
 
-  const height = project.output.height
-  const width = Math.round((height * 16) / 9 / 2) * 2
+  // Vertical: `output.height` is the short side. The landscape clip is cut to
+  // the window, full width, and laid over the frame at its place.
+  const even = (x: number) => Math.round(x / 2) * 2
+  const width = project.output.height
+  const height = even((width * SHORT_FRAME.height) / SHORT_FRAME.width)
+  const windowHeight = even((width * SHORT_FRAME.windowHeight) / SHORT_FRAME.width)
+  const windowTop = even((width * SHORT_FRAME.windowTop) / SHORT_FRAME.width)
   const overlap = project.transition === 'cut' ? 0 : Math.max(0.05, project.transitionSeconds)
 
   const args: string[] = ['-hide_banner', '-nostdin', '-y']
@@ -195,7 +204,20 @@ export function buildRenderPlan(inputs: RenderInputs): RenderPlan {
     // chewing through forty minutes of match for every one of twenty clips.
     args.push('-ss', round(clip.from), '-to', round(clip.to), '-i', source.path)
     const at = index++
-    filters.push(`[${at}:v]${videoChain(clip, project, width, height, font)}[v${i}]`)
+    filters.push(`[${at}:v]${videoChain(clip, project, width, windowHeight, font)}[w${i}]`)
+    if (frame) {
+      // One looped input per clip, cut to its length: a single split frame
+      // would buffer every picture until the last clip asks for it.
+      args.push('-framerate', String(project.output.fps), '-loop', '1', '-t', round(outSeconds(clip)), '-i', frame)
+      const f = index++
+      filters.push(
+        `[${f}:v]scale=${width}:${height},setsar=1,format=yuv420p[f${i}]`,
+        `[f${i}][w${i}]overlay=0:${windowTop}:shortest=1,fps=${project.output.fps},format=yuv420p[v${i}]`,
+      )
+    }
+    else {
+      filters.push(`[w${i}]pad=${width}:${height}:0:${windowTop}:color=black[v${i}]`)
+    }
     if (source.hasAudio) filters.push(`[${at}:a]${audioChain(clip, project)}[a${i}]`)
     else silence(outSeconds(clip), `a${i}`)
     pieces.push({ video: `v${i}`, audio: `a${i}`, seconds: outSeconds(clip) })

@@ -1,0 +1,100 @@
+<!doctype html>
+<html
+  lang="fr"
+  data-composition-variables='[
+    {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
+    {"id":"s1","type":"string","label":"Side 1","default":"TIM & ADRIEN"},
+    {"id":"s2","type":"string","label":"Side 2","default":"THOMAS & ANTHONY"},
+    {"id":"sets","type":"string","label":"Set scores (21-17,19-21)","default":"21-17,19-21,21-15"},
+    {"id":"winner","type":"string","label":"Winner side (1, 2 or empty)","default":"1"},
+    {"id":"detail","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026 · QUARTS DE FINALE"}
+  ]'
+>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Barlow Condensed BR"; src: url("assets/fonts/BarlowCondensed-BlackItalic.ttf"); font-weight: 900; font-style: italic; }
+  @font-face { font-family: "Poppins BR"; src: url("assets/fonts/Poppins-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
+  html, body { margin: 0; background: #08070a; }
+  /* 3 s vertical closer (SHORT_OUTRO_SECONDS): the result, then the channel. */
+  #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #08070a; --c: #cb2543; color: #fff; }
+  .full { position: absolute; inset: 0; }
+  #bg { width: 100%; height: 100%; object-fit: cover; opacity: .35; }
+  #shade { background: radial-gradient(80% 60% at 50% 45%, rgba(8,7,10,.55), rgba(8,7,10,.95)); }
+  #in { left: -300px; width: 1900px; top: -300px; height: 2520px; position: absolute; background: var(--c); }
+
+  #result { position: absolute; left: 0; right: 0; top: 260px; display: flex; flex-direction: column; align-items: center; }
+  #r-tag { padding: 12px 54px 10px; background: var(--c); font: italic 700 40px/1 "Poppins BR"; letter-spacing: 4px; clip-path: polygon(22px 0, 100% 0, calc(100% - 22px) 100%, 0 100%); }
+  #r-detail { margin: 26px 60px 0; text-align: center; font: italic 700 30px/1.2 "Poppins BR"; letter-spacing: 2px; opacity: .85; }
+  #table { margin-top: 36px; width: 960px; box-sizing: border-box; background: rgba(8,7,10,.82); border-left: 10px solid var(--c); padding: 14px 30px 14px 24px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 8px 0; }
+  .row .name { flex: 1; min-width: 0; font: italic 900 72px/1 "Barlow Condensed BR"; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .set { width: 84px; text-align: center; font: italic 900 72px/1 "Barlow Condensed BR"; opacity: .45; }
+  .row .set.won { opacity: 1; color: var(--c); }
+  .row.loser .name { opacity: .55; }
+
+  #end { position: absolute; left: 0; right: 0; top: 860px; display: flex; flex-direction: column; align-items: center; }
+  #e-logo { height: 200px; }
+  #e-word { margin-top: 10px; font: italic 900 84px/0.9 "Barlow Condensed BR"; text-transform: uppercase; }
+  #e-word span { color: var(--c); }
+  #e-cta { margin-top: 30px; padding: 16px 40px 14px; border: 4px solid var(--c); font: italic 700 36px/1 "Poppins BR"; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="short-outro" data-start="0" data-duration="3" data-width="1080" data-height="1920" data-fps="30">
+  <img id="bg" class="full" src="assets/background.jpg" alt="">
+  <div id="shade" class="full"></div>
+
+  <div id="result">
+    <div id="r-tag">RÉSULTAT</div>
+    <div id="r-detail" data-var-text="detail">TOURNOIS DES VENDANGES 2026 · QUARTS DE FINALE</div>
+    <div id="table">
+      <div class="row" id="row1"><div class="name" data-var-text="s1">TIM &amp; ADRIEN</div></div>
+      <div class="row" id="row2"><div class="name" data-var-text="s2">THOMAS &amp; ANTHONY</div></div>
+    </div>
+  </div>
+
+  <div id="end">
+    <img id="e-logo" src="assets/logo.png" alt="">
+    <div id="e-word">Badminton <span>Records</span></div>
+    <div id="e-cta">LE MATCH COMPLET SUR YOUTUBE</div>
+  </div>
+
+  <div id="wipe" class="full" data-layout-allow-overflow data-layout-ignore><div id="in"></div></div>
+</div>
+<script src="assets/gsap-3.14.2.min.js"></script>
+<script>
+  const v = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+  const root = document.getElementById("root");
+  if (v.colour) root.style.setProperty("--c", v.colour);
+  if ("detail" in v && !String(v.detail).trim()) document.getElementById("r-detail").style.display = "none";
+
+  const sets = String(v.sets ?? "21-17,19-21,21-15").split(",").map(s => s.split("-").map(Number)).filter(s => s.length === 2 && s.every(Number.isFinite));
+  const winner = String(v.winner ?? "1");
+  if (!sets.length) document.getElementById("result").style.display = "none";
+  for (const side of [0, 1]) {
+    const row = document.getElementById(`row${side + 1}`);
+    if (winner && winner !== String(side + 1)) row.classList.add("loser");
+    sets.forEach((score, i) => {
+      const cell = document.createElement("div");
+      cell.className = "set" + (score[side] > score[1 - side] ? " won" : "");
+      cell.id = `set${side}${i}`;
+      cell.textContent = String(score[side]);
+      row.appendChild(cell);
+    });
+  }
+
+  const tl = gsap.timeline({ paused: true });
+  // In: the colour sweeps off the last clip.
+  tl.fromTo("#in", { x: 0, skewX: -24 }, { x: 2600, skewX: -24, duration: 0.35, ease: "power3.out" }, 0);
+  tl.fromTo("#r-tag", { x: -400, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: "expo.out" }, 0.1);
+  tl.fromTo("#r-detail", { opacity: 0 }, { opacity: 0.85, duration: 0.2, ease: "power4.out" }, 0.2);
+  tl.fromTo("#table", { scaleX: 0, transformOrigin: "left center" }, { scaleX: 1, duration: 0.35, ease: "expo.out" }, 0.2);
+  tl.fromTo(".row .set", { y: 24, opacity: 0 }, { y: 0, opacity: (i, el) => (el.classList.contains("won") ? 1 : 0.45), duration: 0.25, ease: "expo.out", stagger: 0.04 }, 0.4);
+  tl.fromTo("#e-logo", { scale: 1.8, opacity: 0, filter: "blur(10px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, 1.0);
+  tl.fromTo("#e-word", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.2, ease: "power4.out" }, 1.2);
+  tl.fromTo("#e-cta", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.25, ease: "expo.out" }, 1.4);
+  window.__timelines["short-outro"] = tl;
+</script>
+</body>
+</html>

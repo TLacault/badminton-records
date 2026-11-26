@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
-import type { ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { ArrowLeft, Film, Music, Scissors, Sparkles, Sliders, Undo2 } from '@lucide/vue'
+import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
+import { ArrowLeft, Clapperboard, Music, Scissors, Sparkles, Sliders, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
+import { cardText, defaultTitle, familyOf, matchResult, readSettings, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
-  emptyProject,
   projectFileName,
+  SHORT_INTRO_SECONDS,
+  SHORT_OUTRO_SECONDS,
   timeline,
   totalDuration,
 } from '~~/shared/reel'
 
 /**
- * The reel maker.
+ * The clip maker for one match: a vertical (Shorts / Reels / Stories) cut.
  *
  * A match is already tagged rally by rally, and the good ones are already
  * starred — which means the compilation nobody wanted to sit down and edit is
@@ -27,13 +29,14 @@ import {
  * be rendered cannot come apart.
  */
 
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true })
+
 const { t } = useI18n()
 const client = useSupabaseClient<Database>()
+const route = useRoute()
+const matchId = route.params.id as string
 
-const INTRO_URL = '/brand/reel/intro.mp4'
-const OUTRO_URL = '/brand/reel/outro.mp4'
-
-const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile, reset } = useReelProject()
+const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile } = useReelProject(matchId)
 const { caps, canRender, refresh: refreshCapabilities } = useReelCapabilities()
 
 const videoId = computed(() => project.value.videoId)
@@ -56,45 +59,42 @@ const stage = ref<{
 
 // ── The match ───────────────────────────────────────────────────────────────
 
-/**
- * The match behind the project, reloaded whenever the project points at
- * another one.
- *
- * A plain watcher rather than `useAsyncData`: which match this is comes out of
- * localStorage, which the server cannot read, so there is nothing to render on
- * the server and nothing to hydrate — and the restore lands *after* setup, so
- * the load has to be driven by the id changing rather than by the page
- * mounting.
- */
-type Row<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-
-const bundle = ref<{
-  match: Row<'matches'> | null
-  rallies: Row<'rallies'>[]
-  setStarts: Row<'match_set_starts'>[]
-  breaks: Row<'match_breaks'>[]
-} | null>(null)
-
-async function loadMatch(id: string | null) {
-  if (!id) {
-    bundle.value = null
-    return
-  }
-  const [match, rallies, setStarts, breaks] = await Promise.all([
-    client.from('matches').select('*').eq('id', id).maybeSingle(),
-    client.from('rallies').select('*').eq('match_id', id).order('idx'),
-    client.from('match_set_starts').select('*').eq('match_id', id),
-    client.from('match_breaks').select('*').eq('match_id', id).order('idx'),
+const { data: bundle } = await useAsyncData(`clip-${matchId}`, async () => {
+  const [match, participants, rallies, setStarts, breaks] = await Promise.all([
+    client.from('matches').select('*, match_types(slug, label)').eq('id', matchId).maybeSingle(),
+    client.from('match_players').select('slot, player_id, players(*)').eq('match_id', matchId),
+    client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
+    client.from('match_set_starts').select('*').eq('match_id', matchId),
+    client.from('match_breaks').select('*').eq('match_id', matchId).order('idx'),
   ])
-  bundle.value = {
+  return {
     match: match.data,
+    participants: participants.data ?? [],
     rallies: rallies.data ?? [],
     setStarts: setStarts.data ?? [],
     breaks: breaks.data ?? [],
   }
-}
+})
 
-watch(() => project.value.matchId, id => loadMatch(id), { immediate: true })
+const info = computed(() => (bundle.value?.match ? matchInfoFrom(bundle.value.match, bundle.value.participants) : null))
+const family = computed(() => (info.value ? familyOf(info.value, readSettings(bundle.value?.match?.publish_settings)) : null))
+
+// The project follows its match: the video and the title come from the row,
+// whatever a saved draft or an opened file said. Assigned, not patched, so it is not an undo step.
+onMounted(() => {
+  const m = bundle.value?.match
+  if (!m || !info.value || !family.value) return
+  const title = defaultTitle(info.value, family.value.id)
+  if (project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title) {
+    const untouched = !project.value.clips.length
+    project.value = {
+      ...project.value,
+      videoId: m.youtube_video_id,
+      matchTitle: title,
+      name: untouched ? title : project.value.name,
+    }
+  }
+})
 
 const derived = computed(() => {
   const match = bundle.value?.match
@@ -140,45 +140,55 @@ const sourceDuration = computed(() =>
   source.duration.value || Number(bundle.value?.match?.youtube_duration_seconds ?? 0),
 )
 
-// ── Bookends ────────────────────────────────────────────────────────────────
+// ── Branding ────────────────────────────────────────────────────────────────
 
 /**
- * Intro and outro are dropped into `public/brand/reel/` and picked up from
- * there — there is no upload, because there is only ever one of each and they
- * belong to the channel rather than to a reel.
- *
- * Their lengths come from the server, which measured them with the same
- * ffprobe the renderer uses: measuring them here instead would let the preview
- * and the export disagree about how long the film is. A host with no ffprobe
- * has nothing to tell us, so there the browser reads the file itself — with a
- * deadline, because a bookend that never loads must cost the reel a bookend
- * rather than the whole length calculation.
+ * The vertical frame and the quick intro / outro are drawn per match by
+ * HyperFrames (brand/video/short-*.html), from the same card text as the
+ * YouTube intro. Drawn once and cached on the server; until then (or on a host
+ * without HyperFrames) the preview shows black bands and no bookends.
  */
-const bookends = ref<{ intro?: number, outro?: number }>({})
+const brand = computed<ReelBrand | null>(() => {
+  const i = info.value
+  const f = family.value
+  if (!i || !f || !derived.value) return null
+  const card = cardText(i, f.id)
+  const result = matchResult(derived.value)
+  const sides = [sideName(i, 0).toUpperCase(), sideName(i, 1).toUpperCase()]
+  return {
+    colour: f.colour,
+    frame: { tag: card.tag, event: card.event, detail: card.detail, place: card.place, s1: sides[0]!, s2: sides[1]! },
+    intro: { tag: card.tag, event: card.event, detail: card.detail, s1: sides[0]!, s2: sides[1]! },
+    outro: {
+      s1: sides[0]!,
+      s2: sides[1]!,
+      sets: result.sets.map(s => s.join('-')).join(','),
+      winner: result.winner ? String(result.winner) : '',
+      detail: [card.event, card.detail].filter(Boolean).join(' · '),
+    },
+  }
+})
 
-function measure(url: string): Promise<number> {
-  return new Promise((resolve) => {
-    const probe = document.createElement('video')
-    const done = (seconds: number) => {
-      clearTimeout(deadline)
-      resolve(seconds)
-    }
-    const deadline = setTimeout(() => done(0), 8000)
-    probe.preload = 'metadata'
-    probe.onloadedmetadata = () => done(probe.duration || 0)
-    probe.onerror = () => done(0)
-    probe.src = url
-  })
+const drawn = ref<{ frame: string, intro: string, outro: string } | null>(null)
+const drawing = ref(false)
+
+async function draw() {
+  if (!brand.value || !caps.value?.render) return
+  drawing.value = true
+  try {
+    drawn.value = await $fetch<{ frame: string, intro: string, outro: string }>('/api/reel/brand', { method: 'POST', body: brand.value })
+  }
+  catch {
+    drawn.value = null
+  }
+  finally {
+    drawing.value = false
+  }
 }
+watch([() => JSON.stringify(brand.value), () => caps.value?.render], draw, { immediate: true })
 
-watch(caps, async (value) => {
-  if (!value) return
-  const [intro, outro] = await Promise.all([
-    value.intro ? value.introSeconds ?? measure(INTRO_URL) : Promise.resolve(0),
-    value.outro ? value.outroSeconds ?? measure(OUTRO_URL) : Promise.resolve(0),
-  ])
-  bookends.value = { intro: intro || undefined, outro: outro || undefined }
-}, { immediate: true })
+const media = (kind: string, id: string | undefined) => (id ? `/api/reel/media/${kind}/${id}` : null)
+const bookends = computed(() => (drawn.value ? { intro: SHORT_INTRO_SECONDS, outro: SHORT_OUTRO_SECONDS } : {}))
 
 // ── The edit ────────────────────────────────────────────────────────────────
 
@@ -186,20 +196,6 @@ const pieces = computed(() => timeline(project.value, bookends.value))
 const filmSeconds = computed(() => totalDuration(project.value, bookends.value))
 
 const clipPieces = computed(() => pieces.value.filter(p => p.kind === 'clip'))
-
-function pickMatch(entry: { id: string, videoId: string, title: string }) {
-  patch({
-    ...emptyProject(),
-    matchId: entry.id,
-    videoId: entry.videoId,
-    matchTitle: entry.title,
-    name: entry.title,
-    // A project carries its music across a match change: the song was chosen
-    // for the reel, not for the fixture.
-    music: project.value.music,
-  })
-  selectedId.value = null
-}
 
 function rebuild({ lead, tail }: { lead: number, tail: number }) {
   const states = derived.value?.rallyStates ?? []
@@ -265,7 +261,7 @@ async function render() {
     await source.upload()
     const started = await $fetch<{ ready: boolean, name: string, job: ReelJob | null }>(
       '/api/reel/render',
-      { method: 'POST', body: { project: project.value } },
+      { method: 'POST', body: { project: project.value, brand: brand.value } },
     )
     if (!started.ready && started.job) await renderJob.watch(started.job)
     const file = projectFileName(project.value, 'mp4')
@@ -312,13 +308,8 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
-/**
- * Dropping an intro.mp4 into `public/brand/reel/` mid-session should not need
- * a reload to be noticed, and the two panels that care about it are the two
- * that are opened deliberately.
- */
 watch(tab, (next) => {
-  if (next === 'look' || next === 'export') refreshCapabilities()
+  if (next === 'export') refreshCapabilities()
 })
 
 const TABS = [
@@ -341,29 +332,21 @@ useSeoMeta({
 
 <template>
   <div>
-    <UiSectionHeading
-      v-if="!project.matchId"
-      :eyebrow="$t('reel.eyebrow')"
-      :icon="Film"
-      level="h1"
-      :title="$t('reel.title')"
-      :lede="$t('reel.lede')"
-    />
-
-    <ReelMatchPicker v-if="!project.matchId" class="mt-8" @pick="pickMatch" />
-
-    <template v-else>
-      <!-- Header: what is being cut, and the two things that act on the whole
-           project rather than on a clip. -->
+    <template v-if="bundle?.match">
+      <!-- Header: back to the match's other tools, and the two things that act
+           on the whole project rather than on a clip. -->
       <div class="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
+        <NuxtLink
+          :to="`/admin/matches/${matchId}/tag`"
           class="flex min-h-9 items-center gap-2 rounded-lg font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
-          @click="reset()"
         >
           <ArrowLeft :size="14" aria-hidden="true" />
-          {{ $t('reel.changeMatch') }}
-        </button>
+          Tagging
+        </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${matchId}/publish`" class="btn btn-sm btn-ghost !min-h-9">
+          <Clapperboard :size="14" aria-hidden="true" />
+          YouTube version
+        </NuxtLink>
 
         <p class="ml-auto flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">
           <span>{{ $t('reel.clipCount', { n: clipPieces.length }) }}</span>
@@ -403,8 +386,9 @@ useSeoMeta({
             :source-url="source.url.value"
             :video-id="project.videoId"
             :music-url="music.audioUrl.value"
-            :intro-url="caps?.intro ? INTRO_URL : null"
-            :outro-url="caps?.outro ? OUTRO_URL : null"
+            :intro-url="media('brand', drawn?.intro)"
+            :outro-url="media('brand', drawn?.outro)"
+            :frame-url="media('frame', drawn?.frame)"
           />
 
           <ReelRibbon
@@ -479,8 +463,9 @@ useSeoMeta({
             <ReelLookPanel
               v-else-if="tab === 'look'"
               :project="project"
-              :has-intro="Boolean(caps?.intro)"
-              :has-outro="Boolean(caps?.outro)"
+              :has-intro="Boolean(drawn)"
+              :has-outro="Boolean(drawn)"
+              :drawing="drawing"
               @patch="(change: Partial<ReelProject>) => patch(change)"
             />
 
