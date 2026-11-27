@@ -139,6 +139,7 @@ export default {
   },
 
   card: {
+    kindRaw: "Raw",
     kindMatch: "Match",
     kindHighlights: "Highlights",
     kindEdit: "Edit",

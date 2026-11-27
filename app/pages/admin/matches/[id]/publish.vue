@@ -13,11 +13,13 @@ import {
   defaultTitle,
   FAMILIES,
   familyOf,
+  INTRO_SECONDS,
   matchResult,
   readSettings,
   sideName,
   thumbnailLines,
   toOutput,
+  youtubeEditMap,
 } from '~~/shared/publish'
 
 /**
@@ -26,7 +28,7 @@ import {
  * thumbnail, title and description to upload it with. The app keeps showing
  * the raw scored video; this only produces files.
  */
-definePageMeta({ middleware: 'admin', layout: 'admin', wide: true })
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'publish', pageTransition: false })
 
 const route = useRoute()
 const matchId = route.params.id as string
@@ -254,6 +256,8 @@ async function render(draft: boolean) {
     const { job: started } = await $fetch<{ job: ReelJob }>('/api/publish/render', { method: 'POST', body })
     const out = await job.watch(started)
     renderResult.value = out as { dir: string, video: string }
+    // Where the raw footage lands in this render, for the linked YouTube video.
+    if (plan.value) await saveEditMap(client as never, matchId, 'match', youtubeEditMap(plan.value.segments, settings.value.intro ? INTRO_SECONDS : 0))
   }
   catch (cause) {
     renderError.value = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage
@@ -272,8 +276,7 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 </script>
 
 <template>
-  <div v-if="match && info" class="mx-auto max-w-7xl">
-    <AdminMatchNav :match-id="matchId" current="publish" />
+  <div v-if="match && info">
 
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>

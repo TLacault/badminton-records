@@ -27,21 +27,23 @@ export interface SessionFacts {
 }
 
 /**
- * A match that was played that day: the raw match video. Highlights and edits
- * are not matches, and the public match video (linked to its raw) would count
- * the same match twice.
+ * A match that was played that day: its raw recording. The edited match, the
+ * highlights and the edit are cut from it and would count it again.
  */
 export function isPlayedMatch(facts: SessionFacts): boolean {
-  return (facts.video_kind ?? 'match') === 'match' && !facts.source_match_id
+  return (facts.video_kind ?? 'raw') === 'raw'
 }
+
+/** The raw recording and the edited match: what a session lists as its matches. */
+const isMatchVideo = (facts: SessionFacts) => ['raw', 'match'].includes(facts.video_kind ?? 'raw')
 
 const TOURNAMENT_SLUGS = new Set(['tournament', 'championship'])
 
 /** Splits a session's videos: the match videos first, then the highlights and edits. */
 export function splitKinds<T>(items: T[], read: (item: T) => SessionFacts = item => item as unknown as SessionFacts) {
   return {
-    matches: items.filter(i => (read(i).video_kind ?? 'match') === 'match'),
-    extras: items.filter(i => (read(i).video_kind ?? 'match') !== 'match'),
+    matches: items.filter(i => isMatchVideo(read(i))),
+    extras: items.filter(i => !isMatchVideo(read(i))),
   }
 }
 

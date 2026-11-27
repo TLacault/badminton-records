@@ -12,6 +12,13 @@ const props = defineProps<{
   current: 'tag' | 'publish' | 'clip' | 'setup'
 }>()
 
+/** A linked video has no tags of its own: Tag, YouTube and Clip open its raw match. */
+const client = useSupabaseClient()
+const { data: sourceId } = await useAsyncData(`nav-source-${props.matchId}`, async () => {
+  const { data } = await client.from('matches').select('source_match_id').eq('id', props.matchId).maybeSingle()
+  return (data as { source_match_id: string | null } | null)?.source_match_id ?? null
+}, { watch: [() => props.matchId] })
+
 const TOOLS = [
   { id: 'tag', label: 'Tag', icon: Tag, path: '/tag' },
   { id: 'publish', label: 'YouTube', icon: Clapperboard, path: '/publish' },
@@ -36,7 +43,7 @@ const TOOLS = [
       <NuxtLink
         v-for="tool in TOOLS"
         :key="tool.id"
-        :to="`/admin/matches/${props.matchId}${tool.path}`"
+        :to="`/admin/matches/${tool.id === 'setup' ? props.matchId : sourceId ?? props.matchId}${tool.path}`"
         :aria-current="tool.id === props.current ? 'page' : undefined"
         class="flex min-h-8 items-center gap-1.5 rounded-lg px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
         :class="tool.id === props.current ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"

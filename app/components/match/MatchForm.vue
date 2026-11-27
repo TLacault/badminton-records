@@ -45,7 +45,7 @@ const { data: sourceMatches } = await useAsyncData(`form-sources-${props.matchId
   const { data } = await client
     .from('matches')
     .select('id, title, youtube_title, played_on')
-    .eq('video_kind', 'match')
+    .eq('video_kind', 'raw')
     .is('source_match_id', null)
     .neq('id', props.matchId ?? '00000000-0000-0000-0000-000000000000')
     .order('played_on', { ascending: false, nullsFirst: false })
@@ -76,7 +76,7 @@ const form = reactive({
   format: 'doubles' as MatchFormat,
   // What the video is, and — for the public edit, highlights and edit — the
   // raw tagged match it reads its players, scores and stats from.
-  video_kind: 'match' as 'match' | 'highlights' | 'edit',
+  video_kind: 'raw' as 'raw' | 'match' | 'highlights' | 'edit',
   source_match_id: null as string | null,
   // The live scoreboard over the player: only right on the raw tagged video.
   show_scoreboard: false,
@@ -143,6 +143,11 @@ watch(() => form.played_on, async (day) => {
   const name = data?.[0]?.event_name
   if (name && !form.event_name?.trim()) form.event_name = name
 }, { immediate: true })
+
+// The raw recording is the source: it is never linked to another.
+watch(() => form.video_kind, (kind) => {
+  if (kind === 'raw') form.source_match_id = null
+})
 
 /**
  * Autosave state for an existing match. A new one has no row to write to, so
@@ -219,8 +224,8 @@ async function autosave() {
     return
   }
 
-  // A linked video reads its players from the raw match: none of its own.
-  if (form.source_match_id) {
+  // Only the raw recording has players of its own; the others read them from it.
+  if (form.video_kind !== 'raw') {
     saveState.value = 'saved'
     return
   }
@@ -292,13 +297,14 @@ const typeOptions = computed(() => [
 ])
 
 const kindOptions = [
-  { value: 'match' as const, label: 'Match', icon: Film },
+  { value: 'raw' as const, label: 'Raw (tagged recording)', icon: Film },
+  { value: 'match' as const, label: 'Match (edited for YouTube)', icon: Film },
   { value: 'highlights' as const, label: 'Highlights', icon: Film },
   { value: 'edit' as const, label: 'Edit', icon: Film },
 ]
 
 const sourceOptions = computed(() => [
-  { value: null as string | null, label: 'Not linked (this is the raw tagged match)', icon: CircleDashed },
+  { value: null as string | null, label: 'Not linked', icon: CircleDashed },
   ...(sourceMatches.value ?? []).map(m => ({
     value: m.id as string | null,
     label: `${m.played_on ?? 'Undated'} · ${m.youtube_title || m.title}`,
@@ -380,28 +386,30 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
         <div>
           <span class="label">Type</span>
           <UiSelect v-model="form.video_kind" class="mt-2" label="Video type" :options="kindOptions" />
-          <span class="mt-1.5 block text-xs text-ink-subtle">Set on import from the title (HIGHLIGHTS, EDIT, else match).</span>
+          <span class="mt-1.5 block text-xs text-ink-subtle">Set on import: HIGHLIGHTS or EDIT in the title, else unlisted = raw, listed = match.</span>
         </div>
-        <div>
+        <div :class="form.video_kind === 'raw' ? 'opacity-50' : ''">
           <span class="label">Linked to</span>
-          <UiSelect v-model="form.source_match_id" data-testid="m-source" class="mt-2" label="Linked to" :options="sourceOptions" />
-          <span class="mt-1.5 block text-xs text-ink-subtle">The public match, its highlights and its edit read players, scores and stats from the raw tagged match.</span>
+          <UiSelect v-model="form.source_match_id" data-testid="m-source" class="mt-2" label="Linked to" :options="sourceOptions" :disabled="form.video_kind === 'raw'" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">
+            {{ form.video_kind === 'raw' ? 'The raw recording is the source: nothing to link.' : 'Players, scores, stats and event are read from this raw match.' }}
+          </span>
         </div>
-        <label class="inline-flex items-center gap-2 text-sm text-ink-muted md:col-span-2">
-          <input v-model="form.show_scoreboard" data-testid="m-scoreboard" type="checkbox" class="size-4 accent-[var(--ui-brand)]">
-          Show the scoreboard over the video
-        </label>
-        <span class="-mt-3 block text-xs text-ink-subtle md:col-span-2">
-          Only on the raw tagged video: the scores follow its timestamps. Never shown on a linked video.
-        </span>
+        <template v-if="form.video_kind === 'raw' || form.video_kind === 'highlights'">
+          <label class="inline-flex items-center gap-2 text-sm text-ink-muted md:col-span-2">
+            <input v-model="form.show_scoreboard" data-testid="m-scoreboard" type="checkbox" class="size-4 accent-[var(--ui-brand)]">
+            Show the scoreboard over the video
+          </label>
+          <span class="-mt-3 block text-xs text-ink-subtle md:col-span-2">
+            On the raw recording, or on highlights once their clip was rendered (the tags follow that render).
+          </span>
+        </template>
       </div>
     </fieldset>
 
-    <p v-if="form.source_match_id" class="rounded-2xl border border-dashed border-line px-5 py-4 text-sm text-ink-muted">
-      Linked: players, scoring and event come from the raw match.
-      <NuxtLink :to="`/admin/matches/${form.source_match_id}`" class="text-accent hover:underline">Open its setup</NuxtLink>.
-    </p>
 
+    <!-- Only the raw recording is set up; the other three read everything from it. -->
+    <template v-if="form.video_kind === 'raw'">
     <fieldset :class="FIELDSET">
       <legend class="label px-1">
         Match
@@ -488,7 +496,6 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
       </div>
     </fieldset>
 
-    <template v-if="!form.source_match_id">
 
     <fieldset :class="FIELDSET">
       <legend class="label px-1">

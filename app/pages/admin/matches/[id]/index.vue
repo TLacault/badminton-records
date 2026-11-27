@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Pencil } from '@lucide/vue'
 
-definePageMeta({ middleware: 'admin', layout: 'admin' })
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'setup', pageTransition: false })
 
 const route = useRoute()
 const id = route.params.id as string
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl">
-    <AdminMatchNav :match-id="id" current="setup" />
+  <div class="max-w-3xl">
 
     <p class="eyebrow">
       <Pencil :size="15" aria-hidden="true" />

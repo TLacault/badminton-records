@@ -85,7 +85,7 @@ export default defineEventHandler(async (event) => {
         youtube_video_id: v.videoId,
         youtube_channel_id: channelId,
         youtube_title: v.title,
-        video_kind: videoKindOf(v.title),
+        video_kind: videoKindOf(v.title, v.privacy),
         // The raw match goes up unlisted and is the one whose timestamps the
         // tags use: the scoreboard is on for it, off for everything else.
         show_scoreboard: v.privacy === 'unlisted',

@@ -49,7 +49,7 @@ function playersOf(m: AdminMatch) {
     .filter(p => p.players && !isHomePlayer(p.players))
     .map(p => ({ slot: p.slot, name: `${p.players!.first_name} ${p.players!.last_name}` }))
 }
-const KIND_LABEL: Record<string, string> = { match: 'Match', highlights: 'Highlights', edit: 'Edit' }
+const KIND_LABEL: Record<string, string> = { raw: 'Raw', match: 'Match', highlights: 'Highlights', edit: 'Edit' }
 /**
  * The row menu opens on hover (and on click, for touch). Closing waits a beat,
  * so the pointer can cross the gap between the button and the menu.
@@ -282,7 +282,7 @@ async function setTaggingStatus(id: string, next: string) {
                    dash on every match that has neither. -->
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
                 <span :class="CHIP" class="border-line-strong text-ink">{{ KIND_LABEL[m.video_kind] ?? m.video_kind }}</span>
-                <span v-if="m.video_kind === 'match'" :class="[CHIP, stateOf(m.tagging_status).chip]">
+                <span v-if="m.video_kind === 'raw'" :class="[CHIP, stateOf(m.tagging_status).chip]">
                   <component :is="stateOf(m.tagging_status).icon" :size="12" aria-hidden="true" />
                   {{ stateOf(m.tagging_status).label }}
                 </span>
@@ -324,7 +324,7 @@ async function setTaggingStatus(id: string, next: string) {
                 :style="`position-anchor: --menu-${m.id}`"
               >
                 <!-- Only the raw match is tagged: a linked video reads its status from it. -->
-                <template v-if="m.video_kind === 'match' && !m.source_match_id">
+                <template v-if="m.video_kind === 'raw'">
                   <p class="label px-2 pt-1">Status</p>
                   <VideoTaggingStatusPicker
                     data-testid="row-tagging-status"

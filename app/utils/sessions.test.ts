@@ -4,7 +4,7 @@ import { groupBySession, splitKinds } from './sessions'
 
 const row = (over: Record<string, unknown>) => ({
   played_on: '2026-11-07', venue: 'Gradignan', youtube_duration_seconds: 600,
-  video_kind: 'match', source_match_id: null, event_name: null, match_types: null, ...over,
+  video_kind: 'raw', source_match_id: null, event_name: null, match_types: null, ...over,
 })
 
 describe('sessions', () => {
@@ -12,7 +12,7 @@ describe('sessions', () => {
     const [day] = groupBySession([
       row({ video_kind: 'edit', venue: 'Talence' }),
       row({ match_types: { slug: 'tournament' }, event_name: 'Tournois Senior' }),
-      row({ source_match_id: 'raw' }),
+      row({ video_kind: 'match', source_match_id: 'raw' }),
       row({ video_kind: 'highlights' }),
       row({ video_kind: 'edit' }),
     ])

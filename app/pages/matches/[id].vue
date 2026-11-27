@@ -4,7 +4,9 @@ import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared
 import type { PlayerInfoSource } from '~/utils/players'
 import type { ListRow } from '~/utils/videoFilters'
 import { ArrowLeft } from '@lucide/vue'
+import type { EditKind, EditMaps, EditPiece } from '~~/shared/publish'
 import { deriveMatch } from '~~/shared/badminton'
+import { mapToEdit } from '~~/shared/publish'
 import { LIST_SELECT, withSource } from '~/utils/matchSummary'
 import { decorate } from '~/utils/videoFilters'
 
@@ -43,9 +45,20 @@ const { data: bundle } = await useAsyncData(`match-${matchId}`, async () => {
   }
 })
 
-/** Linked videos are cut differently from the raw: the rallies' timestamps do not apply to them. */
 const linked = computed(() => Boolean(bundle.value?.match?.source_match_id))
-const showOverlay = computed(() => !linked.value && Boolean(bundle.value?.match?.show_scoreboard))
+const kind = computed(() => bundle.value?.match?.video_kind ?? 'raw')
+/** The edited match and the vertical edit play in YouTube's own player; the raw and the highlights in ours. */
+const native = computed(() => kind.value === 'match' || kind.value === 'edit')
+/**
+ * A linked video is cut from the raw: the tags land on its timeline through
+ * the map its render saved on the raw match. No map yet, no timeline.
+ */
+const editMap = computed<EditPiece[] | null>(() => linked.value
+  ? ((bundle.value?.match?.edit_maps ?? {}) as EditMaps)[kind.value as EditKind] ?? null
+  : null)
+const timed = computed(() => !native.value && (!linked.value || Boolean(editMap.value?.length)))
+const toVideo = (t: number) => (editMap.value ? mapToEdit(editMap.value, t) : t)
+const showOverlay = computed(() => timed.value && Boolean(bundle.value?.match?.show_scoreboard))
 
 const match = computed(() => bundle.value?.match ?? null)
 
@@ -127,12 +140,13 @@ const derived = computed(() => {
     isLet: r.is_let,
     isHighlight: r.is_highlight,
     scoredByPlayerId: r.scored_by_player_id,
-    endedAtSeconds: Number(r.ended_at_seconds),
+    endedAtSeconds: toVideo(Number(r.ended_at_seconds)),
   })))
 })
 
+// A linked video has its breaks cut out already.
 const breaks = computed<BreakInput[]>(() =>
-  (bundle.value?.breaks ?? []).map(b => ({
+  (linked.value ? [] : bundle.value?.breaks ?? []).map(b => ({
     idx: b.idx,
     startsAtSeconds: Number(b.starts_at_seconds),
     endsAtSeconds: b.ends_at_seconds === null ? null : Number(b.ends_at_seconds),
@@ -218,13 +232,13 @@ function typing(event: KeyboardEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (typing(event)) return
+  if (native.value || typing(event)) return
   playerKeys.handle(event)
 }
 
 /** Play/pause happens on the release, since a held key is a speed boost. */
 function onKeyup(event: KeyboardEvent) {
-  if (typing(event)) return
+  if (native.value || typing(event)) return
   playerKeys.handleUp(event)
 }
 
@@ -232,7 +246,7 @@ const playerGuide = usePlayerGuide()
 
 onMounted(() => {
   // First visit: the tour, once the player has drawn its bar.
-  setTimeout(playerGuide.startIfNew, 600)
+  if (!native.value) setTimeout(playerGuide.startIfNew, 600)
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('keyup', onKeyup)
 })
@@ -287,10 +301,16 @@ const { data: relatedRows } = await useAsyncData(`related-${matchId}`, async () 
   return withSource((data ?? []) as unknown as (ListRow & { source?: unknown })[])
 })
 const related = computed(() => {
-  const order = ['match', 'highlights', 'edit']
+  const order = ['raw', 'match', 'highlights', 'edit']
   return decorate(relatedRows.value ?? [])
-    .sort((a, b) => order.indexOf(a.row.video_kind ?? 'match') - order.indexOf(b.row.video_kind ?? 'match'))
+    .sort((a, b) => order.indexOf(a.row.video_kind ?? 'raw') - order.indexOf(b.row.video_kind ?? 'raw'))
 })
+
+/** The four versions of this match, for the header's bento: this one and its relatives. */
+const versions = computed(() => [
+  ...(match.value ? [{ id: match.value.id, kind: kind.value, current: true }] : []),
+  ...related.value.map(e => ({ id: e.row.id, kind: e.row.video_kind ?? 'raw', current: false })),
+])
 
 const upNext = computed(() => {
   const skip = new Set(related.value.map(e => e.row.id))
@@ -340,10 +360,26 @@ useSeoMeta({
       :venue="match.venue"
       :duration-seconds="match.youtube_duration_seconds"
       :revealed="revealed"
+      :versions="versions"
       @reveal="reveal"
     />
 
-    <div class="mt-6">
+    <div v-if="native" class="mt-6">
+      <div
+        class="overflow-hidden rounded-2xl border border-line bg-black"
+        :class="kind === 'edit' ? 'mx-auto aspect-[9/16] max-h-[80vh]' : 'aspect-video'"
+      >
+        <iframe
+          :src="`https://www.youtube-nocookie.com/embed/${match.youtube_video_id}?rel=0`"
+          :title="match.youtube_title ?? 'YouTube'"
+          class="size-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+        />
+      </div>
+    </div>
+
+    <div v-else class="mt-6">
       <PlayerYouTubeStage
         ref="stage"
         @nudge="playerKeys.nudge"
@@ -383,7 +419,7 @@ useSeoMeta({
             @toggle-mute="stage?.toggleMute()"
             @native-controls="stage?.enterNativeMode()"
           >
-            <template v-if="!linked" #timeline>
+            <template v-if="timed" #timeline>
               <PlayerMatchTimeline
                 overlay
                 :derived="derived"
@@ -404,7 +440,7 @@ useSeoMeta({
            reaching: in a window there is room for it, and it stays put while
            the overlay comes and goes with the cursor. -->
       <PlayerMatchTimeline
-        v-if="!linked"
+        v-if="timed"
         class="mt-4"
         :derived="derived"
         :duration="playbackDuration"
@@ -414,7 +450,7 @@ useSeoMeta({
         @seek="seekAndPlay"
       />
 
-      <ul v-if="!linked" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-ink-subtle sm:gap-x-5 sm:text-xs">
+      <ul v-if="timed" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-ink-subtle sm:gap-x-5 sm:text-xs">
         <li v-for="item in legend" :key="item.key" class="inline-flex items-center gap-1.5">
           <span class="size-2.5 shrink-0 rounded-sm" :class="item.swatch" aria-hidden="true" />
           {{ item.label }}
@@ -422,18 +458,7 @@ useSeoMeta({
       </ul>
     </div>
 
-    <section v-if="related.length" class="mt-8">
-      <h2 class="label">
-        {{ $t('match.related') }}
-      </h2>
-      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <li v-for="other in related" :key="other.row.id">
-          <VideoMatchCard :entry="other" />
-        </li>
-      </ul>
-    </section>
-
-    <div v-if="!linked" class="mt-8 rounded-2xl p-5 glass sm:p-6">
+    <div v-if="timed" class="mt-8 rounded-2xl p-5 glass sm:p-6">
       <h2 class="label">
         {{ $t('match.jumpTo') }}
       </h2>
@@ -459,6 +484,17 @@ useSeoMeta({
       :revealed="detailsVisible"
       @reveal="reveal"
     />
+
+    <section v-if="related.length" class="mt-8">
+      <h2 class="label">
+        {{ $t('match.related') }}
+      </h2>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <li v-for="other in related" :key="other.row.id">
+          <VideoMatchCard :entry="other" />
+        </li>
+      </ul>
+    </section>
 
     <section v-if="upNext.length" class="mt-8">
       <h2 class="label">

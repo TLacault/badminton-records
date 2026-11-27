@@ -8,7 +8,7 @@ import { currentRallyAt } from '~~/shared/badminton'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
 // get for the point list.
-definePageMeta({ middleware: 'admin', layout: 'admin', wide: true })
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'tag', pageTransition: false })
 
 const route = useRoute()
 const matchId = route.params.id as string
@@ -354,7 +354,6 @@ const saveLabel = computed(() => {
 
 <template>
   <div v-if="match">
-    <AdminMatchNav :match-id="matchId" current="tag" />
 
     <div class="flex flex-wrap items-center justify-between gap-y-2">
       <VideoStatusBadge

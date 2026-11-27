@@ -15,7 +15,17 @@ const props = defineProps<{
   venue: string | null
   durationSeconds: number | null
   revealed: boolean
+  /** This video and the others cut from the same match, by kind. */
+  versions?: { id: string, kind: string, current: boolean }[]
 }>()
+
+/** Raw · Match · Highlights · Edit, always four: a missing version is a quiet tile. */
+const KINDS = ['raw', 'match', 'highlights', 'edit'] as const
+const tiles = computed(() => KINDS.map(kind => ({
+  kind,
+  label: t(`card.kind${kind.charAt(0).toUpperCase()}${kind.slice(1)}`),
+  version: props.versions?.find(v => v.kind === kind && v.current) ?? props.versions?.find(v => v.kind === kind) ?? null,
+})))
 
 const emit = defineEmits<{ reveal: [] }>()
 
@@ -81,6 +91,25 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
         {{ heading }}
       </h1>
 
+      <div class="flex shrink-0 items-start gap-3">
+      <nav v-if="versions?.length" aria-label="Versions" class="grid grid-cols-2 gap-1">
+        <template v-for="tile in tiles" :key="tile.kind">
+          <span
+            v-if="tile.version?.current"
+            aria-current="page"
+            class="grid min-h-9 place-items-center rounded-lg bg-brand px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-on-brand"
+          >{{ tile.label }}</span>
+          <NuxtLink
+            v-else-if="tile.version"
+            :to="`/matches/${tile.version.id}`"
+            class="grid min-h-9 place-items-center rounded-lg border border-line px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-ink transition-colors duration-200 hover:border-accent/50 hover:text-accent"
+          >{{ tile.label }}</NuxtLink>
+          <span
+            v-else
+            class="grid min-h-9 place-items-center rounded-lg border border-dashed border-line px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-ink-subtle/60"
+          >{{ tile.label }}</span>
+        </template>
+      </nav>
       <div class="flex shrink-0 flex-col items-stretch gap-1">
         <UiShareButton
           :to="`/matches/${matchId}`"
@@ -98,6 +127,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
           <UiYouTubeGlyph :size="14" />
           YouTube
         </a>
+      </div>
       </div>
     </div>
 

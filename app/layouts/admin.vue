@@ -21,6 +21,8 @@ const shortName = computed(() => {
 // wants the full viewport; the rest stay readable at a fixed measure.
 const route = useRoute()
 const wide = computed(() => route.meta.wide === true)
+/** A match's four tools share one bar, kept here so it stays put while you switch. */
+const matchTool = computed(() => route.meta.matchTool as 'tag' | 'publish' | 'clip' | 'setup' | undefined)
 
 const links = [
   { to: '/admin', label: 'Videos', icon: Video, exact: true },
@@ -106,6 +108,7 @@ async function signOut() {
     </header>
 
     <main class="mx-auto w-full flex-1 px-4 py-8 sm:px-6" :class="wide ? 'max-w-none' : 'max-w-6xl'">
+      <AdminMatchNav v-if="matchTool" :match-id="String(route.params.id)" :current="matchTool" />
       <slot />
     </main>
   </div>

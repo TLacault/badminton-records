@@ -205,3 +205,15 @@ describe('text', () => {
     expect(d).toContain('https://example.test/matches/m1')
   })
 })
+
+describe('edit maps', () => {
+  it('places raw moments on the edited timeline and collapses cuts forward', async () => {
+    const { mapToEdit, youtubeEditMap, clipEditMap } = await import('./editMap')
+    const yt = youtubeEditMap([{ from: 10, to: 20 }, { from: 30, to: 40 }], 6)
+    expect(mapToEdit(yt, 15)).toBe(11)
+    expect(mapToEdit(yt, 25)).toBe(16) // cut: lands where the second span starts
+    expect(mapToEdit(yt, 99)).toBe(26) // past the end
+    const clip = clipEditMap([{ kind: 'intro', from: 0, to: 3, speed: 1, startsAt: 0 }, { kind: 'clip', from: 100, to: 104, speed: 2, startsAt: 3 }])
+    expect(mapToEdit(clip, 102)).toBe(4)
+  })
+})

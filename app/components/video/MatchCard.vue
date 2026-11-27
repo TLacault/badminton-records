@@ -15,13 +15,13 @@ const props = withDefaults(
 )
 
 const match = computed(() => props.entry.row)
-const kind = computed(() => match.value.video_kind ?? 'match')
-const kindLabel = computed(() => t(`card.kind${kind.value === 'highlights' ? 'Highlights' : kind.value === 'edit' ? 'Edit' : 'Match'}`))
+const kind = computed(() => match.value.video_kind ?? 'raw')
+const kindLabel = computed(() => t(`card.kind${kind.value.charAt(0).toUpperCase()}${kind.value.slice(1)}`))
 /** The upload's own name, as on YouTube; the fixture when there is none. */
 const title = computed(() => match.value.youtube_title || props.entry.title)
-/** Highlights and edits are never tagged, so only a match says how far its edit got. */
+/** Only the raw recording is tagged, so only it says how far the tagging got. */
 const tagState = computed(() => {
-  if (kind.value !== 'match') return null
+  if (kind.value !== 'raw') return null
   if (match.value.tagging_status === 'tagged') return { label: t('card.edited'), icon: Flame, cls: 'border-transparent bg-accent text-on-brand', fill: true }
   if (match.value.tagging_status === 'in_progress') return { label: t('card.editing'), icon: Scissors, cls: 'border-accent/50 bg-accent/20 text-accent', fill: false }
   return null

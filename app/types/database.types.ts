@@ -200,6 +200,7 @@ export type Database = {
           category: string | null
           created_at: string
           created_by: string | null
+          edit_maps: Json
           event_name: string | null
           format: string
           id: string
@@ -236,6 +237,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          edit_maps?: Json
           event_name?: string | null
           format?: string
           id?: string
@@ -272,6 +274,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          edit_maps?: Json
           event_name?: string | null
           format?: string
           id?: string

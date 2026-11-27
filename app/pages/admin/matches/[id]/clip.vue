@@ -5,7 +5,7 @@ import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
 import { Copy, Image as ImageIcon, Monitor, Music, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
+import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
@@ -31,7 +31,7 @@ import {
  * be rendered cannot come apart.
  */
 
-definePageMeta({ middleware: 'admin', layout: 'admin', wide: true })
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'clip', pageTransition: false })
 
 const { t } = useI18n()
 const client = useSupabaseClient<Database>()
@@ -369,6 +369,8 @@ async function render() {
       { method: 'POST', body: { ...withBoards(), brand: brand.value } },
     )
     if (!started.ready && started.job) await renderJob.watch(started.job)
+    // Where the raw footage lands in this render: the linked highlights / edit read it.
+    await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'edit', clipEditMap(pieces.value))
     const file = projectFileName(project.value, 'mp4')
     renderUrl.value = `/api/reel/media/out/${started.name}?download=1&name=${encodeURIComponent(file)}`
   }
@@ -441,7 +443,6 @@ useSeoMeta({
     <template v-if="bundle?.match">
       <!-- Header: back to the match's other tools, and the two things that act
            on the whole project rather than on a clip. -->
-      <AdminMatchNav :match-id="matchId" current="clip" />
       <div class="flex flex-wrap items-center gap-3">
         <!-- The format and the bookends: the choices that change the whole film. -->
         <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.format')">
