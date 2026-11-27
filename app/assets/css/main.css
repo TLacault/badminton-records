@@ -609,3 +609,15 @@
     transform: none;
   }
 }
+
+/*
+  Row action menus (admin library): a native popover anchored under its button.
+  The UA centres popovers with `inset: 0; margin: auto`; anchor positioning
+  replaces that, and flips above when the row is near the bottom.
+*/
+.row-menu[popover] {
+  inset: auto;
+  margin: 6px 0 0;
+  position-area: bottom span-left;
+  position-try-fallbacks: flip-block;
+}
