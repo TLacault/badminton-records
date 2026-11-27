@@ -27,6 +27,11 @@ function fold(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fr-FR')
 }
 
+/** Tim or Adrien: on every match, so not worth a tag on the library row. */
+export function isHomePlayer(p: { first_name: string, last_name: string }): boolean {
+  return HOME_PAIR.some(h => fold(h.first_name) === fold(p.first_name) && fold(h.last_name) === fold(p.last_name))
+}
+
 /** Player ids for slots 1 and 2, for whichever of the pair the roster holds. */
 export function homePairSlots(
   roster: { id: string, first_name: string, last_name: string }[],

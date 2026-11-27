@@ -219,6 +219,7 @@ export type Database = {
           title: string
           updated_at: string
           venue: string | null
+          video_kind: string
           visibility: string
           win_by: number
           youtube_channel_id: string | null
@@ -252,6 +253,7 @@ export type Database = {
           title: string
           updated_at?: string
           venue?: string | null
+          video_kind?: string
           visibility?: string
           win_by?: number
           youtube_channel_id?: string | null
@@ -285,6 +287,7 @@ export type Database = {
           title?: string
           updated_at?: string
           venue?: string | null
+          video_kind?: string
           visibility?: string
           win_by?: number
           youtube_channel_id?: string | null

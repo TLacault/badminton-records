@@ -432,7 +432,7 @@ const saveLabel = computed(() => {
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${matchId}/publish`" class="btn btn-sm btn-ghost">
           <Clapperboard :size="14" aria-hidden="true" />
-          YouTube version
+          YouTube
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost">
           <Smartphone :size="14" aria-hidden="true" />

@@ -38,7 +38,7 @@ const id = route.params.id as string
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${id}/publish`" class="btn btn-ghost">
           <Clapperboard :size="16" aria-hidden="true" />
-          YouTube version
+          YouTube
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${id}/clip`" class="btn btn-ghost">
           <Smartphone :size="16" aria-hidden="true" />

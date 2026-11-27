@@ -3,7 +3,7 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Copy, Image as ImageIcon, RotateCcw, Monitor, Music, Pencil, Scissors, Smartphone, Sparkles, Sliders, Undo2 } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Copy, Image as ImageIcon, Monitor, Music, Pencil, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Tag, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
@@ -443,15 +443,19 @@ useSeoMeta({
            on the whole project rather than on a clip. -->
       <div class="flex flex-wrap items-center gap-3">
         <NuxtLink
-          :to="`/admin/matches/${matchId}/tag`"
+          to="/admin"
           class="flex min-h-9 items-center gap-2 rounded-lg font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
         >
           <ArrowLeft :size="14" aria-hidden="true" />
-          Tagging
+          Videos
+        </NuxtLink>
+        <NuxtLink :to="`/admin/matches/${matchId}/tag`" class="btn btn-sm btn-ghost !min-h-9">
+          <Tag :size="14" aria-hidden="true" />
+          Tag
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${matchId}/publish`" class="btn btn-sm btn-ghost !min-h-9">
           <Clapperboard :size="14" aria-hidden="true" />
-          YouTube version
+          YouTube
         </NuxtLink>
         <NuxtLink :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-ghost !min-h-9">
           <Pencil :size="14" aria-hidden="true" />

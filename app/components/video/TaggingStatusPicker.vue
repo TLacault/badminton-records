@@ -11,7 +11,8 @@ import { TAGGING_STATES } from '~/utils/taggingStatus'
  * in the same crimson the guest cards use for the same three facts, and it is
  * still one press to change, instead of a press to open and a press to pick.
  */
-const props = defineProps<{ label: string }>()
+/** `full`: every segment named and a third of the width each (the row menu). */
+const props = defineProps<{ label: string, full?: boolean }>()
 
 const model = defineModel<string>({ required: true })
 
@@ -24,7 +25,8 @@ function pick(id: TaggingStatus) {
   <div
     role="radiogroup"
     :aria-label="props.label"
-    class="inline-flex items-center gap-0.5 rounded-xl border border-line bg-panel p-0.5"
+    class="items-center gap-0.5 rounded-xl border border-line bg-panel p-0.5"
+    :class="props.full ? 'grid grid-cols-3' : 'inline-flex'"
   >
     <button
       v-for="s in TAGGING_STATES"
@@ -34,7 +36,7 @@ function pick(id: TaggingStatus) {
       :data-testid="`tagging-${s.id}`"
       :aria-checked="model === s.id"
       :title="s.label"
-      class="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-transparent px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.1em] transition-[background-color,color,border-color] duration-150"
+      class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.1em] transition-[background-color,color,border-color] duration-150"
       :class="model === s.id ? s.chip : 'text-ink-muted hover:border-line-strong hover:text-ink'"
       @click="pick(s.id)"
     >
@@ -46,7 +48,7 @@ function pick(id: TaggingStatus) {
       />
       <!-- Only the state it is in says its name: three words per row, on every
            row, is a column of noise, and the icons carry the other two. -->
-      <span :class="model === s.id ? '' : 'sr-only'">{{ s.label }}</span>
+      <span :class="props.full || model === s.id ? '' : 'sr-only'">{{ s.label }}</span>
     </button>
   </div>
 </template>

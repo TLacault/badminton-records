@@ -3,6 +3,7 @@ import {
   attachDetails,
   listPlaylistVideos,
   resolveUploadsPlaylist,
+  videoKindOf,
 } from '../../utils/youtube'
 
 /**
@@ -84,6 +85,7 @@ export default defineEventHandler(async (event) => {
         youtube_video_id: v.videoId,
         youtube_channel_id: channelId,
         youtube_title: v.title,
+        video_kind: videoKindOf(v.title),
         youtube_published_at: v.publishedAt,
         youtube_thumbnail_url: v.thumbnailUrl,
         youtube_duration_seconds: v.durationSeconds,

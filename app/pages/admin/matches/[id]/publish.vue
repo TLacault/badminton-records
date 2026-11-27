@@ -3,7 +3,7 @@ import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { Corner, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, Pencil, RotateCcw, Scissors, Smartphone, Type } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, Pencil, RotateCcw, Scissors, Smartphone, Tag, Type } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
@@ -275,11 +275,15 @@ const heights = [null, 2160, 1440, 1080, 720] as const
   <div v-if="match && info" class="mx-auto max-w-7xl">
     <div class="flex flex-wrap items-center gap-3">
       <NuxtLink
-        :to="`/admin/matches/${matchId}/tag`"
+        to="/admin"
         class="flex w-fit min-h-9 items-center gap-2 font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
       >
         <ArrowLeft :size="14" aria-hidden="true" />
-        Tagging
+        Videos
+      </NuxtLink>
+      <NuxtLink :to="`/admin/matches/${matchId}/tag`" class="btn btn-sm btn-ghost !min-h-9">
+        <Tag :size="14" aria-hidden="true" />
+        Tag
       </NuxtLink>
       <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost !min-h-9">
         <Smartphone :size="14" aria-hidden="true" />
@@ -295,7 +299,7 @@ const heights = [null, 2160, 1440, 1080, 720] as const
       <div>
         <p class="eyebrow">
           <Clapperboard :size="15" aria-hidden="true" />
-          YouTube version
+          YouTube
         </p>
         <h1 class="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight">
           {{ sideName(info, 0) }} vs {{ sideName(info, 1) }}

@@ -35,6 +35,15 @@ interface VideosResponse {
   }>
 }
 
+export type VideoKind = 'match' | 'highlights' | 'edit'
+
+/** What a video is, read off its title: HIGHLIGHTS, then EDIT (as a word), else the match. */
+export function videoKindOf(title: string): VideoKind {
+  if (/highlights/i.test(title)) return 'highlights'
+  if (/\bedit\b/i.test(title)) return 'edit'
+  return 'match'
+}
+
 /** ISO-8601 duration (`PT1H2M3S`) → seconds. Returns null if unparseable. */
 export function parseIsoDuration(iso: string): number | null {
   const m = /^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso)
