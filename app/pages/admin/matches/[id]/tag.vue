@@ -3,7 +3,7 @@ import type { KeybindActionId } from '~/composables/useKeybinds'
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
-import { RotateCcw } from '@lucide/vue'
+import { RotateCcw, Tag } from '@lucide/vue'
 import { currentRallyAt } from '~~/shared/badminton'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
@@ -355,7 +355,8 @@ const saveLabel = computed(() => {
 <template>
   <div v-if="match">
 
-    <div class="flex flex-wrap items-center justify-between gap-y-2">
+    <AdminToolHeader :icon="Tag" :title="match.youtube_title || match.title">
+      <template #actions>
       <VideoStatusBadge
         :tagging-status="taggingStatus"
         :visibility="match.visibility"
@@ -394,7 +395,8 @@ const saveLabel = computed(() => {
           Reset
         </button>
       </div>
-    </div>
+      </template>
+    </AdminToolHeader>
 
     <!--
       The point list gets a generous fixed column and the video takes all the

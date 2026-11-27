@@ -3,7 +3,7 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { Copy, Image as ImageIcon, Music, RotateCcw, Scissors, Sliders, Sparkles, Undo2 } from '@lucide/vue'
+import { Copy, Image as ImageIcon, Music, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
@@ -458,39 +458,36 @@ useSeoMeta({
 <template>
   <div>
     <template v-if="bundle?.match">
-      <!-- Header: back to the match's other tools, and the two things that act
-           on the whole project rather than on a clip. -->
-      <div class="flex flex-wrap items-center gap-3">
-        <p class="ml-auto flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">
-          <span>{{ $t('reel.clipCount', { n: clipPieces.length }) }}</span>
-          <span aria-hidden="true">·</span>
-          <span data-testid="reel-duration">{{ clock(filmSeconds) }}</span>
-        </p>
+      <AdminToolHeader :icon="orientation === 'landscape' ? Sparkles : Smartphone" :subtitle="project.matchTitle">
+        <template #title>
+          <input
+            :value="project.name"
+            type="text"
+            class="w-full truncate border-none bg-transparent p-0 font-display text-2xl font-bold uppercase leading-tight tracking-tight text-ink outline-none focus-visible:text-accent sm:text-3xl"
+            :aria-label="$t('reel.projectName')"
+            maxlength="120"
+            @input="patch({ name: ($event.target as HTMLInputElement).value })"
+          >
+        </template>
+        <template #actions>
+          <p class="flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">
+            <span>{{ $t('reel.clipCount', { n: clipPieces.length }) }}</span>
+            <span aria-hidden="true">·</span>
+            <span data-testid="reel-duration">{{ clock(filmSeconds) }}</span>
+          </p>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost !min-h-9"
+            :disabled="!canUndo"
+            @click="undo()"
+          >
+            <Undo2 :size="14" aria-hidden="true" />
+            {{ $t('reel.undo') }}
+          </button>
+        </template>
+      </AdminToolHeader>
 
-        <button
-          type="button"
-          class="btn btn-sm btn-ghost !min-h-9"
-          :disabled="!canUndo"
-          @click="undo()"
-        >
-          <Undo2 :size="14" aria-hidden="true" />
-          {{ $t('reel.undo') }}
-        </button>
-      </div>
-
-      <input
-        :value="project.name"
-        type="text"
-        class="mt-3 w-full border-none bg-transparent p-0 font-display text-2xl font-bold uppercase tracking-tight text-ink outline-none focus-visible:text-accent sm:text-3xl"
-        :aria-label="$t('reel.projectName')"
-        maxlength="120"
-        @input="patch({ name: ($event.target as HTMLInputElement).value })"
-      >
-      <p class="mt-0.5 truncate text-sm text-ink-subtle">
-        {{ project.matchTitle }}
-      </p>
-
-      <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
         <div class="min-w-0">
           <ReelStage
             ref="stage"
@@ -525,20 +522,7 @@ useSeoMeta({
         <!-- The panels. One column on a desktop, a tab strip on a phone —
              the same four panels either way. -->
         <div class="min-w-0">
-          <div class="grid grid-cols-5 gap-1 rounded-xl border border-line bg-bg-deep p-1">
-            <button
-              v-for="entry in TABS"
-              :key="entry.id"
-              type="button"
-              class="flex min-h-10 items-center justify-center gap-1.5 rounded-lg font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
-              :class="tab === entry.id ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
-              :aria-pressed="tab === entry.id"
-              @click="tab = entry.id"
-            >
-              <component :is="entry.icon" :size="14" aria-hidden="true" />
-              <span class="hidden sm:inline lg:hidden xl:inline">{{ $t(`reel.tabs.${entry.id}`) }}</span>
-            </button>
-          </div>
+          <AdminToolTabs v-model="tab" :tabs="TABS.map(e => ({ ...e, label: $t(`reel.tabs.${e.id}`) }))" />
 
           <div class="mt-4">
             <!-- The bookends open the Shots tab: they are the first and last shot. -->

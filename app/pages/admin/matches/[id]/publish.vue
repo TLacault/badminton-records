@@ -278,23 +278,16 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 <template>
   <div v-if="match && info">
 
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="eyebrow">
-          <Clapperboard :size="15" aria-hidden="true" />
-          YouTube
+    <!-- The title the video goes up under (the Text tab's, generated or edited). -->
+    <AdminToolHeader :icon="Clapperboard" :title="title" :subtitle="match.youtube_title">
+      <template #actions>
+        <p class="text-xs text-ink-subtle" aria-live="polite">
+          {{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Save failed' : 'Up to date' }}
         </p>
-        <!-- The title the video goes up under (the Text tab's, generated or edited). -->
-        <h1 class="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight">
-          {{ title }}
-        </h1>
-      </div>
-      <p class="text-xs text-ink-subtle" aria-live="polite">
-        {{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Save failed' : '' }}
-      </p>
-    </div>
+      </template>
+    </AdminToolHeader>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_26rem]">
+    <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,42rem)]">
       <!-- Preview -->
       <section>
         <div class="relative aspect-video overflow-hidden rounded-xl border border-line bg-black">
@@ -357,12 +350,7 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 
       <!-- Controls -->
       <aside>
-        <div class="flex gap-1 rounded-lg bg-bg-deep p-1" role="tablist">
-          <button v-for="t in [{ id: 'edit', label: 'Montage', icon: Scissors }, { id: 'thumbnail', label: 'Miniature', icon: ImageIcon }, { id: 'text', label: 'Texte', icon: Type }] as const" :key="t.id" type="button" role="tab" :aria-selected="tab === t.id" class="btn btn-sm flex-1" :class="tab === t.id ? 'btn-primary' : 'btn-ghost'" @click="tab = t.id">
-            <component :is="t.icon" :size="14" aria-hidden="true" />
-            {{ t.label }}
-          </button>
-        </div>
+        <AdminToolTabs v-model="tab" :tabs="[{ id: 'edit', label: 'Montage', icon: Scissors }, { id: 'thumbnail', label: 'Miniature', icon: ImageIcon }, { id: 'text', label: 'Texte', icon: Type }]" />
 
         <!-- Montage -->
         <div v-if="tab === 'edit'" class="mt-5 flex flex-col gap-5">

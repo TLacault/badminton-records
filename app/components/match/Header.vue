@@ -21,6 +21,8 @@ const props = defineProps<{
   title?: string | null
   /** `/matches` on the site, `/admin/matches` in the admin's view. */
   linkBase?: string
+  /** The admin's view: the bar above already switches versions, so one tight row. */
+  compact?: boolean
 }>()
 
 /** Raw · Match · Highlights · Shorts, always four: a missing version is a quiet tab. */
@@ -74,7 +76,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
 </script>
 
 <template>
-  <header data-testid="match-header" class="relative overflow-hidden rounded-2xl p-5 glass sm:p-6">
+  <header data-testid="match-header" class="relative overflow-hidden rounded-2xl glass" :class="compact ? 'px-5 py-4' : 'p-5 sm:p-6'">
     <div
       class="pointer-events-none absolute inset-y-[-60%] right-8 w-16 -skew-x-12 slash opacity-10 blur-lg"
       aria-hidden="true"
@@ -82,14 +84,14 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
 
     <!-- The type is a tag below, not the eyebrow: printing it twice reads as a
          mistake rather than as emphasis. -->
-    <p class="eyebrow">
+    <p v-if="!compact" class="eyebrow">
       <Swords :size="14" aria-hidden="true" />
       {{ $t('match.label') }}
     </p>
 
     <!-- The button rides with the title rather than with the tags below: it
          acts on the match as a whole, which is what the title names. -->
-    <div class="relative mt-2.5 flex flex-wrap items-start justify-between gap-4 sm:flex-nowrap">
+    <div class="relative flex flex-wrap justify-between gap-4 sm:flex-nowrap" :class="compact ? 'items-center' : 'mt-2.5 items-start'">
       <h1
         data-testid="match-heading"
         class="font-display text-[clamp(1.5rem,3.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-tight"
@@ -141,7 +143,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
       </div>
     </div>
 
-    <ul class="relative mt-4 flex flex-wrap items-center gap-2">
+    <ul class="relative flex flex-wrap items-center gap-2" :class="compact ? 'mt-2' : 'mt-4'">
       <li v-if="typeLabel">
         <span :class="CHIP" class="border-accent/35 bg-accent-soft text-accent">
           {{ typeLabel }}
