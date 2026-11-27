@@ -277,7 +277,7 @@ function playClip(id: string) {
 
 // ── Thumbnail ───────────────────────────────────────────────────────────────
 
-/** The YouTube editor's thumbnail with the film's word (HIGHLIGHTS / SHORTS); the template follows the match type. */
+/** The YouTube editor's thumbnail: HIGHLIGHTS for Highlights, no word on a Short's cover; the template follows the match type. */
 const thumbDefaults = computed(() => (info.value && family.value ? defaultThumbnailLines(info.value, family.value.id) : ['', '']))
 const thumbLines = computed(() => [0, 1]
   .filter(i => project.value.thumbnail.show[i])
@@ -608,7 +608,7 @@ useSeoMeta({
                 :colour="family?.colour ?? '#cb2543'"
                 :match-id="matchId"
                 :file-stem="`clip-thumbnail-${matchId.slice(0, 8)}`"
-                :highlights="format.toUpperCase()"
+                :highlights="orientation === 'landscape' ? 'HIGHLIGHTS' : ''"
                 :saveable="false"
                 :vertical="orientation === 'portrait'"
                 :tag="family?.label.toUpperCase() ?? ''"
