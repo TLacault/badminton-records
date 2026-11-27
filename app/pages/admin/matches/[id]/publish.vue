@@ -3,7 +3,7 @@ import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { Corner, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { Clapperboard, Copy, FileUp, Film, Image as ImageIcon, RotateCcw, Scissors, Type } from '@lucide/vue'
+import { Clapperboard, Copy, Download, Film, Image as ImageIcon, Redo2, RotateCcw, Scissors, Type, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
@@ -89,6 +89,8 @@ const breaks = computed<BreakInput[]>(() => (bundle.value?.breaks ?? []).map(b =
 
 // --- settings, saved on the match as the editor changes them
 const settings = ref(readSettings(match.value?.publish_settings))
+/** Every change to the edit is a step: undo, redo, and reset to the defaults. */
+const history = useSnapshotHistory(settings, () => readSettings({}))
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 watch(settings, () => {
@@ -111,10 +113,6 @@ const player = ref<HTMLVideoElement | null>(null)
 const now = ref(0)
 const sourceDuration = ref(0)
 
-function onAttach(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) source.attach(file)
-}
 function onMeta() {
   sourceDuration.value = player.value?.duration ?? 0
 }
@@ -265,7 +263,13 @@ async function render(draft: boolean) {
   }
 }
 
-const tab = ref<'edit' | 'thumbnail' | 'text'>('edit')
+const tab = ref<'edit' | 'thumbnail' | 'text' | 'export'>('edit')
+const TABS = [
+  { id: 'edit', label: 'Edit', icon: Scissors },
+  { id: 'thumbnail', label: 'Thumbnail', icon: ImageIcon },
+  { id: 'text', label: 'Text', icon: Type },
+  { id: 'export', label: 'Export', icon: Download },
+] as const
 const corners: { value: Corner, label: string }[] = [
   { value: 'tl', label: 'Top left' },
   { value: 'tr', label: 'Top right' },
@@ -281,9 +285,16 @@ const heights = [null, 2160, 1440, 1080, 720] as const
     <!-- The title the video goes up under (the Text tab's, generated or edited). -->
     <AdminToolHeader :icon="Clapperboard" :title="title" :subtitle="match.youtube_title">
       <template #actions>
-        <p class="text-xs text-ink-subtle" aria-live="polite">
-          {{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Save failed' : 'Up to date' }}
-        </p>
+        <p v-if="saveState === 'error'" class="text-xs text-accent" role="alert">Save failed</p>
+        <button type="button" class="btn btn-sm btn-ghost" :disabled="!history.canUndo.value" @click="history.undo()">
+          <Undo2 :size="14" aria-hidden="true" /> Undo
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" :disabled="!history.canRedo.value" @click="history.redo()">
+          <Redo2 :size="14" aria-hidden="true" /> Redo
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" title="Back to the default edit (undoable)" @click="history.reset()">
+          <RotateCcw :size="14" aria-hidden="true" /> Reset
+        </button>
       </template>
     </AdminToolHeader>
 
@@ -323,14 +334,6 @@ const heights = [null, 2160, 1440, 1080, 720] as const
         </div>
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
-          <label class="btn btn-sm btn-ghost cursor-pointer">
-            <FileUp :size="15" aria-hidden="true" />
-            {{ source.mode.value === 'local' ? 'Change file' : 'Attach original' }}
-            <input type="file" accept="video/*" class="sr-only" @change="onAttach">
-          </label>
-          <span class="text-xs text-ink-subtle">
-            {{ source.mode.value === 'local' ? 'Local file (copied to the renderer on first render)' : source.mode.value === 'cached' ? 'Original on the renderer' : 'No original attached' }}
-          </span>
           <span v-if="plan" class="ml-auto font-mono text-xs tabular-nums text-ink-subtle">
             {{ fmt(now) }} · output {{ fmt(plan.totalDuration) }}
           </span>
@@ -350,7 +353,7 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 
       <!-- Controls -->
       <aside>
-        <AdminToolTabs v-model="tab" :tabs="[{ id: 'edit', label: 'Montage', icon: Scissors }, { id: 'thumbnail', label: 'Miniature', icon: ImageIcon }, { id: 'text', label: 'Texte', icon: Type }]" />
+        <AdminToolTabs v-model="tab" :tabs="TABS" />
 
         <!-- Montage -->
         <div v-if="tab === 'edit'" class="mt-5 flex flex-col gap-5">
@@ -431,39 +434,9 @@ const heights = [null, 2160, 1440, 1080, 720] as const
             </ul>
           </div>
 
-          <label class="block">
-            <span class="label">Output</span>
-            <select v-model="settings.outputHeight" class="field mt-2">
-              <option v-for="h in heights" :key="String(h)" :value="h">{{ h ? `${h}p` : 'Source resolution' }}</option>
-            </select>
-          </label>
-
-          <div class="border-t border-line pt-4">
-            <div class="flex flex-wrap gap-2">
-              <button type="button" class="btn btn-sm btn-ghost" :disabled="!plan || job.running.value" @click="render(true)">
-                <Film :size="15" aria-hidden="true" /> Draft 720p
-              </button>
-              <button type="button" class="btn btn-sm btn-primary" :disabled="!plan || job.running.value" @click="render(false)">
-                <Clapperboard :size="15" aria-hidden="true" /> Render
-              </button>
-            </div>
-            <div v-if="job.running.value" class="mt-3">
-              <div class="h-1 overflow-hidden rounded-full bg-bg-deep">
-                <div class="h-full rounded-full bg-accent transition-[width] duration-300" :style="{ width: `${Math.round((job.progress.value ?? 0) * 100)}%` }" />
-              </div>
-              <p class="mt-1 text-xs text-ink-subtle">{{ job.job.value?.message || 'Working…' }}</p>
-            </div>
-            <p v-if="renderError" class="mt-2 text-xs text-accent">{{ renderError }}</p>
-            <p v-if="renderResult" class="mt-2 break-all font-mono text-[0.6875rem] text-ink-subtle">
-              Done: {{ renderResult.video }}<br>Upload kit: {{ renderResult.dir }}
-            </p>
-            <p v-if="plan" class="mt-2 text-xs text-ink-subtle">
-              {{ plan.transitions.length }} stings · {{ plan.scores.length }} score changes · {{ plan.chapters.length }} chapters
-            </p>
-          </div>
         </div>
 
-        <!-- Miniature -->
+        <!-- Thumbnail -->
         <div v-else-if="tab === 'thumbnail'" class="mt-5 flex flex-col gap-4">
           <PublishThumbnailCanvas :template="template" :lines="lines" :colour="family.colour" :match-id="matchId" :file-stem="`thumbnail-${matchId.slice(0, 8)}`" />
           <div v-for="i in [0, 1] as const" :key="i">
@@ -480,8 +453,8 @@ const heights = [null, 2160, 1440, 1080, 720] as const
           </div>
         </div>
 
-        <!-- Texte -->
-        <div v-else class="mt-5 flex flex-col gap-4">
+        <!-- Text -->
+        <div v-else-if="tab === 'text'" class="mt-5 flex flex-col gap-4">
           <label class="block">
             <span class="label flex items-center justify-between">Title <span class="font-mono">{{ title.length }}/100</span></span>
             <input :value="title" maxlength="100" class="field mt-2" @input="settings.title = ($event.target as HTMLInputElement).value">
@@ -500,6 +473,38 @@ const heights = [null, 2160, 1440, 1080, 720] as const
           </div>
           <p class="text-xs text-ink-subtle">Chapters appear once the original is attached (they come from the cut). The render also writes title.txt and description.txt into the upload kit.</p>
         </div>
+        <!-- Export: the source to render from, the quality, the render. -->
+        <div v-else-if="tab === 'export'" class="mt-5 flex flex-col gap-5">
+          <ReelSourcePanel :source="source" :duration="sourceDuration" />
+          <div class="flex flex-col gap-4 border-t border-line pt-4">
+          <label class="block">
+            <span class="label">Render quality</span>
+            <select v-model="settings.outputHeight" class="field mt-2">
+              <option v-for="h in heights" :key="String(h)" :value="h">{{ h ? `${h}p` : 'Source resolution' }}</option>
+            </select>
+          </label>
+
+          <div class="border-t border-line pt-4">
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-ghost" :disabled="!plan || job.running.value" @click="render(true)">
+                <Film :size="15" aria-hidden="true" /> Draft 720p
+              </button>
+              <button type="button" class="btn btn-sm btn-primary" :disabled="!plan || job.running.value" @click="render(false)">
+                <Clapperboard :size="15" aria-hidden="true" /> Render
+              </button>
+            </div>
+            <UiProgress v-if="job.running.value" class="mt-3" :value="job.progress.value" :label="job.job.value?.message || 'Rendering'" />
+            <p v-if="renderError" class="mt-2 text-xs text-accent">{{ renderError }}</p>
+            <p v-if="renderResult" class="mt-2 break-all font-mono text-[0.6875rem] text-ink-subtle">
+              Done: {{ renderResult.video }}<br>Upload kit: {{ renderResult.dir }}
+            </p>
+            <p v-if="plan" class="mt-2 text-xs text-ink-subtle">
+              {{ plan.transitions.length }} stings · {{ plan.scores.length }} score changes · {{ plan.chapters.length }} chapters
+            </p>
+          </div>
+          </div>
+        </div>
+
       </aside>
     </div>
   </div>

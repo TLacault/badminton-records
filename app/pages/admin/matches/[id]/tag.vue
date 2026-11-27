@@ -3,7 +3,7 @@ import type { KeybindActionId } from '~/composables/useKeybinds'
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
-import { RotateCcw, Tag } from '@lucide/vue'
+import { Redo2, RotateCcw, Tag, Undo2 } from '@lucide/vue'
 import { currentRallyAt } from '~~/shared/badminton'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
@@ -357,23 +357,15 @@ const saveLabel = computed(() => {
 
     <AdminToolHeader :icon="Tag" :title="match.youtube_title || match.title">
       <template #actions>
-      <VideoStatusBadge
-        :tagging-status="taggingStatus"
-        :visibility="match.visibility"
-      />
       <div class="flex flex-wrap items-center gap-2 text-sm sm:gap-3">
-        <span
-          data-testid="save-state"
-          class="text-ink-subtle"
-          :class="{ 'text-accent': session.saveState.value === 'error' }"
-        >{{ saveLabel }}</span>
+        <span v-if="session.saveState.value === 'error'" data-testid="save-state" class="text-accent" role="alert">{{ saveLabel }}</span>
         <button
           data-testid="undo"
           class="btn btn-sm btn-ghost hidden sm:inline-flex"
           :disabled="!session.canUndo.value"
           @click="session.undo()"
         >
-          Undo
+          <Undo2 :size="14" aria-hidden="true" /> Undo
         </button>
         <button
           data-testid="redo"
@@ -381,7 +373,7 @@ const saveLabel = computed(() => {
           :disabled="!session.canRedo.value"
           @click="session.redo()"
         >
-          Redo
+          <Redo2 :size="14" aria-hidden="true" /> Redo
         </button>
         <button
           data-testid="reset-match"

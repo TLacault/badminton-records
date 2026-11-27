@@ -53,8 +53,8 @@ const { data: bundle } = await useAsyncData(`match-${matchId}`, async () => {
 
 const linked = computed(() => Boolean(bundle.value?.match?.source_match_id))
 const kind = computed(() => bundle.value?.match?.video_kind ?? 'raw')
-/** The edited match and the vertical edit play in YouTube's own player; the raw and the highlights in ours. */
-const native = computed(() => kind.value === 'match' || kind.value === 'shorts')
+/** Only the raw recording plays in our player (score, timeline, jump to); every cut plays in YouTube's. */
+const native = computed(() => kind.value !== 'raw')
 /**
  * A linked video is cut from the raw: the tags land on its timeline through
  * the map its render saved on the raw match. No map yet, no timeline.

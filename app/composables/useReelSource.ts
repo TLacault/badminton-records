@@ -50,11 +50,12 @@ export function useReelSource(videoId: Ref<string | null>) {
     if (objectUrl.value) URL.revokeObjectURL(objectUrl.value)
   })
 
-  async function fetchSource(height = 1080) {
+  /** Pulls the video down with yt-dlp on the host; `force` replaces a cached copy (another quality). */
+  async function fetchSource(height = 2160, force = false) {
     if (!videoId.value) return
     const started = await $fetch<{ ready: boolean, job: ReelJob | null, duration?: number }>(
       '/api/reel/source',
-      { method: 'POST', body: { videoId: videoId.value, height } },
+      { method: 'POST', body: { videoId: videoId.value, height, force } },
     )
     if (started.ready) {
       await refresh()
@@ -109,6 +110,7 @@ export function useReelSource(videoId: Ref<string | null>) {
     forget,
     job: download.job,
     progress: download.progress,
+    message: computed(() => download.job.value?.message ?? ''),
     downloading: download.running,
     error: download.error,
   }

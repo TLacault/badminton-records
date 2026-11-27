@@ -3,7 +3,7 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { Copy, Image as ImageIcon, Music, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
+import { Copy, Image as ImageIcon, Music, Redo2, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
@@ -48,7 +48,7 @@ const route = useRoute()
 const matchId = route.params.id as string
 const site = useRequestURL()
 
-const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile } = useReelProject(matchId, props.orientation)
+const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, redo, canRedo, reset, download: saveProject, openFile } = useReelProject(matchId, props.orientation)
 const { caps, canRender, refresh: refreshCapabilities } = useReelCapabilities()
 
 const videoId = computed(() => project.value.videoId)
@@ -244,6 +244,13 @@ function rebuild({ lead, tail }: { lead: number, tail: number }) {
 }
 
 // Highlights start as every starred point in a row; Shorts start empty (a few shots, picked by hand).
+/** Starts the film over; Highlights refill with every starred point. */
+function resetFilm() {
+  reset()
+  selectedId.value = null
+  if (props.orientation === 'landscape') rebuild({ lead: DEFAULT_LEAD_SECONDS, tail: DEFAULT_TAIL_SECONDS })
+}
+
 // After mount: the saved project is restored then, and must not be overwritten first.
 onMounted(() => watch(() => derived.value?.rallyStates.length, () => {
   if (props.orientation === 'landscape' && !project.value.clips.length && derived.value?.rallyStates.some(s => s.isHighlight)) rebuild({ lead: DEFAULT_LEAD_SECONDS, tail: DEFAULT_TAIL_SECONDS })
@@ -475,14 +482,14 @@ useSeoMeta({
             <span aria-hidden="true">·</span>
             <span data-testid="reel-duration">{{ clock(filmSeconds) }}</span>
           </p>
-          <button
-            type="button"
-            class="btn btn-sm btn-ghost !min-h-9"
-            :disabled="!canUndo"
-            @click="undo()"
-          >
-            <Undo2 :size="14" aria-hidden="true" />
-            {{ $t('reel.undo') }}
+          <button type="button" class="btn btn-sm btn-ghost" :disabled="!canUndo" @click="undo()">
+            <Undo2 :size="14" aria-hidden="true" /> Undo
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" :disabled="!canRedo" @click="redo()">
+            <Redo2 :size="14" aria-hidden="true" /> Redo
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" title="Start this film over (undoable)" @click="resetFilm">
+            <RotateCcw :size="14" aria-hidden="true" /> Reset
           </button>
         </template>
       </AdminToolHeader>
@@ -640,6 +647,9 @@ useSeoMeta({
 
             <ReelExportPanel
               v-else
+              :source="source"
+              :output="project.output"
+              @output="change => patch({ output: { ...project.output, ...change } })"
               :caps="caps"
               :mode="source.mode.value"
               :source-duration="sourceDuration"

@@ -28,6 +28,7 @@ export function useReelProject(matchId: string, orientation: ReelProject['orient
   const key = `${matchId}-${orientation}`
   const project = useState<ReelProject>(`reel-project-${key}`, () => ({ ...emptyProject(), matchId, orientation }))
   const history = useState<string[]>(`reel-history-${key}`, () => [])
+  const future = useState<string[]>(`reel-future-${key}`, () => [])
   const restored = useState(`reel-restored-${key}`, () => false)
 
   function persist() {
@@ -57,6 +58,7 @@ export function useReelProject(matchId: string, orientation: ReelProject['orient
   /** Runs a mutation, having first taken a snapshot to come back to. */
   function edit(change: (draft: ReelProject) => void) {
     history.value = [...history.value, JSON.stringify(project.value)].slice(-HISTORY_LIMIT)
+    future.value = []
     const draft = JSON.parse(JSON.stringify(project.value)) as ReelProject
     change(draft)
     project.value = draft
@@ -69,8 +71,28 @@ export function useReelProject(matchId: string, orientation: ReelProject['orient
     const previous = history.value.at(-1)
     if (!previous) return
     history.value = history.value.slice(0, -1)
+    future.value = [...future.value, JSON.stringify(project.value)]
     project.value = JSON.parse(previous) as ReelProject
     persist()
+  }
+
+  const canRedo = computed(() => future.value.length > 0)
+
+  function redo() {
+    const next = future.value.at(-1)
+    if (!next) return
+    future.value = future.value.slice(0, -1)
+    history.value = [...history.value, JSON.stringify(project.value)]
+    project.value = JSON.parse(next) as ReelProject
+    persist()
+  }
+
+  /** A blank project for this match and format (undoable); the editor refills it. */
+  function reset() {
+    const { videoId, matchTitle, name } = project.value
+    edit((draft) => {
+      Object.assign(draft, { ...emptyProject(), matchId, orientation, videoId, matchTitle, name })
+    })
   }
 
   // ── Clips ────────────────────────────────────────────────────────────────
@@ -152,6 +174,9 @@ export function useReelProject(matchId: string, orientation: ReelProject['orient
     patch,
     undo,
     canUndo,
+    redo,
+    canRedo,
+    reset,
     addClips,
     updateClip,
     removeClip,

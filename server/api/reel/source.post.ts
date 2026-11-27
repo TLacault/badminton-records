@@ -1,4 +1,4 @@
-import { capabilities, exists, parseVideoId, probe, run, sourcePath, startJob } from '../../utils/reel'
+import { capabilities, exists, parseVideoId, probe, removeSource, run, sourcePath, startJob } from '../../utils/reel'
 
 /**
  * Pulls the match video down so the editor can scrub it frame by frame.
@@ -9,7 +9,7 @@ import { capabilities, exists, parseVideoId, probe, run, sourcePath, startJob } 
  * the preview and the export get a real file.
  */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ videoId?: string, height?: number }>(event)
+  const body = await readBody<{ videoId?: string, height?: number, force?: boolean }>(event)
   const videoId = parseVideoId(body?.videoId ?? '')
   if (!videoId) throw createError({ statusCode: 400, statusMessage: 'A YouTube video id or URL is required' })
 
@@ -22,13 +22,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const path = sourcePath(videoId)
+  // `force`: download again, at another quality.
+  if (body?.force && await exists(path)) await removeSource(videoId)
   if (await exists(path)) {
     const facts = await probe(path)
     return { ready: true, videoId, duration: facts.duration, job: null }
   }
 
-  // 1080p unless asked otherwise: a 4K source triples the download and the
-  // render for detail that a highlight reel throws away on upload anyway.
+  // The editor asks 4K by default (the channel is filmed in 4K); 1080p when a caller does not say.
   const height = [720, 1080, 1440, 2160].includes(Number(body?.height)) ? Number(body!.height) : 1080
 
   const job = startJob('source', `source:${videoId}`, async (report) => {

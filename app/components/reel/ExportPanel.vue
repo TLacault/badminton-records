@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ReelCapabilities } from '~~/shared/reel'
-import type { SourceMode } from '~/composables/useReelSource'
-import { CloudDownload, Download, FileUp, FolderOpen, HardDrive, Save, Trash2 } from '@lucide/vue'
+import type { SourceMode, useReelSource } from '~/composables/useReelSource'
+import type { ReelCapabilities, ReelOutput } from '~~/shared/reel'
+import { Download, FolderOpen, Save } from '@lucide/vue'
 
 /**
  * Getting material in and the film out.
@@ -14,6 +14,9 @@ import { CloudDownload, Download, FileUp, FolderOpen, HardDrive, Save, Trash2 } 
  */
 
 defineProps<{
+  source: ReturnType<typeof useReelSource>
+  /** Render size and frame rate, shown where the render is started. */
+  output: ReelOutput
   caps: ReelCapabilities | null
   mode: SourceMode
   sourceDuration: number
@@ -36,105 +39,39 @@ const emit = defineEmits<{
   render: []
   save: []
   open: [file: File]
+  output: [change: Partial<ReelOutput>]
 }>()
-
-function onVideo(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) emit('attach', file)
-}
 
 function onProject(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (file) emit('open', file)
 }
 
-function mb(bytes: number) {
-  return bytes > 1 << 30
-    ? `${(bytes / (1 << 30)).toFixed(1)} GB`
-    : `${Math.round(bytes / (1 << 20))} MB`
-}
-
-const MODE_TONE: Record<SourceMode, string> = {
-  local: 'text-accent',
-  cached: 'text-accent',
-  youtube: 'text-ink-muted',
-  none: 'text-ink-subtle',
-}
 </script>
 
 <template>
   <div class="flex flex-col gap-5">
-    <section>
-      <p class="label">
-        {{ $t('reel.source') }}
-      </p>
-
-      <p class="mt-1.5 flex items-center gap-2 text-sm" :class="MODE_TONE[mode]">
-        <HardDrive :size="15" aria-hidden="true" />
-        {{ $t(`reel.sourceModes.${mode}`) }}
-        <span v-if="sourceDuration" class="ml-auto font-mono text-xs tabular-nums text-ink-subtle">
-          {{ Math.round(sourceDuration / 60) }} min
-        </span>
-      </p>
-
-      <p class="mt-1 text-[0.6875rem] leading-relaxed text-ink-subtle">
-        {{ $t(`reel.sourceHints.${mode}`) }}
-      </p>
-
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button
-          v-if="caps?.download && mode !== 'local'"
-          type="button"
-          class="btn btn-sm btn-ghost"
-          :disabled="downloading"
-          @click="emit('fetchSource')"
-        >
-          <CloudDownload :size="15" aria-hidden="true" />
-          {{ mode === 'cached' ? $t('reel.refetch') : $t('reel.fetch') }}
-        </button>
-
-        <label class="btn btn-sm btn-ghost cursor-pointer">
-          <FileUp :size="15" aria-hidden="true" />
-          {{ $t('reel.attach') }}
-          <input type="file" accept="video/*" class="sr-only" @change="onVideo">
-        </label>
-
-        <button
-          v-if="mode === 'cached'"
-          type="button"
-          class="btn btn-sm btn-ghost"
-          @click="emit('forget')"
-        >
-          <Trash2 :size="15" aria-hidden="true" />
-          {{ $t('reel.forget') }}
-        </button>
-      </div>
-
-      <div v-if="downloading" class="mt-3">
-        <div class="h-1 overflow-hidden rounded-full bg-bg-deep">
-          <div
-            class="h-full rounded-full bg-accent transition-[width] duration-300"
-            :style="{ width: `${Math.round((downloadProgress ?? 0) * 100)}%` }"
-          />
-        </div>
-        <p class="mt-1 text-[0.6875rem] text-ink-subtle">
-          {{ $t('reel.downloading', { pct: Math.round((downloadProgress ?? 0) * 100) }) }}
-        </p>
-      </div>
-
-      <p v-if="sourceError" class="mt-2 text-xs text-accent">
-        {{ sourceError }}
-      </p>
-
-      <p v-if="caps?.cachedBytes" class="mt-2 text-[0.6875rem] text-ink-subtle">
-        {{ $t('reel.cacheSize', { size: mb(caps.cachedBytes), n: caps.cachedSources.length }) }}
-      </p>
-    </section>
+    <ReelSourcePanel :source="source" :duration="sourceDuration" />
 
     <section class="border-t border-line pt-4">
       <p class="label">
         {{ $t('reel.export') }}
       </p>
+
+      <div class="mt-2.5 grid grid-cols-2 gap-2">
+        <label class="block">
+          <span class="text-[0.6875rem] text-ink-subtle">Quality</span>
+          <select class="field mt-1" :value="output.height" @change="emit('output', { height: Number(($event.target as HTMLSelectElement).value) as ReelOutput['height'] })">
+            <option v-for="h in [1440, 1080, 720]" :key="h" :value="h">{{ h }}p</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-[0.6875rem] text-ink-subtle">Frame rate</span>
+          <select class="field mt-1" :value="output.fps" @change="emit('output', { fps: Number(($event.target as HTMLSelectElement).value) as ReelOutput['fps'] })">
+            <option v-for="f in [60, 30]" :key="f" :value="f">{{ f }} fps</option>
+          </select>
+        </label>
+      </div>
 
       <button
         type="button"
@@ -157,17 +94,7 @@ const MODE_TONE: Record<SourceMode, string> = {
         {{ $t('reel.renderEstimate', { s: Math.round(renderSeconds) }) }}
       </p>
 
-      <div v-if="rendering" class="mt-3">
-        <div class="h-1 overflow-hidden rounded-full bg-bg-deep">
-          <div
-            class="h-full rounded-full bg-accent transition-[width] duration-300"
-            :style="{ width: `${Math.round((renderProgress ?? 0) * 100)}%` }"
-          />
-        </div>
-        <p class="mt-1 text-[0.6875rem] text-ink-subtle">
-          {{ $t('reel.renderingPct', { pct: Math.round((renderProgress ?? 0) * 100) }) }}
-        </p>
-      </div>
+      <UiProgress v-if="rendering" class="mt-3" :value="renderProgress" :label="$t('reel.rendering')" />
 
       <p v-if="renderError" class="mt-2 text-xs text-accent">
         {{ renderError }}

@@ -279,9 +279,11 @@ export function run(
       const text = chunk.toString()
       tail = `${tail}${text}`.slice(-4000)
 
-      const percent = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(text)
+      const percent = /\[download\]\s+(\d+(?:\.\d+)?)%(?:\s+of\s+~?\s*(\S+))?(?:\s+at\s+(\S+))?(?:\s+ETA\s+(\S+))?/.exec(text)
       if (percent) {
-        report(Number(percent[1]) / 100, 'Downloading')
+        // yt-dlp fetches the picture then the sound: say which, how big, how fast, how long.
+        const [, , size, speed, eta] = percent
+        report(Number(percent[1]) / 100, ['Downloading', size, speed && !speed.includes('Unknown') ? speed : null, eta && eta !== 'Unknown' ? `${eta} left` : null].filter(Boolean).join(' · '))
         return
       }
       const outTime = /out_time_ms=(\d+)/.exec(text)

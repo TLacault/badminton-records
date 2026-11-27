@@ -13,7 +13,8 @@ type Tool = 'view' | 'tag' | 'publish' | 'highlights' | 'shorts' | 'setup'
 const props = defineProps<{ matchId: string, current: Tool }>()
 
 const client = useSupabaseClient()
-const { data: family } = await useAsyncData(`nav-family-${props.matchId}`, async () => {
+// One key for the bar: Setup refreshes it after a save, so a new link shows at once.
+const { data: family } = await useAsyncData('admin-match-nav', async () => {
   const { data: self } = await client.from('matches').select('id, source_match_id').eq('id', props.matchId).maybeSingle()
   const rawId = (self as { source_match_id: string | null } | null)?.source_match_id ?? props.matchId
   const { data } = await client.from('matches').select('id, video_kind').or(`id.eq.${rawId},source_match_id.eq.${rawId}`)

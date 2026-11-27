@@ -224,6 +224,9 @@ async function autosave() {
     return
   }
 
+  // The match bar lists this video's family: a new link or type shows at once.
+  void refreshNuxtData('admin-match-nav')
+
   // Only the raw recording has players of its own; the others read them from it.
   if (form.video_kind !== 'raw') {
     saveState.value = 'saved'
@@ -400,13 +403,13 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
             {{ form.video_kind === 'raw' ? 'The raw recording is the source: nothing to link.' : 'Players, scores, stats and event are read from this raw match.' }}
           </span>
         </div>
-        <template v-if="form.video_kind === 'raw' || form.video_kind === 'highlights'">
+        <template v-if="form.video_kind === 'raw'">
           <label class="inline-flex items-center gap-2 text-sm text-ink-muted md:col-span-2">
             <input v-model="form.show_scoreboard" data-testid="m-scoreboard" type="checkbox" class="size-4 accent-[var(--ui-brand)]">
             Show the scoreboard over the video
           </label>
           <span class="-mt-3 block text-xs text-ink-subtle md:col-span-2">
-            On the raw recording, or on highlights once their clip was rendered (the tags follow that render).
+            The scores follow the raw recording's timestamps.
           </span>
         </template>
       </div>
