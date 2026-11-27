@@ -3,6 +3,7 @@ import { ArrowUpRight, MapPin, ShieldCheck } from '@lucide/vue'
 import { site } from '~/config/site'
 
 const year = new Date().getFullYear()
+const { locale } = useI18n()
 </script>
 
 <template>
@@ -73,6 +74,9 @@ const year = new Date().getFullYear()
     <div class="border-t border-line">
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-5 text-xs text-ink-subtle sm:px-6">
         <p>© {{ year }} {{ site.club.name }}</p>
+        <NuxtLink to="/privacy" class="transition-colors duration-200 hover:text-accent">
+          {{ locale === 'fr' ? 'Confidentialité' : 'Privacy' }}
+        </NuxtLink>
         <p class="font-display uppercase tracking-[0.2em] text-accent">
           {{ $lt(site.club.tagline) }}
         </p>
