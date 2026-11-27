@@ -323,7 +323,9 @@ function toggleAllInfoFields() {
   form.player_info_fields = allInfoFields.value ? [] : PLAYER_INFO_FIELDS.map(f => f.id)
 }
 
-const FIELDSET = 'rounded-2xl p-5 glass sm:p-6'
+// relative + focus-within:z-10: each glass panel is its own stacking context (backdrop-filter),
+// so an open autocomplete would otherwise slide under the next panel.
+const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
 </script>
 
 <template>
