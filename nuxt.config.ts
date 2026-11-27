@@ -70,6 +70,10 @@ export default defineNuxtConfig({
     // it was issued and stored in .env.
     youtubeApiKey: process.env.YOUTUBE_API_KEY ?? '',
     youtubeChannelHandle: process.env.YOUTUBE_CHANNEL_HANDLE ?? 'timlacault',
+    // OAuth as the channel owner: lists unlisted uploads (the raw matches).
+    youtubeClientId: process.env.YOUTUBE_CLIENT_ID ?? '',
+    youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET ?? '',
+    youtubeRefreshToken: process.env.YOUTUBE_REFRESH_TOKEN ?? '',
     // The player lookup scrapes myffbad.fr, which answers anonymously. No
     // credentials, so nothing to configure here.
   },

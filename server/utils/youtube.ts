@@ -1,11 +1,37 @@
 /**
- * Thin YouTube Data API v3 client — only the two calls the importer needs.
+ * Thin YouTube Data API v3 client — only the calls the importer needs.
  *
  * Kept separate from the route so the paging and parsing can be reasoned about
  * (and tested) without an HTTP event in scope.
  */
 
 const API = 'https://www.googleapis.com/youtube/v3'
+
+/**
+ * OAuth as the channel owner sees unlisted (and private) uploads; the API key
+ * only sees public ones. The key stays as the fallback until OAuth is set.
+ */
+export type YouTubeAuth = { key: string } | { token: string }
+
+function call<T>(path: string, query: Record<string, unknown>, auth: YouTubeAuth) {
+  return 'token' in auth
+    ? $fetch<T>(`${API}/${path}`, { query, headers: { Authorization: `Bearer ${auth.token}` } })
+    : $fetch<T>(`${API}/${path}`, { query: { ...query, key: auth.key } })
+}
+
+/** Trade the long-lived refresh token for a one-hour access token. */
+export async function accessToken(clientId: string, clientSecret: string, refreshToken: string) {
+  const res = await $fetch<{ access_token: string }>('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  return res.access_token
+}
 
 export interface ChannelVideo {
   videoId: string
@@ -79,19 +105,17 @@ export function bestThumbnail(thumbnails?: Record<string, { url: string, width: 
  * "uploads" playlist, which is the only way to page a channel's full history —
  * search.list caps out and reorders.
  */
-export async function resolveUploadsPlaylist(handle: string, key: string) {
-  const res = await $fetch<{
+export async function resolveUploadsPlaylist(handle: string, auth: YouTubeAuth) {
+  const want = handle.startsWith('@') ? handle : `@${handle}`
+  const res = await call<{
     items?: Array<{
       id: string
       contentDetails: { relatedPlaylists: { uploads: string } }
     }>
-  }>(`${API}/channels`, {
-    query: {
-      part: 'contentDetails',
-      forHandle: handle.startsWith('@') ? handle : `@${handle}`,
-      key,
-    },
-  })
+  }>('channels', {
+    part: 'contentDetails',
+    ...('token' in auth ? { mine: true } : { forHandle: want }),
+  }, auth)
 
   const channel = res.items?.[0]
   if (!channel) {
@@ -104,14 +128,12 @@ export async function resolveUploadsPlaylist(handle: string, key: string) {
 }
 
 /** Every video in the playlist, newest first, following nextPageToken. */
-export async function listPlaylistVideos(playlistId: string, key: string) {
+export async function listPlaylistVideos(playlistId: string, auth: YouTubeAuth) {
   const videos: ChannelVideo[] = []
   let pageToken: string | undefined
 
   do {
-    const res = await $fetch<PlaylistItemsResponse>(`${API}/playlistItems`, {
-      query: { part: 'snippet', playlistId, maxResults: 50, pageToken, key },
-    })
+    const res = await call<PlaylistItemsResponse>('playlistItems', { part: 'snippet', playlistId, maxResults: 50, pageToken }, auth)
     for (const item of res.items) {
       videos.push({
         videoId: item.snippet.resourceId.videoId,
@@ -134,16 +156,13 @@ export async function listPlaylistVideos(playlistId: string, key: string) {
  * nothing) for a while after upload, videos.list has the real one first.
  * videos.list takes up to 50 ids per call, so this costs one request per 50.
  */
-export async function attachDetails(videos: ChannelVideo[], key: string) {
+export async function attachDetails(videos: ChannelVideo[], auth: YouTubeAuth) {
   for (let i = 0; i < videos.length; i += 50) {
     const batch = videos.slice(i, i + 50)
-    const res = await $fetch<VideosResponse>(`${API}/videos`, {
-      query: {
-        part: 'contentDetails,snippet,status',
-        id: batch.map(v => v.videoId).join(','),
-        key,
-      },
-    })
+    const res = await call<VideosResponse>('videos', {
+      part: 'contentDetails,snippet,status',
+      id: batch.map(v => v.videoId).join(','),
+    }, auth)
     const byId = new Map(res.items.map(x => [x.id, x]))
     for (const v of batch) {
       const item = byId.get(v.videoId)

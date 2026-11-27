@@ -1,5 +1,6 @@
 import { requireAdmin } from '../../utils/auth'
 import {
+  accessToken,
   attachDetails,
   listPlaylistVideos,
   resolveUploadsPlaylist,
@@ -19,21 +20,29 @@ import {
 export default defineEventHandler(async (event) => {
   const { client, userId } = await requireAdmin(event)
 
-  const { youtubeApiKey, youtubeChannelHandle } = useRuntimeConfig(event)
-  if (!youtubeApiKey) {
+  const cfg = useRuntimeConfig(event)
+  const { youtubeApiKey, youtubeChannelHandle } = cfg
+  const oauth = cfg.youtubeClientId && cfg.youtubeClientSecret && cfg.youtubeRefreshToken
+  if (!oauth && !youtubeApiKey) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'YOUTUBE_API_KEY is not set',
+      statusMessage: 'Neither YouTube OAuth (YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN) nor YOUTUBE_API_KEY is set',
     })
   }
 
   let channelId: string
   let videos: Awaited<ReturnType<typeof listPlaylistVideos>>
   try {
-    const channel = await resolveUploadsPlaylist(youtubeChannelHandle, youtubeApiKey)
+    const auth = oauth
+      ? { token: await accessToken(cfg.youtubeClientId, cfg.youtubeClientSecret, cfg.youtubeRefreshToken) }
+      : { key: youtubeApiKey }
+    const channel = await resolveUploadsPlaylist(youtubeChannelHandle, auth)
     channelId = channel.channelId
-    videos = await listPlaylistVideos(channel.uploadsPlaylistId, youtubeApiKey)
-    await attachDetails(videos, youtubeApiKey)
+    videos = await listPlaylistVideos(channel.uploadsPlaylistId, auth)
+    await attachDetails(videos, auth)
+    // OAuth also lists private uploads (drafts, still processing): those are not
+    // ready to show. A private one already imported keeps its row untouched.
+    videos = videos.filter(v => v.privacy !== 'private')
   }
   catch (cause) {
     // Quota exhaustion and a bad key both surface here; pass the reason through
@@ -46,8 +55,18 @@ export default defineEventHandler(async (event) => {
 
   const { data: existing } = await client
     .from('matches')
-    .select('id, youtube_video_id, youtube_title, youtube_thumbnail_url, youtube_duration_seconds')
+    .select('id, youtube_video_id, youtube_channel_id, youtube_title, youtube_thumbnail_url, youtube_duration_seconds')
     .not('youtube_video_id', 'is', null)
+
+  // OAuth imports whatever channel gave consent (personal vs brand account):
+  // refuse one the library has never seen rather than mix in its uploads.
+  const ours = existing?.find(r => r.youtube_channel_id)?.youtube_channel_id
+  if (ours && ours !== channelId) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: `The YouTube token is for channel ${channelId}, not ${ours}: redo the OAuth consent on the right channel`,
+    })
+  }
   const known = new Map((existing ?? []).map(r => [r.youtube_video_id!, r]))
 
   const fresh = videos.filter(v => !known.has(v.videoId))
