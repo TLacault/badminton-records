@@ -87,6 +87,9 @@ export function thumbnailLines(info: MatchInfo, settings: PublishSettings): stri
 
 export const TITLE_MAX = 100
 
+/** The site as published: descriptions link here wherever the editor runs (localhost included). */
+export const SITE_URL = 'https://badminton-records.vercel.app'
+
 /**
  * "Tournois Senior de Gradignan 2026 | DH Finale". Free play has no event to
  * tell its videos apart, so it gets the players: "Jeux libres 2026 | DH | Tim & Adrien vs Thomas & Anthony".
@@ -174,29 +177,29 @@ export function defaultDescription(
     discipline(info.format, info.category),
     familyId === 'tournois' ? info.round : null,
   ].filter(Boolean).join(' · ')
-  out.push(head)
+  out.push(`🏸 ${head}`)
   out.push(`${info.sides[0].full.join(' & ')} vs ${info.sides[1].full.join(' & ')}`)
   const place = [info.venue, info.playedOn ? new Date(`${info.playedOn}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null].filter(Boolean).join(' · ')
-  if (place) out.push(place)
+  if (place) out.push(`📍 ${place}`)
   if (opts.setScores.length) {
     const score = opts.setScores.map(([a, b]) => `${a}-${b}`).join(' / ')
     const won = opts.winner === null ? '' : ` · victoire ${sideName(info, opts.winner)}`
-    out.push(`Score : ${score}${won}`)
+    out.push(`🏆 Score : ${score}${won}`)
   }
 
   const chapters = validChapters(opts.chapters, opts.total)
   if (chapters.length) {
-    out.push('', 'Chapitres')
+    out.push('', '⏱️ Chapitres')
     for (const c of chapters) out.push(`${chapterStamp(c.at)} ${c.title}`)
   }
 
   const players = info.sides.flatMap(s => s.full.map((name, i) => ({ name, rank: s.ranks[i], club: s.club })))
   if (players.length) {
-    out.push('', 'Joueurs')
+    out.push('', '👥 Joueurs')
     for (const p of players) out.push(`• ${p.name}${p.club ? ` (${p.club})` : ''}${p.rank ? ` · ${p.rank}` : ''}`)
   }
 
-  if (opts.matchUrl) out.push('', `Match point par point (score, service, temps forts) : ${opts.matchUrl}`)
+  if (opts.matchUrl) out.push('', `📊 Match point par point (score, service, temps forts) : ${opts.matchUrl}`)
   const tags = ['#badminton', `#${discipline(info.format, info.category).replace(/\s+/g, '')}`, `#${family.label.replace(/\s+/g, '')}`]
   out.push('', tags.join(' '))
   return out.join('\n')
@@ -213,7 +216,7 @@ export function clipDescription(
   opts: { setScores: [number, number][], winner: 0 | 1 | null, matchUrl: string | null, videoId: string | null },
 ): string {
   const lines = defaultDescription(info, familyId, { ...opts, chapters: [], total: 0 }).split('\n')
-  lines[0] = `${format} · ${lines[0]}`
-  if (opts.videoId) lines.splice(lines.indexOf(''), 0, '', `Match complet : https://youtu.be/${opts.videoId}`)
+  lines[0] = lines[0].replace('🏸 ', `🏸 ${format} · `)
+  if (opts.videoId) lines.splice(lines.indexOf(''), 0, '', `▶️ Match complet : https://youtu.be/${opts.videoId}`)
   return lines.join('\n').replace('#badminton', `#badminton #${format.toLowerCase()}`)
 }

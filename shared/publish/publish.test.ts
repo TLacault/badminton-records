@@ -177,8 +177,8 @@ describe('text', () => {
 
   it('describes a clip as highlights pointing at the full video', () => {
     const d = clipDescription(INFO, 'tournois', 'Highlights', { setScores: [[21, 15]], winner: 0, matchUrl: null, videoId: 'abc' })
-    expect(d.split('\n')[0]).toMatch(/^Highlights · Tournois des Vendanges 2026/)
-    expect(d).toContain('Match complet : https://youtu.be/abc')
+    expect(d.split('\n')[0]).toMatch(/^🏸 Highlights · Tournois des Vendanges 2026/)
+    expect(d).toContain('▶️ Match complet : https://youtu.be/abc')
     expect(d).not.toContain('Chapitres')
     expect(d).toContain('#badminton #highlights')
   })
@@ -199,7 +199,7 @@ describe('text', () => {
       total: 1200,
       matchUrl: 'https://example.test/matches/m1',
     })
-    expect(d).toContain('Score : 21-17 / 19-21 · victoire Tim & Adrien')
+    expect(d).toContain('🏆 Score : 21-17 / 19-21 · victoire Tim & Adrien')
     // "Intro" lasts 6 s, under YouTube's 10 s: no chapters at all rather than broken ones.
     expect(d).not.toContain('Chapitres')
     expect(d).toContain('• Tim Lacault (U.S. Talence) · D7')

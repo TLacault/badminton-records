@@ -85,7 +85,7 @@ function sanitise(raw: Partial<ReelProject>): ReelProject {
     fadeEdges: raw.fadeEdges !== false,
     scoreboard: { portrait: raw.scoreboard?.portrait === true, landscape: raw.scoreboard?.landscape !== false },
     output: {
-      height: ([720, 1080, 1440].includes(Number(raw.output?.height)) ? Number(raw.output?.height) : 1080) as 720 | 1080 | 1440,
+      height: ([720, 1080, 1440, 2160].includes(Number(raw.output?.height)) ? Number(raw.output?.height) : 1080) as 720 | 1080 | 1440 | 2160,
       fps: (Number(raw.output?.fps) === 60 ? 60 : 30) as 30 | 60,
       matchAudio: clamp(raw.output?.matchAudio, 0, 2, 0.35),
     },

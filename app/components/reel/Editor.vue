@@ -5,7 +5,7 @@ import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
 import { Copy, Image as ImageIcon, Music, Redo2, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
+import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName, SITE_URL } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
@@ -46,7 +46,6 @@ const { t } = useI18n()
 const client = useSupabaseClient<Database>()
 const route = useRoute()
 const matchId = route.params.id as string
-const site = useRequestURL()
 
 const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, redo, canRedo, reset, download: saveProject, openFile } = useReelProject(matchId, props.orientation)
 const { caps, canRender, refresh: refreshCapabilities } = useReelCapabilities()
@@ -312,7 +311,7 @@ const generatedDescription = computed(() => {
   return clipDescription(info.value, family.value.id, format.value, {
     setScores: result.sets,
     winner: result.winner === null ? null : (result.winner - 1) as 0 | 1,
-    matchUrl: `${site.origin}/matches/${matchId}`,
+    matchUrl: `${SITE_URL}/matches/${matchId}`,
     videoId: project.value.videoId,
   })
 })
@@ -465,7 +464,7 @@ useSeoMeta({
 <template>
   <div>
     <template v-if="bundle?.match">
-      <AdminToolHeader :icon="orientation === 'landscape' ? Sparkles : Smartphone" :subtitle="project.matchTitle">
+      <AdminToolHeader :icon="orientation === 'landscape' ? Sparkles : Smartphone">
         <template #title>
           <input
             :value="project.name"

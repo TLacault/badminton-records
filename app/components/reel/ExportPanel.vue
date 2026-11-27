@@ -62,7 +62,7 @@ function onProject(event: Event) {
         <label class="block">
           <span class="text-[0.6875rem] text-ink-subtle">Quality</span>
           <select class="field mt-1" :value="output.height" @change="emit('output', { height: Number(($event.target as HTMLSelectElement).value) as ReelOutput['height'] })">
-            <option v-for="h in [1440, 1080, 720]" :key="h" :value="h">{{ h }}p</option>
+            <option v-for="h in [2160, 1440, 1080, 720]" :key="h" :value="h">{{ h === 2160 ? '4K (2160p)' : `${h}p` }}</option>
           </select>
         </label>
         <label class="block">

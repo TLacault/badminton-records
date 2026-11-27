@@ -105,7 +105,7 @@ export interface ReelBrand {
 
 export interface ReelOutput {
   /** The short side, as "1080p" names it: 1080 → 1080×1920 portrait, 1920×1080 landscape. */
-  height: 720 | 1080 | 1440
+  height: 720 | 1080 | 1440 | 2160
   fps: 30 | 60
   /** 0–1. The match's own sound — squeaks and shuttle — under the music. */
   matchAudio: number

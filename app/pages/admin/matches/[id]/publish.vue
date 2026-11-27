@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
-import type { Corner, MatchInfo, RenderRequest } from '~~/shared/publish'
+import type { MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { Clapperboard, Copy, Download, Film, Image as ImageIcon, Redo2, RotateCcw, Scissors, Type, Undo2 } from '@lucide/vue'
+import { ChevronDown, Clapperboard, Copy, Download, Eye, Film, Flag, Gauge, Image as ImageIcon, Redo2, RotateCcw, Scissors, Sliders, Type, Undo2, Zap } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
@@ -17,6 +17,7 @@ import {
   matchResult,
   readSettings,
   sideName,
+  SITE_URL,
   thumbnailLines,
   toOutput,
   youtubeEditMap,
@@ -33,7 +34,6 @@ definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'p
 const route = useRoute()
 const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
-const site = useRequestURL()
 
 const { data: bundle } = await useAsyncData(`publish-${matchId}`, async () => {
   const [match, participants, rallies, setStarts, breaks] = await Promise.all([
@@ -165,7 +165,7 @@ const generatedDescription = computed(() => (info.value && plan.value
       winner: result.value.winner === null ? null : (result.value.winner - 1) as 0 | 1,
       chapters: plan.value.chapters,
       total: plan.value.totalDuration,
-      matchUrl: `${site.origin}/matches/${matchId}`,
+      matchUrl: `${SITE_URL}/matches/${matchId}`,
     })
   : ''))
 const title = computed(() => settings.value.title ?? generatedTitle.value)
@@ -268,14 +268,15 @@ const TABS = [
   { id: 'edit', label: 'Edit', icon: Scissors },
   { id: 'thumbnail', label: 'Thumbnail', icon: ImageIcon },
   { id: 'text', label: 'Text', icon: Type },
-  { id: 'export', label: 'Export', icon: Download },
+  { id: 'export', label: 'Export', icon: Sliders },
 ] as const
-const corners: { value: Corner, label: string }[] = [
-  { value: 'tl', label: 'Top left' },
-  { value: 'tr', label: 'Top right' },
-  { value: 'bl', label: 'Bottom left' },
-  { value: 'br', label: 'Bottom right' },
-]
+const PIECES = [
+  { id: 'intro', label: 'Intro + match card', icon: Film },
+  { id: 'outro', label: 'Outro + end screen', icon: Flag },
+  { id: 'transitions', label: 'Stings (sets, breaks)', icon: Zap },
+  { id: 'scoreboard', label: 'Scoreboard', icon: Gauge },
+] as const
+const breaksOpen = ref(false)
 const heights = [null, 2160, 1440, 1080, 720] as const
 </script>
 
@@ -283,7 +284,7 @@ const heights = [null, 2160, 1440, 1080, 720] as const
   <div v-if="match && info">
 
     <!-- The title the video goes up under (the Text tab's, generated or edited). -->
-    <AdminToolHeader :icon="Clapperboard" :title="title" :subtitle="match.youtube_title">
+    <AdminToolHeader :icon="Clapperboard" :title="title">
       <template #actions>
         <p v-if="saveState === 'error'" class="text-xs text-accent" role="alert">Save failed</p>
         <button type="button" class="btn btn-sm btn-ghost" :disabled="!history.canUndo.value" @click="history.undo()">
@@ -363,20 +364,30 @@ const heights = [null, 2160, 1440, 1080, 720] as const
             <span class="text-ink-subtle">· from the match type (Edit match)</span>
           </p>
 
-          <fieldset class="grid grid-cols-2 gap-2">
-            <legend class="label mb-2">Pieces</legend>
-            <label v-for="k in (['intro', 'outro', 'transitions', 'scoreboard'] as const)" :key="k" class="flex items-center gap-2 text-sm">
-              <input v-model="settings[k]" type="checkbox" class="accent-[var(--ui-accent)]">
-              {{ { intro: 'Intro + match card', outro: 'Outro + end screen', transitions: 'Stings (sets, breaks)', scoreboard: 'Scoreboard' }[k] }}
-            </label>
-          </fieldset>
+          <div>
+            <span class="label">Pieces</span>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <button
+                v-for="p in PIECES"
+                :key="p.id"
+                type="button"
+                :aria-pressed="settings[p.id]"
+                class="flex min-h-12 items-center gap-2.5 rounded-xl border px-3 text-left text-sm transition-[background-color,border-color,color] duration-200"
+                :class="settings[p.id] ? 'border-accent/60 bg-accent/15 text-ink' : 'border-line text-ink-subtle hover:border-line-strong hover:text-ink-muted'"
+                @click="settings[p.id] = !settings[p.id]"
+              >
+                <span class="grid size-7 shrink-0 place-items-center rounded-lg" :class="settings[p.id] ? 'bg-brand text-on-brand' : 'bg-bg-deep'">
+                  <component :is="p.icon" :size="14" aria-hidden="true" />
+                </span>
+                {{ p.label }}
+              </button>
+            </div>
+          </div>
 
-          <label v-if="settings.scoreboard" class="block">
+          <div v-if="settings.scoreboard">
             <span class="label">Scoreboard corner</span>
-            <select v-model="settings.scoreboardCorner" class="field mt-2">
-              <option v-for="c in corners" :key="c.value" :value="c.value">{{ c.label }}</option>
-            </select>
-          </label>
+            <PublishCornerPicker v-model="settings.scoreboardCorner" class="mt-3" />
+          </div>
 
           <div>
             <span class="label">Trim</span>
@@ -414,24 +425,40 @@ const heights = [null, 2160, 1440, 1080, 720] as const
             </div>
           </div>
 
-          <div v-if="breaks.length">
-            <span class="label">Breaks ({{ breaks.length }})</span>
-            <ul class="mt-2 flex flex-col gap-1 text-sm">
-              <li v-for="b in breaks" :key="b.idx" class="flex items-center gap-2">
-                <button type="button" class="font-mono text-xs text-ink-muted hover:text-accent" @click="seek(b.startsAtSeconds + settings.sourceOffsetSeconds)">
-                  {{ fmt(b.startsAtSeconds) }}–{{ b.endsAtSeconds === null ? 'end' : fmt(b.endsAtSeconds) }}
-                </button>
-                <label class="ml-auto flex items-center gap-1.5 text-xs">
-                  <input
-                    type="checkbox"
-                    :checked="settings.keepBreaks.includes(b.idx)"
-                    class="accent-[var(--ui-accent)]"
-                    @change="settings.keepBreaks = ($event.target as HTMLInputElement).checked ? [...settings.keepBreaks, b.idx] : settings.keepBreaks.filter(i => i !== b.idx)"
+          <div v-if="breaks.length" class="rounded-xl border border-line">
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+              :aria-expanded="breaksOpen"
+              @click="breaksOpen = !breaksOpen"
+            >
+              <span class="label">Breaks</span>
+              <span class="text-xs text-ink-subtle">{{ breaks.length }} · {{ settings.keepBreaks.length }} kept, {{ breaks.length - settings.keepBreaks.length }} cut</span>
+              <ChevronDown :size="15" class="ml-auto text-ink-subtle transition-transform duration-200" :class="breaksOpen ? 'rotate-180' : ''" aria-hidden="true" />
+            </button>
+            <div v-if="breaksOpen" class="border-t border-line p-3">
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-ghost flex-1" @click="settings.keepBreaks = breaks.map(b => b.idx)">Keep all</button>
+                <button type="button" class="btn btn-sm btn-ghost flex-1" @click="settings.keepBreaks = []">Cut all</button>
+              </div>
+              <ul class="mt-2 flex flex-col gap-1">
+                <li v-for="b in breaks" :key="b.idx" class="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-bg-deep">
+                  <button type="button" class="font-mono text-xs text-ink-muted hover:text-accent" @click="seek(b.startsAtSeconds + settings.sourceOffsetSeconds)">
+                    {{ fmt(b.startsAtSeconds) }}–{{ b.endsAtSeconds === null ? 'end' : fmt(b.endsAtSeconds) }}
+                  </button>
+                  <button
+                    type="button"
+                    :aria-pressed="settings.keepBreaks.includes(b.idx)"
+                    class="ml-auto inline-flex min-h-7 items-center gap-1 rounded-md border px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-150"
+                    :class="settings.keepBreaks.includes(b.idx) ? 'border-accent/60 bg-accent/15 text-ink' : 'border-line text-ink-subtle hover:text-ink'"
+                    @click="settings.keepBreaks = settings.keepBreaks.includes(b.idx) ? settings.keepBreaks.filter(i => i !== b.idx) : [...settings.keepBreaks, b.idx]"
                   >
-                  Keep
-                </label>
-              </li>
-            </ul>
+                    <component :is="settings.keepBreaks.includes(b.idx) ? Eye : Scissors" :size="11" aria-hidden="true" />
+                    {{ settings.keepBreaks.includes(b.idx) ? 'Kept' : 'Cut' }}
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
 
         </div>
@@ -476,33 +503,32 @@ const heights = [null, 2160, 1440, 1080, 720] as const
         <!-- Export: the source to render from, the quality, the render. -->
         <div v-else-if="tab === 'export'" class="mt-5 flex flex-col gap-5">
           <ReelSourcePanel :source="source" :duration="sourceDuration" />
-          <div class="flex flex-col gap-4 border-t border-line pt-4">
-          <label class="block">
-            <span class="label">Render quality</span>
-            <select v-model="settings.outputHeight" class="field mt-2">
-              <option v-for="h in heights" :key="String(h)" :value="h">{{ h ? `${h}p` : 'Source resolution' }}</option>
-            </select>
-          </label>
-
-          <div class="border-t border-line pt-4">
-            <div class="flex flex-wrap gap-2">
-              <button type="button" class="btn btn-sm btn-ghost" :disabled="!plan || job.running.value" @click="render(true)">
-                <Film :size="15" aria-hidden="true" /> Draft 720p
-              </button>
-              <button type="button" class="btn btn-sm btn-primary" :disabled="!plan || job.running.value" @click="render(false)">
-                <Clapperboard :size="15" aria-hidden="true" /> Render
-              </button>
-            </div>
+          <!-- Same render section as Highlights and Shorts. -->
+          <section class="border-t border-line pt-4">
+            <p class="label">Export</p>
+            <label class="mt-2.5 block">
+              <span class="text-[0.6875rem] text-ink-subtle">Quality</span>
+              <select v-model="settings.outputHeight" class="field mt-1">
+                <option v-for="h in heights" :key="String(h)" :value="h">{{ h === 2160 ? '4K (2160p)' : h ? `${h}p` : 'Source resolution' }}</option>
+              </select>
+            </label>
+            <!-- ponytail: "Draft 720p" hidden (render(true) still exists), bring the button back when wanted. -->
+            <button type="button" class="btn btn-primary mt-3 w-full" :disabled="!plan || job.running.value || !source.precise.value" @click="render(false)">
+              <Download :size="16" aria-hidden="true" />
+              {{ job.running.value ? 'Rendering…' : 'Render MP4' }}
+            </button>
+            <p v-if="!source.precise.value" class="mt-2 text-[0.6875rem] leading-relaxed text-ink-subtle">
+              Download or attach the source video above to render.
+            </p>
+            <p v-else-if="plan && !job.running.value && !renderResult" class="mt-2 text-[0.6875rem] text-ink-subtle">
+              {{ fmt(plan.totalDuration) }} of film · {{ plan.transitions.length }} stings · {{ plan.scores.length }} score changes · {{ plan.chapters.length }} chapters
+            </p>
             <UiProgress v-if="job.running.value" class="mt-3" :value="job.progress.value" :label="job.job.value?.message || 'Rendering'" />
             <p v-if="renderError" class="mt-2 text-xs text-accent">{{ renderError }}</p>
-            <p v-if="renderResult" class="mt-2 break-all font-mono text-[0.6875rem] text-ink-subtle">
+            <p v-if="renderResult" class="mt-3 break-all rounded-lg border border-line px-3 py-2 font-mono text-[0.6875rem] text-ink-subtle">
               Done: {{ renderResult.video }}<br>Upload kit: {{ renderResult.dir }}
             </p>
-            <p v-if="plan" class="mt-2 text-xs text-ink-subtle">
-              {{ plan.transitions.length }} stings · {{ plan.scores.length }} score changes · {{ plan.chapters.length }} chapters
-            </p>
-          </div>
-          </div>
+          </section>
         </div>
 
       </aside>

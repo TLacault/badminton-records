@@ -26,7 +26,7 @@ const { t } = useI18n()
 
 const height = computed({
   get: () => props.project.output.height,
-  set: (value: 720 | 1080 | 1440) =>
+  set: (value: 720 | 1080 | 1440 | 2160) =>
     emit('patch', { output: { ...props.project.output, height: value } }),
 })
 
@@ -35,10 +35,11 @@ const fps = computed({
   set: (value: 30 | 60) => emit('patch', { output: { ...props.project.output, fps: value } }),
 })
 
-const heightOptions: SelectOption<720 | 1080 | 1440>[] = [
+const heightOptions: SelectOption<720 | 1080 | 1440 | 2160>[] = [
   { value: 720, label: '720p' },
   { value: 1080, label: '1080p' },
   { value: 1440, label: '1440p' },
+  { value: 2160, label: '4K (2160p)' },
 ]
 
 const fpsOptions: SelectOption<30 | 60>[] = [
