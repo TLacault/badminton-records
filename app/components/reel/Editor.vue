@@ -461,33 +461,6 @@ useSeoMeta({
       <!-- Header: back to the match's other tools, and the two things that act
            on the whole project rather than on a clip. -->
       <div class="flex flex-wrap items-center gap-3">
-        <!-- The bookends: the choices that change the whole film. -->
-        <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.bookends')">
-          <template v-for="b in ['intro', 'outro'] as const" :key="b">
-            <button
-              type="button"
-              class="min-h-8 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
-              :class="project[b] ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
-              :aria-pressed="project[b]"
-              :title="drawn ? undefined : (drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint'))"
-              @click="patch({ [b]: !project[b] })"
-            >
-              {{ $t(`reel.${b}`) }}
-            </button>
-            <!-- The match card in the intro, the result in the outro. -->
-            <button
-              type="button"
-              class="min-h-8 rounded-lg px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 disabled:opacity-40"
-              :class="details[b] ? 'bg-brand/25 text-ink' : 'text-ink-subtle hover:text-ink'"
-              :aria-pressed="details[b]"
-              :disabled="!project[b]"
-              @click="toggleDetails(b)"
-            >
-              + {{ $t(`reel.${b}Details`) }}
-            </button>
-          </template>
-        </div>
-
         <p class="ml-auto flex items-center gap-2 font-mono text-xs tabular-nums text-ink-muted">
           <span>{{ $t('reel.clipCount', { n: clipPieces.length }) }}</span>
           <span aria-hidden="true">·</span>
@@ -568,22 +541,49 @@ useSeoMeta({
           </div>
 
           <div class="mt-4">
-            <ReelClipsPanel
-              v-if="tab === 'clips'"
-              :clips="project.clips"
-              :derived="derived"
-              :breaks="breaks"
-              :source-duration="sourceDuration"
-              :selected-id="selectedId"
-              @select="select"
-              @patch="(id, change) => updateClip(id, change)"
-              @remove="removeClip"
-              @move="(id, delta) => moveClip(id, delta)"
-              @play="playClip"
-              @rebuild="rebuild"
-              @add-rally="addRally"
-              @sort="sortClips"
-            />
+            <!-- The bookends open the Shots tab: they are the first and last shot. -->
+            <div v-if="tab === 'clips'">
+            <div class="mb-4 grid grid-cols-4 gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.bookends')">
+              <template v-for="b in ['intro', 'outro'] as const" :key="b">
+                <button
+                  type="button"
+                  class="min-h-8 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
+                  :class="project[b] ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
+                  :aria-pressed="project[b]"
+                  :title="drawn ? undefined : (drawing ? $t('reel.bookendDrawing') : $t('reel.bookendHint'))"
+                  @click="patch({ [b]: !project[b] })"
+                >
+                  {{ $t(`reel.${b}`) }}
+                </button>
+                <!-- The match card in the intro, the result in the outro. -->
+                <button
+                  type="button"
+                  class="min-h-8 rounded-lg px-2 font-display text-[0.625rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 disabled:opacity-40"
+                  :class="details[b] ? 'bg-brand/25 text-ink' : 'text-ink-subtle hover:text-ink'"
+                  :aria-pressed="details[b]"
+                  :disabled="!project[b]"
+                  @click="toggleDetails(b)"
+                >
+                  + {{ $t(`reel.${b}Details`) }}
+                </button>
+              </template>
+            </div>
+              <ReelClipsPanel
+                :clips="project.clips"
+                :derived="derived"
+                :breaks="breaks"
+                :source-duration="sourceDuration"
+                :selected-id="selectedId"
+                @select="select"
+                @patch="(id, change) => updateClip(id, change)"
+                @remove="removeClip"
+                @move="(id, delta) => moveClip(id, delta)"
+                @play="playClip"
+                @rebuild="rebuild"
+                @add-rally="addRally"
+                @sort="sortClips"
+              />
+            </div>
 
             <ReelMusicPanel
               v-else-if="tab === 'music'"

@@ -8,7 +8,7 @@ import { ArrowRight, Clapperboard, Film, Smartphone, Sparkles } from '@lucide/vu
  * are the same match told another way, so they get the louder treatment: the
  * still behind, the kind in big type, and a light that sweeps across on hover.
  */
-defineProps<{ entries: MatchEntry<ListRow>[] }>()
+defineProps<{ entries: MatchEntry<ListRow>[], linkBase?: string }>()
 
 const { t } = useI18n()
 
@@ -29,7 +29,7 @@ const label = (kind: string) => t(`card.kind${kind.charAt(0).toUpperCase()}${kin
     <ul class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <li v-for="entry in entries" :key="entry.row.id">
         <NuxtLink
-          :to="`/matches/${entry.row.id}`"
+          :to="`${linkBase ?? '/matches'}/${entry.row.id}`"
           class="group relative flex min-h-36 items-end overflow-hidden rounded-2xl border border-line bg-bg-deep p-5 transition-[border-color,box-shadow,transform] duration-300 ease-brand hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-[var(--ui-glow-strong)] focus-visible:border-accent/60"
         >
           <img

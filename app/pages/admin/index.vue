@@ -241,15 +241,15 @@ async function setTaggingStatus(id: string, next: string) {
             class="relative flex flex-wrap items-center gap-4 rounded-2xl p-3 glass transition-[border-color] duration-200 hover:border-accent/30"
           >
             <!--
-              The whole row opens the tagger — the work this page exists for,
-              and the reason a row is here at all. A stretched link rather than
-              wrapping the row in an anchor, because the row also holds buttons
-              and selects, and an anchor cannot contain them.
+              The whole row opens the video, as the site shows it, under the
+              admin bar (its versions on the left, the tools on the right). A
+              stretched link: the row also holds the menu, which an anchor
+              cannot contain.
             -->
             <NuxtLink
-              :to="`/admin/matches/${m.id}/tag`"
+              :to="`/admin/matches/${m.id}`"
               class="absolute inset-0 rounded-2xl"
-              :aria-label="`Tag ${title}`"
+              :aria-label="`Open ${title}`"
             />
 
             <div class="relative w-32 shrink-0 overflow-hidden rounded-xl border border-line bg-bg-deep">
@@ -356,7 +356,7 @@ async function setTaggingStatus(id: string, next: string) {
                   <Smartphone :size="15" aria-hidden="true" /> Shorts
                 </NuxtLink>
                 <div class="my-2 h-px bg-line" />
-                <NuxtLink :to="`/admin/matches/${m.id}`" :class="MENU_ITEM">
+                <NuxtLink :to="`/admin/matches/${m.id}/setup`" :class="MENU_ITEM">
                   <SlidersHorizontal :size="15" aria-hidden="true" /> Setup
                 </NuxtLink>
               </div>

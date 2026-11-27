@@ -1,20 +1,12 @@
 <script setup lang="ts">
-import { Pencil } from '@lucide/vue'
+definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'view', pageTransition: false })
 
-definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'setup', pageTransition: false })
-
+/** The admin's view of a video: exactly the page the site shows, under the admin bar. */
 const route = useRoute()
-const id = route.params.id as string
 </script>
 
 <template>
   <div class="mx-auto max-w-6xl">
-
-    <p class="eyebrow">
-      <Pencil :size="15" aria-hidden="true" />
-      Setup
-    </p>
-
-    <MatchForm class="mt-4" :match-id="id" />
+    <MatchPage :key="String(route.params.id)" :match-id="String(route.params.id)" admin />
   </div>
 </template>

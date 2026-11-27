@@ -17,6 +17,10 @@ const props = defineProps<{
   revealed: boolean
   /** This video and the others cut from the same match, by kind. */
   versions?: { id: string, kind: string, current: boolean }[]
+  /** The video's YouTube title: the heading when there is one. */
+  title?: string | null
+  /** `/matches` on the site, `/admin/matches` in the admin's view. */
+  linkBase?: string
 }>()
 
 /** Raw · Match · Highlights · Shorts, always four: a missing version is a quiet tab. */
@@ -32,12 +36,11 @@ const tiles = computed(() => KINDS.map(kind => ({
 const emit = defineEmits<{ reveal: [] }>()
 
 /**
- * The heading is the fixture, built from the roster. The stored title is a
- * YouTube upload name — "JEUX LIBRE - THOMAS X BLUD #1 - WIN" — and putting a
- * spoiler in 48px type above the video defeats the point of hiding the result
- * six inches below it.
+ * The heading is the video's YouTube title, as on the channel (Tim's call: the
+ * uploads are now named by the YouTube tool, no spoilers in them). The fixture
+ * from the roster when a video has no title.
  */
-const heading = computed(() => `${props.sideNames[1]} vs ${props.sideNames[2]}`)
+const heading = computed(() => props.title?.trim() || `${props.sideNames[1]} vs ${props.sideNames[2]}`)
 
 /**
  * Tags carry weight, not hue: the palette is two colours, so importance is
@@ -105,7 +108,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
           ><component :is="tile.icon" :size="13" aria-hidden="true" />{{ tile.label }}</span>
           <NuxtLink
             v-else-if="tile.version"
-            :to="`/matches/${tile.version.id}`"
+            :to="`${linkBase ?? '/matches'}/${tile.version.id}`"
             :class="TAB"
             class="text-ink-muted hover:text-ink"
           ><component :is="tile.icon" :size="13" aria-hidden="true" />{{ tile.label }}</NuxtLink>

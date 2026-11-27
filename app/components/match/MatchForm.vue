@@ -196,7 +196,7 @@ async function save() {
   }
 
   busy.value = false
-  await navigateTo(`/admin/matches/${saved.id}`)
+  await navigateTo(`/admin/matches/${saved.id}/setup`)
 }
 
 /**
