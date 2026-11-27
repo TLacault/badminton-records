@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DerivedMatch } from '~~/shared/badminton'
-import { CalendarDays, Clock, Eye, MapPin, Swords, Trophy, Users } from '@lucide/vue'
+import { CalendarDays, Clapperboard, Clock, Eye, Film, MapPin, Smartphone, Sparkles, Swords, Trophy, Users } from '@lucide/vue'
 
 const { t, bcp47 } = useI18n()
 
@@ -19,10 +19,12 @@ const props = defineProps<{
   versions?: { id: string, kind: string, current: boolean }[]
 }>()
 
-/** Raw · Match · Highlights · Edit, always four: a missing version is a quiet tile. */
-const KINDS = ['raw', 'match', 'highlights', 'edit'] as const
+/** Raw · Match · Highlights · Shorts, always four: a missing version is a quiet tab. */
+const KINDS = ['raw', 'match', 'highlights', 'shorts'] as const
+const KIND_ICONS = { raw: Film, match: Clapperboard, highlights: Sparkles, shorts: Smartphone }
 const tiles = computed(() => KINDS.map(kind => ({
   kind,
+  icon: KIND_ICONS[kind],
   label: t(`card.kind${kind.charAt(0).toUpperCase()}${kind.slice(1)}`),
   version: props.versions?.find(v => v.kind === kind && v.current) ?? props.versions?.find(v => v.kind === kind) ?? null,
 })))
@@ -64,6 +66,7 @@ const result = computed(() => {
   return { spoiler: true, text: `${won ? 'Won' : 'Lost'} ${d.setsWon[0]}–${d.setsWon[1]}` }
 })
 
+const TAB = 'inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200'
 const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-display text-xs font-semibold uppercase tracking-[0.1em]'
 </script>
 
@@ -83,7 +86,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
 
     <!-- The button rides with the title rather than with the tags below: it
          acts on the match as a whole, which is what the title names. -->
-    <div class="relative mt-2.5 flex items-start justify-between gap-4">
+    <div class="relative mt-2.5 flex flex-wrap items-start justify-between gap-4 sm:flex-nowrap">
       <h1
         data-testid="match-heading"
         class="font-display text-[clamp(1.5rem,3.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-tight"
@@ -91,30 +94,34 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
         {{ heading }}
       </h1>
 
-      <div class="flex shrink-0 items-start gap-3">
-      <nav v-if="versions?.length" aria-label="Versions" class="grid grid-cols-2 gap-1">
+      <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+      <nav v-if="versions?.length" aria-label="Versions" class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1">
         <template v-for="tile in tiles" :key="tile.kind">
           <span
             v-if="tile.version?.current"
             aria-current="page"
-            class="grid min-h-9 place-items-center rounded-lg bg-brand px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-on-brand"
-          >{{ tile.label }}</span>
+            :class="TAB"
+            class="bg-brand text-on-brand"
+          ><component :is="tile.icon" :size="13" aria-hidden="true" />{{ tile.label }}</span>
           <NuxtLink
             v-else-if="tile.version"
             :to="`/matches/${tile.version.id}`"
-            class="grid min-h-9 place-items-center rounded-lg border border-line px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-ink transition-colors duration-200 hover:border-accent/50 hover:text-accent"
-          >{{ tile.label }}</NuxtLink>
+            :class="TAB"
+            class="text-ink-muted hover:text-ink"
+          ><component :is="tile.icon" :size="13" aria-hidden="true" />{{ tile.label }}</NuxtLink>
           <span
             v-else
-            class="grid min-h-9 place-items-center rounded-lg border border-dashed border-line px-3 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-ink-subtle/60"
-          >{{ tile.label }}</span>
+            :class="TAB"
+            class="text-ink-subtle/50"
+            :title="`${tile.label}: not out yet`"
+          ><component :is="tile.icon" :size="13" aria-hidden="true" />{{ tile.label }}</span>
         </template>
       </nav>
-      <div class="flex shrink-0 flex-col items-stretch gap-1">
+      <div class="flex shrink-0 items-center gap-1">
         <UiShareButton
           :to="`/matches/${matchId}`"
           :label="$t('share.action')"
-          class="btn btn-sm btn-ghost justify-start"
+          class="btn btn-sm btn-ghost"
         />
         <a
           v-if="videoId"
@@ -122,7 +129,7 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 fon
           :href="`https://www.youtube.com/watch?v=${videoId}`"
           target="_blank"
           rel="noopener"
-          class="btn btn-sm btn-ghost justify-start"
+          class="btn btn-sm btn-ghost"
         >
           <UiYouTubeGlyph :size="14" />
           YouTube

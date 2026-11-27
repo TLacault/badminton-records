@@ -14,7 +14,8 @@ describe('bestThumbnail', () => {
 describe('videoKindOf', () => {
   it('reads the kind off the title', () => {
     expect(videoKindOf('Gradignan 2026 | DH Poule #4 | Highlights')).toBe('highlights')
-    expect(videoKindOf('Gradignan 2026 | DH | EDIT')).toBe('edit')
+    expect(videoKindOf('Gradignan 2026 | DH | EDIT')).toBe('shorts')
+    expect(videoKindOf('Gradignan 2026 | DH | Shorts')).toBe('shorts')
     expect(videoKindOf('Tournois Senior de Gradignan 2026 | DH Finale')).toBe('match')
     expect(videoKindOf('Gradignan DH #3', 'unlisted')).toBe('raw')
     expect(videoKindOf('Edited by Tim')).toBe('match')

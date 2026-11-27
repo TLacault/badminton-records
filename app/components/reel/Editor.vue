@@ -3,13 +3,15 @@ import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { BoardState } from '~~/shared/publish'
 import type { ReelBrand, ReelJob, ReelMusic, ReelProject } from '~~/shared/reel'
-import { Copy, Image as ImageIcon, Monitor, Music, RotateCcw, Scissors, Sliders, Smartphone, Sparkles, Undo2 } from '@lucide/vue'
+import { Copy, Image as ImageIcon, Music, RotateCcw, Scissors, Sliders, Sparkles, Undo2 } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import { boardAt, boardChanges, boardKey, cardText, clipDescription, clipEditMap, clipTitle, defaultThumbnailLines, defaultTitle, familyOf, matchResult, sideName } from '~~/shared/publish'
 import {
   clipFromRally,
   clipsFromHighlights,
   bookendSeconds,
+  DEFAULT_LEAD_SECONDS,
+  DEFAULT_TAIL_SECONDS,
   projectFileName,
   showsScoreboard,
   timeline,
@@ -31,7 +33,14 @@ import {
  * be rendered cannot come apart.
  */
 
-definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'clip', pageTransition: false })
+/**
+ * The cutting room for one of the two films made from a match's rallies:
+ * Highlights (landscape: every starred point in a row) or Shorts (portrait: a
+ * few shots under music). Two projects, saved apart, never sharing clips.
+ */
+const props = defineProps<{ orientation: 'portrait' | 'landscape' }>()
+/** The film's name, in titles, descriptions and the render map. */
+const format = computed(() => (props.orientation === 'landscape' ? 'Highlights' : 'Shorts') as 'Highlights' | 'Shorts')
 
 const { t } = useI18n()
 const client = useSupabaseClient<Database>()
@@ -39,7 +48,7 @@ const route = useRoute()
 const matchId = route.params.id as string
 const site = useRequestURL()
 
-const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile } = useReelProject(matchId)
+const { project, patch, addClips, updateClip, removeClip, moveClip, sortClips, undo, canUndo, download: saveProject, openFile } = useReelProject(matchId, props.orientation)
 const { caps, canRender, refresh: refreshCapabilities } = useReelCapabilities()
 
 const videoId = computed(() => project.value.videoId)
@@ -88,15 +97,17 @@ onMounted(() => {
   const m = bundle.value?.match
   if (!m || !info.value || !family.value) return
   const title = defaultTitle(info.value, family.value.id)
-  const name = clipTitle(info.value, family.value.id)
+  const name = clipTitle(info.value, family.value.id, format.value)
   // The name follows the generated one until someone renames it (an older draft
   // was named after the YouTube title).
-  const untouched = !project.value.clips.length || [project.value.matchTitle, title].includes(project.value.name)
-  if (project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title || (untouched && project.value.name !== name)) {
+  const generated = [title, project.value.matchTitle, ...(['Highlights', 'Shorts', 'Edit'] as const).map(f => clipTitle(info.value!, family.value!.id, f))]
+  const untouched = !project.value.clips.length || generated.includes(project.value.name)
+  if (project.value.orientation !== props.orientation || project.value.videoId !== m.youtube_video_id || project.value.matchTitle !== title || (untouched && project.value.name !== name)) {
     project.value = {
       ...project.value,
       videoId: m.youtube_video_id,
       matchTitle: title,
+      orientation: props.orientation,
       name: untouched ? name : project.value.name,
     }
   }
@@ -187,7 +198,7 @@ const brand = computed<ReelBrand | null>(() => {
 type Drawn = { frame: string | null, intro: string, outro: string }
 const drawn = ref<Drawn | null>(null)
 const drawing = ref(false)
-const orientation = computed(() => project.value.orientation)
+const orientation = computed(() => props.orientation)
 const details = computed(() => project.value.details[orientation.value])
 
 async function draw() {
@@ -232,6 +243,12 @@ function rebuild({ lead, tail }: { lead: number, tail: number }) {
   selectedId.value = null
 }
 
+// Highlights start as every starred point in a row; Shorts start empty (a few shots, picked by hand).
+// After mount: the saved project is restored then, and must not be overwritten first.
+onMounted(() => watch(() => derived.value?.rallyStates.length, () => {
+  if (props.orientation === 'landscape' && !project.value.clips.length && derived.value?.rallyStates.some(s => s.isHighlight)) rebuild({ lead: DEFAULT_LEAD_SECONDS, tail: DEFAULT_TAIL_SECONDS })
+}, { immediate: true }))
+
 function addRally(idx: number) {
   const rally = derived.value?.rallyStates.find(s => s.idx === idx)
   if (!rally) return
@@ -254,7 +271,7 @@ function playClip(id: string) {
 
 // ── Thumbnail ───────────────────────────────────────────────────────────────
 
-/** The YouTube editor's 16:9 thumbnail, with HIGHLIGHTS; the template follows the match type. */
+/** The YouTube editor's thumbnail with the film's word (HIGHLIGHTS / SHORTS); the template follows the match type. */
 const thumbDefaults = computed(() => (info.value && family.value ? defaultThumbnailLines(info.value, family.value.id) : ['', '']))
 const thumbLines = computed(() => [0, 1]
   .filter(i => project.value.thumbnail.show[i])
@@ -281,11 +298,11 @@ function thumbShow(i: 0 | 1, value: boolean) {
 // ── Upload text ─────────────────────────────────────────────────────────────
 
 /** Like the YouTube editor: generated from the match, overridable; the title is the project name. */
-const generatedName = computed(() => (info.value && family.value ? clipTitle(info.value, family.value.id) : ''))
+const generatedName = computed(() => (info.value && family.value ? clipTitle(info.value, family.value.id, format.value) : ''))
 const generatedDescription = computed(() => {
   if (!info.value || !family.value || !derived.value) return ''
   const result = matchResult(derived.value)
-  return clipDescription(info.value, family.value.id, {
+  return clipDescription(info.value, family.value.id, format.value, {
     setScores: result.sets,
     winner: result.winner === null ? null : (result.winner - 1) as 0 | 1,
     matchUrl: `${site.origin}/matches/${matchId}`,
@@ -370,7 +387,7 @@ async function render() {
     )
     if (!started.ready && started.job) await renderJob.watch(started.job)
     // Where the raw footage lands in this render: the linked highlights / edit read it.
-    await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'edit', clipEditMap(pieces.value))
+    await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'shorts', clipEditMap(pieces.value))
     const file = projectFileName(project.value, 'mp4')
     renderUrl.value = `/api/reel/media/out/${started.name}?download=1&name=${encodeURIComponent(file)}`
   }
@@ -433,7 +450,7 @@ function clock(seconds: number) {
 }
 
 useSeoMeta({
-  title: () => t('reel.seoTitle'),
+  title: () => format.value,
   description: () => t('reel.lede'),
 })
 </script>
@@ -444,21 +461,7 @@ useSeoMeta({
       <!-- Header: back to the match's other tools, and the two things that act
            on the whole project rather than on a clip. -->
       <div class="flex flex-wrap items-center gap-3">
-        <!-- The format and the bookends: the choices that change the whole film. -->
-        <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.format')">
-          <button
-            v-for="o in [{ id: 'portrait', icon: Smartphone }, { id: 'landscape', icon: Monitor }] as const"
-            :key="o.id"
-            type="button"
-            class="flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 font-display text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors duration-200"
-            :class="project.orientation === o.id ? 'bg-brand text-on-brand' : 'text-ink-muted hover:text-ink'"
-            :aria-pressed="project.orientation === o.id"
-            @click="patch({ orientation: o.id })"
-          >
-            <component :is="o.icon" :size="14" aria-hidden="true" />
-            {{ $t(`reel.${o.id}`) }}
-          </button>
-        </div>
+        <!-- The bookends: the choices that change the whole film. -->
         <div class="flex gap-1 rounded-xl border border-line bg-bg-deep p-1" role="group" :aria-label="$t('reel.bookends')">
           <template v-for="b in ['intro', 'outro'] as const" :key="b">
             <button
@@ -615,9 +618,9 @@ useSeoMeta({
                 :colour="family?.colour ?? '#cb2543'"
                 :match-id="matchId"
                 :file-stem="`clip-thumbnail-${matchId.slice(0, 8)}`"
-                highlights="HIGHLIGHTS"
+                :highlights="format.toUpperCase()"
                 :saveable="false"
-                :vertical="project.orientation === 'portrait'"
+                :vertical="orientation === 'portrait'"
                 :tag="family?.label.toUpperCase() ?? ''"
               />
               <div v-for="i in [0, 1] as const" :key="i">

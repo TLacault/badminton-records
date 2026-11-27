@@ -2,12 +2,12 @@
  * Where the raw recording's moments land in a video cut from it.
  *
  * Saved on the raw match at render time (`matches.edit_maps`), one list per
- * render: the YouTube version, the highlights (landscape clip), the edit
- * (portrait clip). A linked video reads its list and places the raw tags on
+ * render: the YouTube version, the highlights (landscape), the Shorts
+ * (portrait). A linked video reads its list and places the raw tags on
  * its own timeline: no tag is ever copied.
  */
 
-export type EditKind = 'match' | 'highlights' | 'edit'
+export type EditKind = 'match' | 'highlights' | 'shorts'
 
 /** Source seconds [from, to] play from output second `at`, `speed` × faster. */
 export interface EditPiece { from: number, to: number, at: number, speed: number }

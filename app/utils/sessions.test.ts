@@ -10,11 +10,11 @@ const row = (over: Record<string, unknown>) => ({
 describe('sessions', () => {
   it('counts played matches only, and names a tournament day after its event', () => {
     const [day] = groupBySession([
-      row({ video_kind: 'edit', venue: 'Talence' }),
+      row({ video_kind: 'shorts', venue: 'Talence' }),
       row({ match_types: { slug: 'tournament' }, event_name: 'Tournois Senior' }),
       row({ video_kind: 'match', source_match_id: 'raw' }),
       row({ video_kind: 'highlights' }),
-      row({ video_kind: 'edit' }),
+      row({ video_kind: 'shorts' }),
     ])
     expect(day!.matchCount).toBe(1)
     expect(day!.totalSeconds).toBe(600)

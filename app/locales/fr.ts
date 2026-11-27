@@ -139,8 +139,8 @@ export default {
     kindRaw: "Brut",
     kindMatch: "Match",
     kindHighlights: "Highlights",
-    kindEdit: "Edit",
-    extras: "Highlights & edits",
+    kindShorts: "Shorts",
+    extras: "Highlights & Shorts",
     edited: "Monté",
     editing: "En montage",
     fourK: "4K",
@@ -149,6 +149,7 @@ export default {
   },
 
   match: {
+    relatedTitle: "À voir autrement",
     related: "Du même match",
     label: "Match",
     resultHidden: "Résultat masqué — révéler",

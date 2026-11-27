@@ -4,6 +4,7 @@
   data-composition-variables='[
     {"id":"colour","type":"color","label":"Family colour","default":"#cb2543"},
     {"id":"tag","type":"string","label":"Family tag","default":"TOURNOIS"},
+    {"id":"highlights","type":"string","label":"Word under the brand (HIGHLIGHTS / SHORTS)","default":"HIGHLIGHTS"},
     {"id":"event","type":"string","label":"Event line","default":"TOURNOIS DES VENDANGES 2026"},
     {"id":"detail","type":"string","label":"Discipline • round","default":"DOUBLES HOMMES • QUARTS DE FINALE"},
     {"id":"s1a","type":"string","label":"Side 1 player 1","default":"TIM LACAULT"},
@@ -100,6 +101,12 @@
   const root = document.getElementById("root");
   if (v.colour) root.style.setProperty("--c", v.colour);
   const details = String(v.details ?? "0") === "1";
+  // The word under the brand names the film: SHORTS for a Short.
+  const word = String(v.highlights ?? "").trim();
+  if (word) {
+    document.getElementById("hl-text").textContent = word;
+    document.getElementById("hl-shine").textContent = word;
+  }
   if (!details) document.getElementById("card").style.display = "none";
   // Empty lines collapse: singles have one name a side, a free-play card has no event.
   for (const id of ["s1b", "s2b", "event", "place"]) {

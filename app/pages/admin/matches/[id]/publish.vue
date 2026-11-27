@@ -284,8 +284,9 @@ const heights = [null, 2160, 1440, 1080, 720] as const
           <Clapperboard :size="15" aria-hidden="true" />
           YouTube
         </p>
+        <!-- The title the video goes up under (the Text tab's, generated or edited). -->
         <h1 class="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight">
-          {{ sideName(info, 0) }} vs {{ sideName(info, 1) }}
+          {{ title }}
         </h1>
       </div>
       <p class="text-xs text-ink-subtle" aria-live="polite">

@@ -38,15 +38,15 @@ interface VideosResponse {
   }>
 }
 
-export type VideoKind = 'raw' | 'match' | 'highlights' | 'edit'
+export type VideoKind = 'raw' | 'match' | 'highlights' | 'shorts'
 
 /**
- * What a video is: HIGHLIGHTS or EDIT (as a word) in the title; otherwise the
+ * What a video is: HIGHLIGHTS, or SHORTS / EDIT (as a word), in the title; otherwise the
  * unlisted upload is the raw recording and a listed one the edited match.
  */
 export function videoKindOf(title: string, privacy: string | null = null): VideoKind {
   if (/highlights/i.test(title)) return 'highlights'
-  if (/\bedit\b/i.test(title)) return 'edit'
+  if (/\b(shorts?|edit)\b/i.test(title)) return 'shorts'
   return privacy === 'unlisted' ? 'raw' : 'match'
 }
 

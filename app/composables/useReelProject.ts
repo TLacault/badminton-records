@@ -19,12 +19,16 @@ const HISTORY_LIMIT = 40
  * rather than a set of inverse operations — a trim, a reorder and a grade all
  * undo the same way, and a new control added later gets undo for free.
  */
-export function useReelProject(matchId: string) {
-  // One project per match, like the YouTube version: the clip editor is a page of the match.
-  const STORAGE_KEY = `ust-reel-project-v1:${matchId}`
-  const project = useState<ReelProject>(`reel-project-${matchId}`, () => ({ ...emptyProject(), matchId }))
-  const history = useState<string[]>(`reel-history-${matchId}`, () => [])
-  const restored = useState(`reel-restored-${matchId}`, () => false)
+export function useReelProject(matchId: string, orientation: ReelProject['orientation']) {
+  // One project per match and format: the Highlights and the Shorts are two
+  // different films and never share their clips.
+  const STORAGE_KEY = `ust-reel-project-v1:${matchId}:${orientation}`
+  /** Before the split, one project per match: kept for whichever format it was in. */
+  const LEGACY_KEY = `ust-reel-project-v1:${matchId}`
+  const key = `${matchId}-${orientation}`
+  const project = useState<ReelProject>(`reel-project-${key}`, () => ({ ...emptyProject(), matchId, orientation }))
+  const history = useState<string[]>(`reel-history-${key}`, () => [])
+  const restored = useState(`reel-restored-${key}`, () => false)
 
   function persist() {
     try {
@@ -40,8 +44,10 @@ export function useReelProject(matchId: string) {
     if (restored.value) return
     restored.value = true
     try {
+      const legacy = localStorage.getItem(LEGACY_KEY)
       const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) project.value = { ...parseProject(raw), matchId }
+        ?? (legacy && parseProject(legacy).orientation === orientation ? legacy : null)
+      if (raw) project.value = { ...parseProject(raw), matchId, orientation }
     }
     catch {
       // A corrupt draft is not worth a broken editor; start clean.

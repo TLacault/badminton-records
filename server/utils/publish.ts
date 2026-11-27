@@ -124,7 +124,7 @@ async function cut(path: string, seconds: number): Promise<string> {
 
 /**
  * A clip's branding for one match: portrait gets the still behind the clips and
- * the brand + HIGHLIGHTS intro (short-*), landscape the YouTube intro with
+ * the brand + SHORTS intro (short-*), landscape the YouTube intro with
  * HIGHLIGHTS on its brand beat and wide-outro (the clip fills the picture, so
  * no still). `details` adds the match card to the intro and the result to the
  * outro. Each piece is cached on its text, so only the first call draws anything.
@@ -135,7 +135,7 @@ export async function reelBrand(brand: ReelBrand, orientation: Orientation, deta
   const seconds = bookendSeconds(orientation, details)
   const flag = (on: boolean) => (on ? '1' : '0')
   const portrait = orientation === 'portrait'
-  const intro = await cut(await hyperframes(portrait ? 'short-intro' : 'intro', { ...brand.intro, highlights: 'HIGHLIGHTS', details: flag(details.intro), colour: brand.colour }, 'mp4', report), seconds.intro)
+  const intro = await cut(await hyperframes(portrait ? 'short-intro' : 'intro', { ...brand.intro, highlights: portrait ? 'SHORTS' : 'HIGHLIGHTS', details: flag(details.intro), colour: brand.colour }, 'mp4', report), seconds.intro)
   const outro = await cut(await hyperframes(portrait ? 'short-outro' : 'wide-outro', { ...brand.outro, details: flag(details.outro), colour: brand.colour }, 'mp4', report), seconds.outro)
   if (!portrait) return { frame: null, intro: name(intro)!, outro: name(outro)!, paths: { frame: null, frameIn: null, intro, outro } }
 

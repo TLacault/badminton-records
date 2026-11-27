@@ -76,7 +76,7 @@ const form = reactive({
   format: 'doubles' as MatchFormat,
   // What the video is, and — for the public edit, highlights and edit — the
   // raw tagged match it reads its players, scores and stats from.
-  video_kind: 'raw' as 'raw' | 'match' | 'highlights' | 'edit',
+  video_kind: 'raw' as 'raw' | 'match' | 'highlights' | 'shorts',
   source_match_id: null as string | null,
   // The live scoreboard over the player: only right on the raw tagged video.
   show_scoreboard: false,
@@ -300,7 +300,7 @@ const kindOptions = [
   { value: 'raw' as const, label: 'Raw (tagged recording)', icon: Film },
   { value: 'match' as const, label: 'Match (edited for YouTube)', icon: Film },
   { value: 'highlights' as const, label: 'Highlights', icon: Film },
-  { value: 'edit' as const, label: 'Edit', icon: Film },
+  { value: 'shorts' as const, label: 'Shorts', icon: Film },
 ]
 
 const sourceOptions = computed(() => [
@@ -377,7 +377,12 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="save">
+  <!-- The raw recording's full setup flows over two columns; the others are one short section. -->
+  <form
+    class="gap-5 [&>*]:mb-5 [&>*]:break-inside-avoid"
+    :class="form.video_kind === 'raw' ? 'lg:columns-2' : 'mx-auto max-w-3xl'"
+    @submit.prevent="save"
+  >
     <fieldset :class="FIELDSET">
       <legend class="label px-1">
         Video
@@ -386,7 +391,7 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
         <div>
           <span class="label">Type</span>
           <UiSelect v-model="form.video_kind" class="mt-2" label="Video type" :options="kindOptions" />
-          <span class="mt-1.5 block text-xs text-ink-subtle">Set on import: HIGHLIGHTS or EDIT in the title, else unlisted = raw, listed = match.</span>
+          <span class="mt-1.5 block text-xs text-ink-subtle">Set on import: HIGHLIGHTS or SHORTS in the title, else unlisted = raw, listed = match.</span>
         </div>
         <div :class="form.video_kind === 'raw' ? 'opacity-50' : ''">
           <span class="label">Linked to</span>
@@ -598,7 +603,7 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
       v-if="error"
       data-testid="m-error"
       role="alert"
-      class="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-3 text-sm text-accent"
+      class="[column-span:all] flex items-start gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-3 text-sm text-accent"
     >
       <TriangleAlert :size="16" class="mt-px shrink-0" aria-hidden="true" />
       {{ error }}
@@ -609,7 +614,7 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
       press — only a line saying whether the write landed. A match that does
       not exist yet has no row to write to, so it keeps the button.
     -->
-    <div class="sticky bottom-0 -mx-1 rounded-t-2xl border-t border-line bg-bg/80 px-1 py-4 backdrop-blur-xl">
+    <div class="[column-span:all] sticky bottom-0 -mx-1 rounded-t-2xl border-t border-line bg-bg/80 px-1 py-4 backdrop-blur-xl">
       <p
         v-if="autosaves"
         data-testid="m-autosave"

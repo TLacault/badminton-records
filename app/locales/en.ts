@@ -142,8 +142,8 @@ export default {
     kindRaw: "Raw",
     kindMatch: "Match",
     kindHighlights: "Highlights",
-    kindEdit: "Edit",
-    extras: "Highlights & edits",
+    kindShorts: "Shorts",
+    extras: "Highlights & Shorts",
     edited: "Edited",
     editing: "Editing",
     fourK: "4K",
@@ -152,6 +152,7 @@ export default {
   },
 
   match: {
+    relatedTitle: "Watch it another way",
     related: "From this match",
     label: "Match",
     resultHidden: "Result hidden — reveal",

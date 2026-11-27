@@ -105,14 +105,17 @@ export function defaultTitle(info: MatchInfo, familyId: FamilyId): string {
   return full.length <= TITLE_MAX ? full : `${full.slice(0, TITLE_MAX - 1)}…`
 }
 
+/** The two films cut from a match's rallies: landscape Highlights, portrait Shorts. */
+export type ClipFormat = 'Highlights' | 'Shorts' | 'Edit'
+
 /**
- * A highlights clip: "Gradignan 2026 | DH Poules #3 | Highlights". Shorter than
- * the YouTube title: the place stands for the event when there is one.
+ * A clip: "Gradignan 2026 | DH Poules #3 | Highlights" (or "| Shorts"). Shorter
+ * than the YouTube title: the place stands for the event when there is one.
  */
-export function clipTitle(info: MatchInfo, familyId: FamilyId): string {
+export function clipTitle(info: MatchInfo, familyId: FamilyId, format: ClipFormat = 'Highlights'): string {
   const place = info.venue?.trim() ? `${info.venue.trim()} ${year(info)}`.trim() : defaultTitle(info, familyId).split(' | ')[0]!
   const disc = [discipline(info.format, info.category, true), info.round].filter(Boolean).join(' ')
-  return [place, disc, 'Highlights'].join(' | ')
+  return [place, disc, format].join(' | ')
 }
 
 /** The card text the intros and the vertical frame print, uppercase. */
@@ -201,15 +204,16 @@ export function defaultDescription(
 
 /**
  * The clip's description: the match's, minus chapters (the clip has none), led
- * by "Highlights" and pointing at the full video.
+ * by its format ("Highlights" / "Shorts") and pointing at the full video.
  */
 export function clipDescription(
   info: MatchInfo,
   familyId: FamilyId,
+  format: ClipFormat,
   opts: { setScores: [number, number][], winner: 0 | 1 | null, matchUrl: string | null, videoId: string | null },
 ): string {
   const lines = defaultDescription(info, familyId, { ...opts, chapters: [], total: 0 }).split('\n')
-  lines[0] = `Highlights · ${lines[0]}`
+  lines[0] = `${format} · ${lines[0]}`
   if (opts.videoId) lines.splice(lines.indexOf(''), 0, '', `Match complet : https://youtu.be/${opts.videoId}`)
-  return lines.join('\n').replace('#badminton', '#badminton #highlights')
+  return lines.join('\n').replace('#badminton', `#badminton #${format.toLowerCase()}`)
 }

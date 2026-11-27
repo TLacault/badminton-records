@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
-import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, Settings2, SlidersHorizontal, Smartphone, Tag, Timer, TriangleAlert, Video } from '@lucide/vue'
+import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, Settings2, SlidersHorizontal, Smartphone, Sparkles, Tag, Timer, TriangleAlert, Video } from '@lucide/vue'
 import { LIST_SELECT, withSource } from '~/utils/matchSummary'
 import { isHomePlayer } from '~/utils/players'
 import { groupBySession, splitKinds } from '~/utils/sessions'
@@ -49,7 +49,7 @@ function playersOf(m: AdminMatch) {
     .filter(p => p.players && !isHomePlayer(p.players))
     .map(p => ({ slot: p.slot, name: `${p.players!.first_name} ${p.players!.last_name}` }))
 }
-const KIND_LABEL: Record<string, string> = { raw: 'Raw', match: 'Match', highlights: 'Highlights', edit: 'Edit' }
+const KIND_LABEL: Record<string, string> = { raw: 'Raw', match: 'Match', highlights: 'Highlights', shorts: 'Shorts' }
 /**
  * The row menu opens on hover (and on click, for touch). Closing waits a beat,
  * so the pointer can cross the gap between the button and the menu.
@@ -231,7 +231,7 @@ async function setTaggingStatus(id: string, next: string) {
 
         <template v-for="(group, g) in [splitKinds(session.matches, e => e.row).matches, splitKinds(session.matches, e => e.row).extras]" :key="g">
         <p v-if="g === 1 && group.length" class="label mb-2 mt-4">
-          Highlights &amp; edits
+          Highlights &amp; Shorts
         </p>
         <ul class="flex flex-col gap-2.5">
           <li
@@ -349,8 +349,11 @@ async function setTaggingStatus(id: string, next: string) {
                 <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/publish`" :class="MENU_ITEM">
                   <Clapperboard :size="15" aria-hidden="true" /> YouTube
                 </NuxtLink>
-                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/clip`" :class="MENU_ITEM">
-                  <Smartphone :size="15" aria-hidden="true" /> Clip
+                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/highlights`" :class="MENU_ITEM">
+                  <Sparkles :size="15" aria-hidden="true" /> Highlights
+                </NuxtLink>
+                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/shorts`" :class="MENU_ITEM">
+                  <Smartphone :size="15" aria-hidden="true" /> Shorts
                 </NuxtLink>
                 <div class="my-2 h-px bg-line" />
                 <NuxtLink :to="`/admin/matches/${m.id}`" :class="MENU_ITEM">

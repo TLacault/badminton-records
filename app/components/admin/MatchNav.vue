@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Clapperboard, SlidersHorizontal, Smartphone, Tag } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, SlidersHorizontal, Smartphone, Sparkles, Tag } from '@lucide/vue'
 
 /**
  * One bar for a match's four tools, the same on each: back to the library on
@@ -9,10 +9,10 @@ import { ArrowLeft, Clapperboard, SlidersHorizontal, Smartphone, Tag } from '@lu
  */
 const props = defineProps<{
   matchId: string
-  current: 'tag' | 'publish' | 'clip' | 'setup'
+  current: 'tag' | 'publish' | 'highlights' | 'shorts' | 'setup'
 }>()
 
-/** A linked video has no tags of its own: Tag, YouTube and Clip open its raw match. */
+/** A linked video has no tags of its own: its tool tabs open the raw match. */
 const client = useSupabaseClient()
 const { data: sourceId } = await useAsyncData(`nav-source-${props.matchId}`, async () => {
   const { data } = await client.from('matches').select('source_match_id').eq('id', props.matchId).maybeSingle()
@@ -22,7 +22,8 @@ const { data: sourceId } = await useAsyncData(`nav-source-${props.matchId}`, asy
 const TOOLS = [
   { id: 'tag', label: 'Tag', icon: Tag, path: '/tag' },
   { id: 'publish', label: 'YouTube', icon: Clapperboard, path: '/publish' },
-  { id: 'clip', label: 'Clip', icon: Smartphone, path: '/clip' },
+  { id: 'highlights', label: 'Highlights', icon: Sparkles, path: '/highlights' },
+  { id: 'shorts', label: 'Shorts', icon: Smartphone, path: '/shorts' },
   { id: 'setup', label: 'Setup', icon: SlidersHorizontal, path: '' },
 ] as const
 </script>

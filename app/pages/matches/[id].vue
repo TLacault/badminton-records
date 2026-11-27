@@ -48,7 +48,7 @@ const { data: bundle } = await useAsyncData(`match-${matchId}`, async () => {
 const linked = computed(() => Boolean(bundle.value?.match?.source_match_id))
 const kind = computed(() => bundle.value?.match?.video_kind ?? 'raw')
 /** The edited match and the vertical edit play in YouTube's own player; the raw and the highlights in ours. */
-const native = computed(() => kind.value === 'match' || kind.value === 'edit')
+const native = computed(() => kind.value === 'match' || kind.value === 'shorts')
 /**
  * A linked video is cut from the raw: the tags land on its timeline through
  * the map its render saved on the raw match. No map yet, no timeline.
@@ -301,7 +301,7 @@ const { data: relatedRows } = await useAsyncData(`related-${matchId}`, async () 
   return withSource((data ?? []) as unknown as (ListRow & { source?: unknown })[])
 })
 const related = computed(() => {
-  const order = ['raw', 'match', 'highlights', 'edit']
+  const order = ['raw', 'match', 'highlights', 'shorts']
   return decorate(relatedRows.value ?? [])
     .sort((a, b) => order.indexOf(a.row.video_kind ?? 'raw') - order.indexOf(b.row.video_kind ?? 'raw'))
 })
@@ -367,7 +367,7 @@ useSeoMeta({
     <div v-if="native" class="mt-6">
       <div
         class="overflow-hidden rounded-2xl border border-line bg-black"
-        :class="kind === 'edit' ? 'mx-auto aspect-[9/16] max-h-[80vh]' : 'aspect-video'"
+        :class="kind === 'shorts' ? 'mx-auto aspect-[9/16] max-h-[80vh]' : 'aspect-video'"
       >
         <iframe
           :src="`https://www.youtube-nocookie.com/embed/${match.youtube_video_id}?rel=0`"
@@ -485,18 +485,9 @@ useSeoMeta({
       @reveal="reveal"
     />
 
-    <section v-if="related.length" class="mt-8">
-      <h2 class="label">
-        {{ $t('match.related') }}
-      </h2>
-      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <li v-for="other in related" :key="other.row.id">
-          <VideoMatchCard :entry="other" />
-        </li>
-      </ul>
-    </section>
+    <MatchVersions v-if="related.length" :entries="related" />
 
-    <section v-if="upNext.length" class="mt-8">
+    <section v-if="upNext.length" class="mt-14">
       <h2 class="label">
         {{ $t('match.upNext') }}
       </h2>

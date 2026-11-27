@@ -22,7 +22,7 @@ const shortName = computed(() => {
 const route = useRoute()
 const wide = computed(() => route.meta.wide === true)
 /** A match's four tools share one bar, kept here so it stays put while you switch. */
-const matchTool = computed(() => route.meta.matchTool as 'tag' | 'publish' | 'clip' | 'setup' | undefined)
+const matchTool = computed(() => route.meta.matchTool as 'tag' | 'publish' | 'highlights' | 'shorts' | 'setup' | undefined)
 
 const links = [
   { to: '/admin', label: 'Videos', icon: Video, exact: true },

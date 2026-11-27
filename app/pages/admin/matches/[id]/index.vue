@@ -8,7 +8,7 @@ const id = route.params.id as string
 </script>
 
 <template>
-  <div class="max-w-3xl">
+  <div class="mx-auto max-w-6xl">
 
     <p class="eyebrow">
       <Pencil :size="15" aria-hidden="true" />
