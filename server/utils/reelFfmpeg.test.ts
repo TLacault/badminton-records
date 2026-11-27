@@ -13,6 +13,8 @@ function project(overrides: Partial<ReelProject> = {}): ReelProject {
     outro: false,
     scoreboard: { portrait: false, landscape: false },
     fadeEdges: false,
+    // The graphs below are written at 1080p30; the 4K60 default is not what they test.
+    output: { height: 1080, fps: 30, matchAudio: 0.35 },
     ...overrides,
   }
 }

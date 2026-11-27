@@ -29,8 +29,8 @@ export default defineEventHandler(async (event) => {
     return { ready: true, videoId, duration: facts.duration, job: null }
   }
 
-  // The editor asks 4K by default (the channel is filmed in 4K); 1080p when a caller does not say.
-  const height = [720, 1080, 1440, 2160].includes(Number(body?.height)) ? Number(body!.height) : 1080
+  // 4K unless asked otherwise: the channel is filmed in 4K60.
+  const height = [720, 1080, 1440, 2160].includes(Number(body?.height)) ? Number(body!.height) : 2160
 
   const job = startJob('source', `source:${videoId}`, async (report) => {
     report(0, 'Starting download')

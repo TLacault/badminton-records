@@ -60,7 +60,8 @@ export function emptyProject(): ReelProject {
     intro: true,
     outro: true,
     fadeEdges: true,
-    output: { height: 1080, fps: 30, matchAudio: 0.35 },
+    // 4K60 by default: the channel is filmed and downloaded in 4K60.
+    output: { height: 2160, fps: 60, matchAudio: 0.35 },
     scoreboard: { portrait: false, landscape: true },
     thumbnail: { lines: [null, null], show: [true, true] },
     description: null,

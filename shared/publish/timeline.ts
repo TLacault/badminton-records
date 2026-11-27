@@ -58,7 +58,8 @@ export function defaultSettings(): PublishSettings {
     scoreboard: true,
     scoreboardCorner: 'tl',
     keepBreaks: [],
-    outputHeight: null,
+    // 4K by default (frame rate follows the source: 60 for the channel's uploads).
+    outputHeight: 2160,
     thumbnail: { lines: [null, null], show: [true, true] },
     title: null,
     description: null,

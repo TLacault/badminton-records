@@ -141,7 +141,7 @@ describe('captions and files', () => {
 
     expect(project.name).toBe('Tuesday')
     expect(project.clips[0]!.speed).toBe(1)
-    expect(project.output.height).toBe(1080)
+    expect(project.output).toMatchObject({ height: 2160, fps: 60 })
   })
 
   it('shows the scoreboard by default in landscape only, and keeps a choice per format', () => {
