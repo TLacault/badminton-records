@@ -20,6 +20,29 @@ export interface SessionFacts {
   played_on: string | null
   venue: string | null
   youtube_duration_seconds: number | null
+  video_kind?: string
+  source_match_id?: string | null
+  event_name?: string | null
+  match_types?: { slug?: string } | null
+}
+
+/**
+ * A match that was played that day: the raw match video. Highlights and edits
+ * are not matches, and the public match video (linked to its raw) would count
+ * the same match twice.
+ */
+export function isPlayedMatch(facts: SessionFacts): boolean {
+  return (facts.video_kind ?? 'match') === 'match' && !facts.source_match_id
+}
+
+const TOURNAMENT_SLUGS = new Set(['tournament', 'championship'])
+
+/** Splits a session's videos: the match videos first, then the highlights and edits. */
+export function splitKinds<T>(items: T[], read: (item: T) => SessionFacts = item => item as unknown as SessionFacts) {
+  return {
+    matches: items.filter(i => (read(i).video_kind ?? 'match') === 'match'),
+    extras: items.filter(i => (read(i).video_kind ?? 'match') !== 'match'),
+  }
 }
 
 export interface Session<T = SessionMatch> {
@@ -28,7 +51,11 @@ export interface Session<T = SessionMatch> {
   /** First non-empty venue among the day's matches. */
   venue: string | null
   matches: T[]
+  /** Matches played (see isPlayedMatch) and their total length. */
+  matchCount: number
   totalSeconds: number
+  /** The event, when one of the day's matches is a tournament or championship. */
+  eventName: string | null
 }
 
 /**
@@ -47,19 +74,23 @@ export function groupBySession<T>(
 
   for (const match of matches) {
     const facts = read(match)
-    const last = sessions.at(-1)
-    if (last && last.date === facts.played_on) {
-      last.matches.push(match)
-      last.venue ??= facts.venue || null
-      last.totalSeconds += facts.youtube_duration_seconds ?? 0
-      continue
+    let session = sessions.at(-1)
+    if (!session || session.date !== facts.played_on) {
+      session = { date: facts.played_on, venue: null, matches: [], matchCount: 0, totalSeconds: 0, eventName: null }
+      sessions.push(session)
     }
-    sessions.push({
-      date: facts.played_on,
-      venue: facts.venue || null,
-      matches: [match],
-      totalSeconds: facts.youtube_duration_seconds ?? 0,
-    })
+    session.matches.push(match)
+    // The hall comes from a played match first: a highlights upload can carry another.
+    if (facts.venue && (!session.venue || (isPlayedMatch(facts) && !session.matches.slice(0, -1).some(m => isPlayedMatch(read(m)))))) {
+      session.venue = facts.venue
+    }
+    if (!session.eventName && TOURNAMENT_SLUGS.has(facts.match_types?.slug ?? '') && facts.event_name?.trim()) {
+      session.eventName = facts.event_name.trim()
+    }
+    if (isPlayedMatch(facts)) {
+      session.matchCount += 1
+      session.totalSeconds += facts.youtube_duration_seconds ?? 0
+    }
   }
 
   return sessions

@@ -2,7 +2,7 @@
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
 import { site } from '~/config/site'
-import { LIST_SELECT } from '~/utils/matchSummary'
+import { LIST_SELECT, withSource } from '~/utils/matchSummary'
 import { decorate } from '~/utils/videoFilters'
 
 const { t, lt } = useI18n()
@@ -21,7 +21,7 @@ const { data: matches } = await useAsyncData('home-matches', async () => {
     .select(LIST_SELECT)
     .eq('visibility', 'public')
     .order('played_on', { ascending: false, nullsFirst: false })
-  return (data ?? []) as unknown as ListRow[]
+  return withSource((data ?? []) as unknown as (ListRow & { source?: unknown })[])
 })
 
 const entries = computed(() => decorate(matches.value ?? []))

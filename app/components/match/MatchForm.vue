@@ -7,6 +7,8 @@ import {
   CircleDashed,
   Eye,
   EyeOff,
+  Film,
+  Link2,
   Loader,
   Save,
   Tags,
@@ -38,6 +40,19 @@ const { data: matchTypes } = await useAsyncData('form-match-types', async () => 
   return data ?? []
 })
 
+/** Raw matches a video can be linked to: newest first, never itself or another linked video. */
+const { data: sourceMatches } = await useAsyncData(`form-sources-${props.matchId ?? 'new'}`, async () => {
+  const { data } = await client
+    .from('matches')
+    .select('id, title, youtube_title, played_on')
+    .eq('video_kind', 'match')
+    .is('source_match_id', null)
+    .neq('id', props.matchId ?? '00000000-0000-0000-0000-000000000000')
+    .order('played_on', { ascending: false, nullsFirst: false })
+    .limit(60)
+  return data ?? []
+})
+
 /** Almost every recording is a free-play session, so that is what a new one is. */
 const DEFAULT_MATCH_TYPE = 'free-play'
 
@@ -59,6 +74,12 @@ const form = reactive({
    */
   player_info_fields: PLAYER_INFO_FIELDS.map(f => f.id),
   format: 'doubles' as MatchFormat,
+  // What the video is, and — for the public edit, highlights and edit — the
+  // raw tagged match it reads its players, scores and stats from.
+  video_kind: 'match' as 'match' | 'highlights' | 'edit',
+  source_match_id: null as string | null,
+  // The live scoreboard over the player: only right on the raw tagged video.
+  show_scoreboard: false,
   youtube_video_id: '',
   // Everything is filmed on the same rig, so this is true until said otherwise
   // — the column defaults the same way, and the card pins it on the thumbnail.
@@ -198,6 +219,12 @@ async function autosave() {
     return
   }
 
+  // A linked video reads its players from the raw match: none of its own.
+  if (form.source_match_id) {
+    saveState.value = 'saved'
+    return
+  }
+
   // Participants are replaced wholesale — at most four rows, and the delete
   // plus insert has to be one thought, or a half-written roster is possible.
   await client.from('match_players').delete().eq('match_id', props.matchId)
@@ -262,6 +289,21 @@ const formatOptions = [
 const typeOptions = computed(() => [
   { value: null as string | null, label: 'No type', icon: CircleDashed },
   ...(matchTypes.value ?? []).map(t => ({ value: t.id as string | null, label: t.label, icon: Tags })),
+])
+
+const kindOptions = [
+  { value: 'match' as const, label: 'Match', icon: Film },
+  { value: 'highlights' as const, label: 'Highlights', icon: Film },
+  { value: 'edit' as const, label: 'Edit', icon: Film },
+]
+
+const sourceOptions = computed(() => [
+  { value: null as string | null, label: 'Not linked (this is the raw tagged match)', icon: CircleDashed },
+  ...(sourceMatches.value ?? []).map(m => ({
+    value: m.id as string | null,
+    label: `${m.played_on ?? 'Undated'} · ${m.youtube_title || m.title}`,
+    icon: Link2,
+  })),
 ])
 
 const visibilityOptions = [
@@ -330,6 +372,36 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
 
 <template>
   <form class="space-y-5" @submit.prevent="save">
+    <fieldset :class="FIELDSET">
+      <legend class="label px-1">
+        Video
+      </legend>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <span class="label">Type</span>
+          <UiSelect v-model="form.video_kind" class="mt-2" label="Video type" :options="kindOptions" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">Set on import from the title (HIGHLIGHTS, EDIT, else match).</span>
+        </div>
+        <div>
+          <span class="label">Linked to</span>
+          <UiSelect v-model="form.source_match_id" data-testid="m-source" class="mt-2" label="Linked to" :options="sourceOptions" />
+          <span class="mt-1.5 block text-xs text-ink-subtle">The public match, its highlights and its edit read players, scores and stats from the raw tagged match.</span>
+        </div>
+        <label class="inline-flex items-center gap-2 text-sm text-ink-muted md:col-span-2">
+          <input v-model="form.show_scoreboard" data-testid="m-scoreboard" type="checkbox" class="size-4 accent-[var(--ui-brand)]">
+          Show the scoreboard over the video
+        </label>
+        <span class="-mt-3 block text-xs text-ink-subtle md:col-span-2">
+          Only on the raw tagged video: the scores follow its timestamps. Never shown on a linked video.
+        </span>
+      </div>
+    </fieldset>
+
+    <p v-if="form.source_match_id" class="rounded-2xl border border-dashed border-line px-5 py-4 text-sm text-ink-muted">
+      Linked: players, scoring and event come from the raw match.
+      <NuxtLink :to="`/admin/matches/${form.source_match_id}`" class="text-accent hover:underline">Open its setup</NuxtLink>.
+    </p>
+
     <fieldset :class="FIELDSET">
       <legend class="label px-1">
         Match
@@ -415,6 +487,8 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
         </div>
       </div>
     </fieldset>
+
+    <template v-if="!form.source_match_id">
 
     <fieldset :class="FIELDSET">
       <legend class="label px-1">
@@ -511,6 +585,7 @@ const FIELDSET = 'relative rounded-2xl p-5 glass focus-within:z-10 sm:p-6'
         </template>
       </div>
     </fieldset>
+    </template>
 
     <p
       v-if="error"

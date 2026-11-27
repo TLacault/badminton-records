@@ -19,7 +19,12 @@ export interface ListRow extends SummaryRow {
   youtube_duration_seconds: number | null
   youtube_thumbnail_url: string | null
   is_4k: boolean
-  match_types?: { label: string } | null
+  match_types?: { label: string, slug?: string } | null
+  youtube_title?: string | null
+  video_kind?: string
+  source_match_id?: string | null
+  show_scoreboard?: boolean
+  event_name?: string | null
 }
 
 export interface MatchEntry<T extends ListRow = ListRow> {
@@ -108,6 +113,7 @@ export function decorate<T extends ListRow>(rows: T[]): MatchEntry<T>[] {
       typeLabel: row.match_types?.label ?? null,
       haystack: [
         row.title,
+        row.youtube_title,
         row.venue,
         row.format,
         row.match_types?.label,

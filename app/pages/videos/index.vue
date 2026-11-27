@@ -2,7 +2,8 @@
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
 import { Clapperboard, MapPin, Timer, Video } from '@lucide/vue'
-import { LIST_SELECT } from '~/utils/matchSummary'
+import { LIST_SELECT, withSource } from '~/utils/matchSummary'
+import { splitKinds } from '~/utils/sessions'
 import { applyFilters, decorate, emptyFilters, isFiltered } from '~/utils/videoFilters'
 
 const { t, bcp47 } = useI18n()
@@ -15,7 +16,7 @@ const { data: matches } = await useAsyncData('public-matches', async () => {
     .select(LIST_SELECT)
     .eq('visibility', 'public')
     .order('played_on', { ascending: false, nullsFirst: false })
-  return (data ?? []) as unknown as ListRow[]
+  return withSource((data ?? []) as unknown as (ListRow & { source?: unknown })[])
 })
 
 const filters = ref(emptyFilters())
@@ -69,12 +70,12 @@ useSeoMeta({
                offset by the header height so the two never overlap. -->
           <header class="sticky top-16 z-10 -mx-4 mb-6 border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl sm:top-18 sm:-mx-6 sm:px-6">
             <h2 class="font-display text-2xl font-bold uppercase tracking-wide text-ink sm:text-3xl">
-              {{ formatDateLong(session.date, bcp47, $t('common.undated')) }}
+              <template v-if="session.eventName">{{ session.eventName }} · </template>{{ formatDateLong(session.date, bcp47, $t('common.undated')) }}
             </h2>
             <ul class="mt-1.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-ink-muted">
               <li class="inline-flex items-center gap-1.5">
                 <Clapperboard :size="13" class="text-accent" aria-hidden="true" />
-                {{ session.matches.length }} {{ session.matches.length === 1 ? 'match' : 'matches' }}
+                {{ session.matchCount }} {{ session.matchCount === 1 ? 'match' : 'matches' }}
               </li>
               <li v-if="session.totalSeconds" class="inline-flex items-center gap-1.5">
                 <Timer :size="13" class="text-accent" aria-hidden="true" />
@@ -88,16 +89,21 @@ useSeoMeta({
           </header>
         </UiReveal>
 
-        <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <UiReveal
-            v-for="(entry, i) in session.matches"
-            :key="entry.row.id"
-            as="li"
-            :delay="i * 40"
-          >
-            <VideoMatchCard :entry="entry" />
-          </UiReveal>
-        </ul>
+        <template v-for="(group, g) in [splitKinds(session.matches, e => e.row).matches, splitKinds(session.matches, e => e.row).extras]" :key="g">
+          <h3 v-if="g === 1 && group.length" class="label mb-4 mt-8">
+            {{ $t('card.extras') }}
+          </h3>
+          <ul v-if="group.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <UiReveal
+              v-for="(entry, i) in group"
+              :key="entry.row.id"
+              as="li"
+              :delay="i * 40"
+            >
+              <VideoMatchCard :entry="entry" />
+            </UiReveal>
+          </ul>
+        </template>
       </section>
     </div>
 

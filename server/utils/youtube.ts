@@ -13,6 +13,8 @@ export interface ChannelVideo {
   publishedAt: string
   thumbnailUrl: string | null
   durationSeconds: number | null
+  /** public | unlisted | private; null until videos.list has been read. */
+  privacy: string | null
 }
 
 interface PlaylistItemsResponse {
@@ -31,6 +33,7 @@ interface VideosResponse {
   items: Array<{
     id: string
     contentDetails: { duration: string }
+    status?: { privacyStatus?: string }
     snippet?: { title?: string, thumbnails?: Record<string, { url: string, width: number }> }
   }>
 }
@@ -113,6 +116,7 @@ export async function listPlaylistVideos(playlistId: string, key: string) {
         publishedAt: item.snippet.publishedAt,
         thumbnailUrl: bestThumbnail(item.snippet.thumbnails),
         durationSeconds: null,
+        privacy: null,
       })
     }
     pageToken = res.nextPageToken
@@ -132,7 +136,7 @@ export async function attachDetails(videos: ChannelVideo[], key: string) {
     const batch = videos.slice(i, i + 50)
     const res = await $fetch<VideosResponse>(`${API}/videos`, {
       query: {
-        part: 'contentDetails,snippet',
+        part: 'contentDetails,snippet,status',
         id: batch.map(v => v.videoId).join(','),
         key,
       },
@@ -144,6 +148,7 @@ export async function attachDetails(videos: ChannelVideo[], key: string) {
       v.durationSeconds = parseIsoDuration(item.contentDetails.duration)
       v.thumbnailUrl = bestThumbnail(item.snippet?.thumbnails) ?? v.thumbnailUrl
       v.title = item.snippet?.title ?? v.title
+      v.privacy = item.status?.privacyStatus ?? null
     }
   }
   return videos

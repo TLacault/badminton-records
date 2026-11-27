@@ -2,9 +2,9 @@
 import type { Database } from '~/types/database.types'
 import type { ListRow } from '~/utils/videoFilters'
 import { CircleCheck, CircleDashed, Clapperboard, Eye, EyeOff, MapPin, RefreshCw, Settings2, SlidersHorizontal, Smartphone, Tag, Timer, TriangleAlert, Video } from '@lucide/vue'
-import { LIST_SELECT } from '~/utils/matchSummary'
+import { LIST_SELECT, withSource } from '~/utils/matchSummary'
 import { isHomePlayer } from '~/utils/players'
-import { groupBySession } from '~/utils/sessions'
+import { groupBySession, splitKinds } from '~/utils/sessions'
 import { TAGGING_STATES } from '~/utils/taggingStatus'
 import { applyFilters, decorate, emptyFilters } from '~/utils/videoFilters'
 
@@ -22,9 +22,9 @@ type AdminMatch = ListRow & {
 const { data: matches, refresh } = await useAsyncData('admin-matches', async () => {
   const { data } = await client
     .from('matches')
-    .select(`${LIST_SELECT}, visibility, youtube_video_id, youtube_title, video_kind`)
+    .select(`${LIST_SELECT}, visibility, youtube_video_id`)
     .order('played_on', { ascending: false, nullsFirst: false })
-  return (data ?? []) as unknown as AdminMatch[]
+  return withSource((data ?? []) as unknown as (AdminMatch & { source?: unknown })[])
 }, {
   // Rows are toggled in place — publish, tagging status — and a shallow ref
   // (the Nuxt default) would not notice a property changing on one of them.
@@ -50,6 +50,24 @@ function playersOf(m: AdminMatch) {
     .map(p => ({ slot: p.slot, name: `${p.players!.first_name} ${p.players!.last_name}` }))
 }
 const KIND_LABEL: Record<string, string> = { match: 'Match', highlights: 'Highlights', edit: 'Edit' }
+/**
+ * The row menu opens on hover (and on click, for touch). Closing waits a beat,
+ * so the pointer can cross the gap between the button and the menu.
+ */
+let menuTimer: ReturnType<typeof setTimeout> | null = null
+function openMenu(id: string) {
+  if (menuTimer) clearTimeout(menuTimer)
+  const menu = document.getElementById(`menu-${id}`)
+  if (menu && !menu.matches(':popover-open')) menu.showPopover()
+}
+function closeMenuSoon(id: string) {
+  if (menuTimer) clearTimeout(menuTimer)
+  menuTimer = setTimeout(() => {
+    const menu = document.getElementById(`menu-${id}`)
+    if (menu?.matches(':popover-open') && !menu.contains(document.activeElement)) menu.hidePopover()
+  }, 220)
+}
+
 /** Closes the menu a click came from, so the copy notice is not drawn under it. */
 function closeMenu(event: MouseEvent) {
   (event.currentTarget as HTMLElement).closest<HTMLElement>('[popover]')?.hidePopover()
@@ -193,12 +211,12 @@ async function setTaggingStatus(id: string, next: string) {
              overhead while you scan. Offset by the admin header's height. -->
         <header class="sticky top-14 z-10 -mx-2 mb-3 border-b border-line bg-bg/85 px-2 py-2 backdrop-blur-xl">
           <h2 class="font-display text-lg font-bold uppercase tracking-wide text-ink">
-            {{ formatDateLong(session.date) }}
+            <template v-if="session.eventName">{{ session.eventName }} · </template>{{ formatDateLong(session.date) }}
           </h2>
           <ul class="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
             <li class="inline-flex items-center gap-1.5">
               <Clapperboard :size="12" class="text-accent" aria-hidden="true" />
-              {{ session.matches.length }} {{ session.matches.length === 1 ? 'match' : 'matches' }}
+              {{ session.matchCount }} {{ session.matchCount === 1 ? 'match' : 'matches' }}
             </li>
             <li v-if="session.totalSeconds" class="inline-flex items-center gap-1.5">
               <Timer :size="12" class="text-accent" aria-hidden="true" />
@@ -211,9 +229,13 @@ async function setTaggingStatus(id: string, next: string) {
           </ul>
         </header>
 
+        <template v-for="(group, g) in [splitKinds(session.matches, e => e.row).matches, splitKinds(session.matches, e => e.row).extras]" :key="g">
+        <p v-if="g === 1 && group.length" class="label mb-2 mt-4">
+          Highlights &amp; edits
+        </p>
         <ul class="flex flex-col gap-2.5">
           <li
-            v-for="{ row: m, title, outcome } in session.matches"
+            v-for="{ row: m, title, outcome } in group"
             :key="m.id"
             :data-match-id="m.id"
             class="relative flex flex-wrap items-center gap-4 rounded-2xl p-3 glass transition-[border-color] duration-200 hover:border-accent/30"
@@ -260,7 +282,7 @@ async function setTaggingStatus(id: string, next: string) {
                    dash on every match that has neither. -->
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
                 <span :class="CHIP" class="border-line-strong text-ink">{{ KIND_LABEL[m.video_kind] ?? m.video_kind }}</span>
-                <span :class="[CHIP, stateOf(m.tagging_status).chip]">
+                <span v-if="m.video_kind === 'match'" :class="[CHIP, stateOf(m.tagging_status).chip]">
                   <component :is="stateOf(m.tagging_status).icon" :size="12" aria-hidden="true" />
                   {{ stateOf(m.tagging_status).label }}
                 </span>
@@ -283,11 +305,12 @@ async function setTaggingStatus(id: string, next: string) {
 
             <!-- Every action in one menu, above the stretched link. A native
                  popover: it lives in the top layer, so no glass row can cover it. -->
-            <div class="relative shrink-0">
+            <div class="relative shrink-0" @mouseenter="openMenu(m.id)" @mouseleave="closeMenuSoon(m.id)">
               <button
                 type="button"
                 class="btn btn-sm btn-ghost"
-                :popovertarget="`menu-${m.id}`"
+                aria-haspopup="menu"
+                @click="openMenu(m.id)"
                 :style="`anchor-name: --menu-${m.id}`"
                 :aria-label="`Manage ${title}`"
               >
@@ -300,16 +323,19 @@ async function setTaggingStatus(id: string, next: string) {
                 class="row-menu w-72 rounded-xl p-2 text-ink glass-menu"
                 :style="`position-anchor: --menu-${m.id}`"
               >
-                <p class="label px-2 pt-1">Status</p>
-                <VideoTaggingStatusPicker
-                  data-testid="row-tagging-status"
-                  full
-                  class="mt-2"
-                  :label="`Editing state for ${title}`"
-                  :model-value="m.tagging_status"
-                  @update:model-value="value => setTaggingStatus(m.id, value)"
-                />
-                <div class="my-2 h-px bg-line" />
+                <!-- Only the raw match is tagged: a linked video reads its status from it. -->
+                <template v-if="m.video_kind === 'match' && !m.source_match_id">
+                  <p class="label px-2 pt-1">Status</p>
+                  <VideoTaggingStatusPicker
+                    data-testid="row-tagging-status"
+                    full
+                    class="mt-2"
+                    :label="`Editing state for ${title}`"
+                    :model-value="m.tagging_status"
+                    @update:model-value="value => setTaggingStatus(m.id, value)"
+                  />
+                  <div class="my-2 h-px bg-line" />
+                </template>
                 <button data-testid="toggle-visibility" type="button" :class="MENU_ITEM" @click="toggleVisibility(m.id, m.visibility)">
                   <component :is="m.visibility === 'public' ? EyeOff : Eye" :size="15" aria-hidden="true" />
                   {{ m.visibility === 'public' ? 'Unpublish' : 'Publish' }}
@@ -317,13 +343,13 @@ async function setTaggingStatus(id: string, next: string) {
                 <!-- The public link, not the admin one: what you send someone is the page they can open. -->
                 <UiShareButton :to="`/matches/${m.id}`" label="Copy public link" :class="MENU_ITEM" @click="closeMenu" />
                 <div class="my-2 h-px bg-line" />
-                <NuxtLink :to="`/admin/matches/${m.id}/tag`" :class="MENU_ITEM">
+                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/tag`" :class="MENU_ITEM">
                   <Tag :size="15" aria-hidden="true" /> Tag
                 </NuxtLink>
-                <NuxtLink :to="`/admin/matches/${m.id}/publish`" :class="MENU_ITEM">
+                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/publish`" :class="MENU_ITEM">
                   <Clapperboard :size="15" aria-hidden="true" /> YouTube
                 </NuxtLink>
-                <NuxtLink :to="`/admin/matches/${m.id}/clip`" :class="MENU_ITEM">
+                <NuxtLink :to="`/admin/matches/${m.source_match_id ?? m.id}/clip`" :class="MENU_ITEM">
                   <Smartphone :size="15" aria-hidden="true" /> Clip
                 </NuxtLink>
                 <div class="my-2 h-px bg-line" />
@@ -334,6 +360,7 @@ async function setTaggingStatus(id: string, next: string) {
             </div>
           </li>
         </ul>
+        </template>
       </section>
     </div>
 

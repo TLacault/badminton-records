@@ -3,7 +3,7 @@ import type { Database, Json } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, Side, Slot } from '~~/shared/badminton'
 import type { Corner, MatchInfo, RenderRequest } from '~~/shared/publish'
 import type { ReelJob } from '~~/shared/reel'
-import { ArrowLeft, Clapperboard, Copy, FileUp, Film, Image as ImageIcon, Pencil, RotateCcw, Scissors, Smartphone, Tag, Type } from '@lucide/vue'
+import { Clapperboard, Copy, FileUp, Film, Image as ImageIcon, RotateCcw, Scissors, Type } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
 import {
   buildEdit,
@@ -273,29 +273,9 @@ const heights = [null, 2160, 1440, 1080, 720] as const
 
 <template>
   <div v-if="match && info" class="mx-auto max-w-7xl">
-    <div class="flex flex-wrap items-center gap-3">
-      <NuxtLink
-        to="/admin"
-        class="flex w-fit min-h-9 items-center gap-2 font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
-      >
-        <ArrowLeft :size="14" aria-hidden="true" />
-        Videos
-      </NuxtLink>
-      <NuxtLink :to="`/admin/matches/${matchId}/tag`" class="btn btn-sm btn-ghost !min-h-9">
-        <Tag :size="14" aria-hidden="true" />
-        Tag
-      </NuxtLink>
-      <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost !min-h-9">
-        <Smartphone :size="14" aria-hidden="true" />
-        Clip
-      </NuxtLink>
-      <NuxtLink :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-ghost !min-h-9">
-        <Pencil :size="14" aria-hidden="true" />
-        Edit match
-      </NuxtLink>
-    </div>
+    <AdminMatchNav :match-id="matchId" current="publish" />
 
-    <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p class="eyebrow">
           <Clapperboard :size="15" aria-hidden="true" />

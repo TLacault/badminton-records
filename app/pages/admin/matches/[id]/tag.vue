@@ -3,9 +3,8 @@ import type { KeybindActionId } from '~/composables/useKeybinds'
 import type { Database } from '~/types/database.types'
 import type { BreakInput, MatchConfig, MatchFormat, RallyInput, Side, Slot } from '~~/shared/badminton'
 import type { PlayerInfoSource } from '~/utils/players'
-import { Clapperboard, Pencil, RotateCcw, Smartphone } from '@lucide/vue'
+import { RotateCcw } from '@lucide/vue'
 import { currentRallyAt } from '~~/shared/badminton'
-import { youtubeTitle } from '~/utils/matchSummary'
 
 // `wide` drops the admin layout's max-width: tagging wants every pixel it can
 // get for the point list.
@@ -35,29 +34,6 @@ const { data: bundle } = await useAsyncData(`tag-${matchId}`, async () => {
 })
 
 const match = computed(() => bundle.value?.match ?? null)
-
-/**
- * The name this recording should be uploaded under.
- *
- * Built from the roster once the opponents are set, and otherwise left as the
- * name it was imported with — a half-filled match should not lose the only
- * title it has. This is the one screen that shows the stored title at all: it
- * is where the title gets written, rather than read.
- */
-const uploadTitle = computed(() => {
-  const row = match.value
-  if (!row) return { text: '', generated: false }
-  const summary = {
-    title: row.title,
-    format: row.format,
-    match_players: (bundle.value?.participants ?? []).map(p => ({
-      slot: p.slot,
-      players: p.players,
-    })),
-  }
-  const text = youtubeTitle(summary, row.match_types?.label)
-  return { text, generated: text !== row.title }
-})
 
 type RosterRow = PlayerInfoSource & { first_name: string, last_name: string }
 
@@ -378,15 +354,7 @@ const saveLabel = computed(() => {
 
 <template>
   <div v-if="match">
-    <!-- The exception to the rule that the stored title is never shown: this
-         is the screen where it gets decided, so it leads. -->
-    <TaggingTitleBar
-      class="mb-5"
-      :title="uploadTitle.text"
-      :generated="uploadTitle.generated"
-      :type-label="match.match_types?.label ?? null"
-      :info-fields="match.player_info_fields ?? []"
-    />
+    <AdminMatchNav :match-id="matchId" current="tag" />
 
     <div class="flex flex-wrap items-center justify-between gap-y-2">
       <VideoStatusBadge
@@ -426,18 +394,6 @@ const saveLabel = computed(() => {
           <RotateCcw :size="14" :class="resetting ? 'animate-spin' : ''" aria-hidden="true" />
           Reset
         </button>
-        <NuxtLink data-testid="open-edit" :to="`/admin/matches/${matchId}`" class="btn btn-sm btn-primary">
-          <Pencil :size="14" aria-hidden="true" />
-          Edit match
-        </NuxtLink>
-        <NuxtLink :to="`/admin/matches/${matchId}/publish`" class="btn btn-sm btn-ghost">
-          <Clapperboard :size="14" aria-hidden="true" />
-          YouTube
-        </NuxtLink>
-        <NuxtLink :to="`/admin/matches/${matchId}/clip`" class="btn btn-sm btn-ghost">
-          <Smartphone :size="14" aria-hidden="true" />
-          Clip
-        </NuxtLink>
       </div>
     </div>
 

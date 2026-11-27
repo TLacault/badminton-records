@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Clapperboard, Pencil, Smartphone, Tag } from '@lucide/vue'
+import { Pencil } from '@lucide/vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -9,44 +9,13 @@ const id = route.params.id as string
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <NuxtLink
-      to="/admin"
-      class="flex w-fit min-h-9 items-center gap-2 font-display text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle transition-colors duration-200 hover:text-accent"
-    >
-      <ArrowLeft :size="14" aria-hidden="true" />
-      Videos
-    </NuxtLink>
+    <AdminMatchNav :match-id="id" current="setup" />
 
-    <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="eyebrow">
-          <Pencil :size="15" aria-hidden="true" />
-          Editing
-        </p>
-        <h1 class="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight">
-          Match
-        </h1>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <NuxtLink
-          data-testid="open-tagger"
-          :to="`/admin/matches/${id}/tag`"
-          class="btn btn-primary"
-        >
-          <Tag :size="16" aria-hidden="true" />
-          Open tagging tool
-        </NuxtLink>
-        <NuxtLink :to="`/admin/matches/${id}/publish`" class="btn btn-ghost">
-          <Clapperboard :size="16" aria-hidden="true" />
-          YouTube
-        </NuxtLink>
-        <NuxtLink :to="`/admin/matches/${id}/clip`" class="btn btn-ghost">
-          <Smartphone :size="16" aria-hidden="true" />
-          Clip
-        </NuxtLink>
-      </div>
-    </div>
+    <p class="eyebrow">
+      <Pencil :size="15" aria-hidden="true" />
+      Setup
+    </p>
 
-    <MatchForm class="mt-8" :match-id="id" />
+    <MatchForm class="mt-4" :match-id="id" />
   </div>
 </template>

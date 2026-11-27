@@ -50,16 +50,35 @@ export interface SummaryRow {
  * the card prints the result, and the result is derived — nothing about a
  * score is stored, so there is nothing shorter to ask for.
  */
-export const LIST_SELECT = `
-  id, title, played_on, venue, format, tagging_status,
+/** What a linked video reads from the raw tagged match it points at. */
+const DATA_FIELDS = `
+  played_on, venue, format, tagging_status, event_name,
   best_of, points_to_win, win_by, points_cap,
   initial_server_side, side1_right_court_slot, side2_right_court_slot,
-  youtube_thumbnail_url, youtube_duration_seconds, is_4k,
-  match_types(label),
+  match_types(label, slug),
   match_players(slot, players(first_name, last_name, club)),
   match_set_starts(set_number, server_slot, side1_right_court_slot, side2_right_court_slot),
   rallies(idx, winner_side, is_let, is_highlight, scored_by_player_id, ended_at_seconds)
 `
+
+export const LIST_SELECT = `
+  id, title, youtube_title, video_kind, source_match_id, show_scoreboard,
+  youtube_thumbnail_url, youtube_duration_seconds, is_4k,
+  ${DATA_FIELDS},
+  source:source_match_id(${DATA_FIELDS})
+`
+
+/**
+ * The "symlink": a video cut from a tagged match (the public edit, the
+ * highlights, the vertical edit) shows that match's players, score, date and
+ * event. Its own id, title, thumbnail and duration stay its own. Re-sorted by
+ * date, since a linked video uploaded days later now belongs to its match day.
+ */
+export function withSource<T extends { source?: unknown, played_on: string | null }>(rows: T[]): T[] {
+  return rows
+    .map(row => (row.source ? { ...row, ...(row.source as object) } : row))
+    .sort((a, b) => (b.played_on ?? '').localeCompare(a.played_on ?? ''))
+}
 
 function bySlot(row: SummaryRow): Record<number, SummaryPlayer | null> {
   const out: Record<number, SummaryPlayer | null> = {}

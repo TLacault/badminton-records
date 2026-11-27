@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ListRow, MatchEntry } from '~/utils/videoFilters'
 import { CalendarDays, CircleDashed, Flame, Play, Scissors, Trophy } from '@lucide/vue'
+import { isHomePlayer } from '~/utils/players'
 
 const { t, bcp47 } = useI18n()
 
@@ -14,27 +15,22 @@ const props = withDefaults(
 )
 
 const match = computed(() => props.entry.row)
-const tagged = computed(() => match.value.tagging_status === 'tagged')
-const editing = computed(() => match.value.tagging_status === 'in_progress')
-const badgeLabel = computed(() => (editing.value ? t('card.editing') : t('card.edited')))
-
-/*
- * Same chip, two weights. The finished cut is solid crimson; a match still
- * being edited keeps the hue but lets the still show through it, so the corner
- * reads at a glance as "nearly" rather than competing with the real thing.
- */
-const badgeClass = computed(() =>
-  editing.value
-    ? 'border border-white/25 bg-accent/35 text-white backdrop-blur-md'
-    : 'bg-accent text-on-brand',
-)
-const badgeGlow = computed(() =>
-  editing.value ? 'var(--ui-glow-soft)' : 'var(--ui-glow-strong)',
-)
-// Scissors are drawn as line work — filling them the way the flame is filled
-// collapses the blades into a blob at 14px.
-const badgeIcon = computed(() => (editing.value ? Scissors : Flame))
-const discipline = computed(() => disciplineCode(match.value.format))
+const kind = computed(() => match.value.video_kind ?? 'match')
+const kindLabel = computed(() => t(`card.kind${kind.value === 'highlights' ? 'Highlights' : kind.value === 'edit' ? 'Edit' : 'Match'}`))
+/** The upload's own name, as on YouTube; the fixture when there is none. */
+const title = computed(() => match.value.youtube_title || props.entry.title)
+/** Highlights and edits are never tagged, so only a match says how far its edit got. */
+const tagState = computed(() => {
+  if (kind.value !== 'match') return null
+  if (match.value.tagging_status === 'tagged') return { label: t('card.edited'), icon: Flame, cls: 'border-transparent bg-accent text-on-brand', fill: true }
+  if (match.value.tagging_status === 'in_progress') return { label: t('card.editing'), icon: Scissors, cls: 'border-accent/50 bg-accent/20 text-accent', fill: false }
+  return null
+})
+/** Everyone but the two of us: we are on every match. */
+const opponents = computed(() => [...(match.value.match_players ?? [])]
+  .sort((a, b) => a.slot - b.slot)
+  .filter(p => p.players && !isHomePlayer(p.players))
+  .map(p => `${p.players!.first_name} ${p.players!.last_name}`))
 
 // The format has moved up into its own chip as DH/SH, so it would read twice
 // here — the date and the hall are what is left.
@@ -81,7 +77,7 @@ const resultClass = computed(() => {
     <NuxtLink
       :to="`/matches/${match.id}`"
       class="absolute inset-0 z-10 rounded-2xl"
-      :aria-label="entry.title"
+      :aria-label="title"
     />
     <!-- The lead card splits sideways rather than stacking: a full-width 16:9
          still is over 700px tall on a laptop, which buries everything after
@@ -128,31 +124,6 @@ const resultClass = computed(() => {
         class="absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-white backdrop-blur-sm"
       >{{ formatDuration(match.youtube_duration_seconds) }}</span>
 
-      <!-- "Edited", not "tagged": from the outside the promise is the live
-           score, the timeline and the stats, not the work that produced them.
-
-           Filled crimson rather than outlined over black — it is the one thing
-           on the card worth crossing the wall for, and an outline chip beside
-           the duration read as another piece of metadata.
-
-           A match under way wears the same chip reading "Editing", in the same
-           crimson but translucent — the work is worth announcing before it
-           lands, without pulling the eye off the ones that are done. -->
-      <span
-        v-if="tagged || editing"
-        class="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-xs font-bold uppercase tracking-[0.14em]"
-        :class="badgeClass"
-        :style="{ boxShadow: badgeGlow }"
-      >
-        <component
-          :is="badgeIcon"
-          :size="14"
-          :fill="editing ? 'none' : 'currentColor'"
-          aria-hidden="true"
-        />
-        {{ badgeLabel }}
-      </span>
-
       <!-- The opposite corner from the badge, and the same corner YouTube puts
            its own quality mark in. -->
       <span
@@ -177,24 +148,30 @@ const resultClass = computed(() => {
         class="font-display font-semibold uppercase leading-tight tracking-wide text-ink transition-colors duration-200 group-hover:text-accent"
         :class="featured ? 'text-xl sm:text-3xl' : 'text-base'"
       >
-        {{ entry.title }}
+        {{ title }}
       </h3>
 
       <!-- What the match was and how it ended, in that order. The set-by-set
            scores are the match page's job; a card that listed them made the
            row it belongs to unreadable at a glance. -->
       <ul class="mt-2 flex flex-wrap items-center gap-1.5">
-        <li v-if="entry.typeLabel">
-          <span :class="CHIP" class="border-line text-ink-muted">{{ entry.typeLabel }}</span>
-        </li>
         <li>
-          <span :class="CHIP" class="border-line text-ink-muted">{{ discipline }}</span>
+          <span :class="CHIP" class="border-line-strong text-ink">{{ kindLabel }}</span>
+        </li>
+        <li v-if="tagState">
+          <span :class="[CHIP, tagState.cls]">
+            <component :is="tagState.icon" :size="11" :fill="tagState.fill ? 'currentColor' : 'none'" aria-hidden="true" />
+            {{ tagState.label }}
+          </span>
         </li>
         <li v-if="showResult && entry.outcome">
           <span :class="[CHIP, resultClass]" :data-result="entry.outcome.state">
             <Trophy v-if="entry.outcome.state === 'won'" :size="10" aria-hidden="true" />
             <span class="tabular-nums">{{ entry.outcome.scoreLabel }}</span>
           </span>
+        </li>
+        <li v-for="name in opponents" :key="name">
+          <span class="rounded-md border border-accent/60 px-1.5 py-0.5 text-xs text-ink">{{ name }}</span>
         </li>
       </ul>
 

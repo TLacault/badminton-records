@@ -139,6 +139,10 @@ export default {
   },
 
   card: {
+    kindMatch: "Match",
+    kindHighlights: "Highlights",
+    kindEdit: "Edit",
+    extras: "Highlights & edits",
     edited: "Edited",
     editing: "Editing",
     fourK: "4K",
@@ -147,6 +151,7 @@ export default {
   },
 
   match: {
+    related: "From this match",
     label: "Match",
     resultHidden: "Result hidden — reveal",
     reveal: "Reveal the result",

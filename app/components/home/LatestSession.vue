@@ -7,7 +7,10 @@ const { bcp47 } = useI18n()
 
 const props = defineProps<{ session: Session<MatchEntry<ListRow>> | null }>()
 
-const rest = computed(() => props.session?.matches.slice(1) ?? [])
+const groups = computed(() => splitKinds(props.session?.matches ?? [], e => e.row))
+const lead = computed(() => groups.value.matches[0] ?? groups.value.extras[0] ?? null)
+const rest = computed(() => groups.value.matches.filter(e => e !== lead.value))
+const extras = computed(() => groups.value.extras.filter(e => e !== lead.value))
 </script>
 
 <template>
@@ -17,7 +20,7 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
         <UiSectionHeading
           :eyebrow="$t('home.latest.eyebrow')"
           :icon="CalendarDays"
-          :title="session ? formatDateLong(session.date, bcp47, $t('common.undated')) : $t('home.latest.none')"
+          :title="session ? [session.eventName, formatDateLong(session.date, bcp47, $t('common.undated'))].filter(Boolean).join(' · ') : $t('home.latest.none')"
           :lede="$t('home.latest.lede')"
         />
         <NuxtLink to="/videos" class="btn btn-ghost btn-sm">
@@ -29,7 +32,7 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
       <ul v-if="session" class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-muted">
         <li class="inline-flex items-center gap-1.5">
           <Clapperboard :size="14" class="text-accent" aria-hidden="true" />
-          {{ session.matches.length }} {{ session.matches.length === 1 ? 'match' : 'matches' }}
+          {{ session.matchCount }} {{ session.matchCount === 1 ? 'match' : 'matches' }}
         </li>
         <li v-if="session.totalSeconds" class="inline-flex items-center gap-1.5">
           <Timer :size="14" class="text-accent" aria-hidden="true" />
@@ -44,7 +47,7 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
 
     <template v-if="session">
       <UiReveal :delay="80" class="mt-8 block">
-        <VideoMatchCard :entry="session.matches[0]!" featured />
+        <VideoMatchCard v-if="lead" :entry="lead" featured />
       </UiReveal>
 
       <ul v-if="rest.length" class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -57,6 +60,17 @@ const rest = computed(() => props.session?.matches.slice(1) ?? [])
           <VideoMatchCard :entry="entry" />
         </UiReveal>
       </ul>
+
+      <template v-if="extras.length">
+        <h3 class="label mb-4 mt-8">
+          {{ $t('card.extras') }}
+        </h3>
+        <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <UiReveal v-for="(entry, i) in extras" :key="entry.row.id" as="li" :delay="i * 50">
+            <VideoMatchCard :entry="entry" />
+          </UiReveal>
+        </ul>
+      </template>
     </template>
 
     <UiReveal v-else class="mt-8 block">

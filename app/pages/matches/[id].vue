@@ -5,7 +5,7 @@ import type { PlayerInfoSource } from '~/utils/players'
 import type { ListRow } from '~/utils/videoFilters'
 import { ArrowLeft } from '@lucide/vue'
 import { deriveMatch } from '~~/shared/badminton'
-import { LIST_SELECT } from '~/utils/matchSummary'
+import { LIST_SELECT, withSource } from '~/utils/matchSummary'
 import { decorate } from '~/utils/videoFilters'
 
 const { t, bcp47 } = useI18n()
@@ -14,23 +14,38 @@ const route = useRoute()
 const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
 
+/** What a video keeps as its own when it is linked to the raw tagged match. */
+const OWN = ['id', 'title', 'youtube_title', 'youtube_video_id', 'youtube_duration_seconds', 'youtube_thumbnail_url', 'is_4k', 'video_kind', 'source_match_id', 'show_scoreboard', 'visibility'] as const
+
 const { data: bundle } = await useAsyncData(`match-${matchId}`, async () => {
-  const [match, participants, rallies, setStarts, breaks] = await Promise.all([
-    client.from('matches').select('*, match_types(label)').eq('id', matchId).maybeSingle(),
+  const { data: self } = await client.from('matches').select('*, match_types(label)').eq('id', matchId).maybeSingle()
+  // A linked video (public edit, highlights, edit) reads everything about the
+  // match from the raw tagged one: one copy of the data, no duplication.
+  const dataId = self?.source_match_id ?? matchId
+  const [source, participants, rallies, setStarts, breaks] = await Promise.all([
+    dataId !== matchId ? client.from('matches').select('*, match_types(label)').eq('id', dataId).maybeSingle() : Promise.resolve({ data: null }),
     client.from('match_players')
-      .select('slot, player_id, players(*)').eq('match_id', matchId),
-    client.from('rallies').select('*').eq('match_id', matchId).order('idx'),
-    client.from('match_set_starts').select('*').eq('match_id', matchId),
-    client.from('match_breaks').select('*').eq('match_id', matchId).order('idx'),
+      .select('slot, player_id, players(*)').eq('match_id', dataId),
+    client.from('rallies').select('*').eq('match_id', dataId).order('idx'),
+    client.from('match_set_starts').select('*').eq('match_id', dataId),
+    client.from('match_breaks').select('*').eq('match_id', dataId).order('idx'),
   ])
+  const merged = self && source.data
+    ? { ...source.data, ...Object.fromEntries(OWN.map(k => [k, self[k]])) } as typeof self
+    : self
   return {
-    match: match.data,
+    match: merged,
+    dataId,
     participants: participants.data ?? [],
     rallies: rallies.data ?? [],
     setStarts: setStarts.data ?? [],
     breaks: breaks.data ?? [],
   }
 })
+
+/** Linked videos are cut differently from the raw: the rallies' timestamps do not apply to them. */
+const linked = computed(() => Boolean(bundle.value?.match?.source_match_id))
+const showOverlay = computed(() => !linked.value && Boolean(bundle.value?.match?.show_scoreboard))
 
 const match = computed(() => bundle.value?.match ?? null)
 
@@ -260,8 +275,26 @@ const { data: feed } = await useAsyncData(`feed-${matchId}`, async () => {
   return (data ?? []) as unknown as ListRow[]
 })
 
+/** The other videos of the same match: the raw, the public edit, the highlights, the edit. */
+const { data: relatedRows } = await useAsyncData(`related-${matchId}`, async () => {
+  const dataId = bundle.value?.dataId ?? matchId
+  const { data } = await client
+    .from('matches')
+    .select(LIST_SELECT)
+    .eq('visibility', 'public')
+    .or(`id.eq.${dataId},source_match_id.eq.${dataId}`)
+    .neq('id', matchId)
+  return withSource((data ?? []) as unknown as (ListRow & { source?: unknown })[])
+})
+const related = computed(() => {
+  const order = ['match', 'highlights', 'edit']
+  return decorate(relatedRows.value ?? [])
+    .sort((a, b) => order.indexOf(a.row.video_kind ?? 'match') - order.indexOf(b.row.video_kind ?? 'match'))
+})
+
 const upNext = computed(() => {
-  const entries = decorate(feed.value ?? [])
+  const skip = new Set(related.value.map(e => e.row.id))
+  const entries = decorate(withSource((feed.value ?? []) as (ListRow & { source?: unknown })[])).filter(e => !skip.has(e.row.id))
   const sameDay = entries.filter(e => e.row.played_on && e.row.played_on === match.value?.played_on)
   const rest = entries.filter(e => !sameDay.includes(e))
   return [...sameDay, ...rest].slice(0, 3)
@@ -318,7 +351,7 @@ useSeoMeta({
       >
         <template #overlay="{ chromeVisible, isFullscreen }">
           <PlayerScoreBoard
-            v-if="scoreboard.visible.value"
+            v-if="showOverlay && scoreboard.visible.value"
             :playback="playback"
             :derived="derived"
             :names="names"
@@ -350,7 +383,7 @@ useSeoMeta({
             @toggle-mute="stage?.toggleMute()"
             @native-controls="stage?.enterNativeMode()"
           >
-            <template #timeline>
+            <template v-if="!linked" #timeline>
               <PlayerMatchTimeline
                 overlay
                 :derived="derived"
@@ -371,6 +404,7 @@ useSeoMeta({
            reaching: in a window there is room for it, and it stays put while
            the overlay comes and goes with the cursor. -->
       <PlayerMatchTimeline
+        v-if="!linked"
         class="mt-4"
         :derived="derived"
         :duration="playbackDuration"
@@ -380,7 +414,7 @@ useSeoMeta({
         @seek="seekAndPlay"
       />
 
-      <ul class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-ink-subtle sm:gap-x-5 sm:text-xs">
+      <ul v-if="!linked" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-ink-subtle sm:gap-x-5 sm:text-xs">
         <li v-for="item in legend" :key="item.key" class="inline-flex items-center gap-1.5">
           <span class="size-2.5 shrink-0 rounded-sm" :class="item.swatch" aria-hidden="true" />
           {{ item.label }}
@@ -388,7 +422,18 @@ useSeoMeta({
       </ul>
     </div>
 
-    <div class="mt-8 rounded-2xl p-5 glass sm:p-6">
+    <section v-if="related.length" class="mt-8">
+      <h2 class="label">
+        {{ $t('match.related') }}
+      </h2>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <li v-for="other in related" :key="other.row.id">
+          <VideoMatchCard :entry="other" />
+        </li>
+      </ul>
+    </section>
+
+    <div v-if="!linked" class="mt-8 rounded-2xl p-5 glass sm:p-6">
       <h2 class="label">
         {{ $t('match.jumpTo') }}
       </h2>

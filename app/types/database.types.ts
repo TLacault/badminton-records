@@ -213,8 +213,10 @@ export type Database = {
           points_to_win: number
           publish_settings: Json
           round: string | null
+          show_scoreboard: boolean
           side1_right_court_slot: number | null
           side2_right_court_slot: number | null
+          source_match_id: string | null
           tagging_status: string
           title: string
           updated_at: string
@@ -247,8 +249,10 @@ export type Database = {
           points_to_win?: number
           publish_settings?: Json
           round?: string | null
+          show_scoreboard?: boolean
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
+          source_match_id?: string | null
           tagging_status?: string
           title: string
           updated_at?: string
@@ -281,8 +285,10 @@ export type Database = {
           points_to_win?: number
           publish_settings?: Json
           round?: string | null
+          show_scoreboard?: boolean
           side1_right_court_slot?: number | null
           side2_right_court_slot?: number | null
+          source_match_id?: string | null
           tagging_status?: string
           title?: string
           updated_at?: string
@@ -310,6 +316,13 @@ export type Database = {
             columns: ["match_type_id"]
             isOneToOne: false
             referencedRelation: "match_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_source_match_id_fkey"
+            columns: ["source_match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
             referencedColumns: ["id"]
           },
         ]
