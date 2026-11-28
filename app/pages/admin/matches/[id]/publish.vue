@@ -121,8 +121,10 @@ function seek(t: number) {
 }
 
 // --- the edit
-const plan = computed(() => derived.value && sourceDuration.value
-  ? buildEdit({ derived: derived.value, breaks: breaks.value, sourceDuration: sourceDuration.value, settings: settings.value })
+// The file's own length once the player has read it, else YouTube's (the pipeline renders with no player shown).
+const duration = computed(() => sourceDuration.value || Number(match.value?.youtube_duration_seconds ?? 0))
+const plan = computed(() => derived.value && duration.value
+  ? buildEdit({ derived: derived.value, breaks: breaks.value, sourceDuration: duration.value, settings: settings.value })
   : null)
 
 const inCut = computed(() => !!plan.value && !plan.value.segments.some(s => now.value >= s.from && now.value < s.to))
@@ -188,7 +190,7 @@ const renderResult = ref<{ dir: string, video: string } | null>(null)
 const upper = (s: string) => s.toUpperCase()
 const card = computed(() => (info.value ? cardText(info.value, family.value.id) : { tag: '', event: '', detail: '', place: '' }))
 
-function request(draft: boolean): RenderRequest | null {
+function request(draft: boolean, height?: number): RenderRequest | null {
   const p = plan.value
   const i = info.value
   if (!p || !i || !videoId.value) return null
@@ -236,7 +238,7 @@ function request(draft: boolean): RenderRequest | null {
     corner: settings.value.scoreboardCorner,
     sides,
     crop: settings.value.crop,
-    outputHeight: settings.value.outputHeight,
+    outputHeight: (height ?? settings.value.outputHeight) as RenderRequest['outputHeight'],
     draft,
     title: title.value,
     description: description.value,
@@ -244,8 +246,8 @@ function request(draft: boolean): RenderRequest | null {
 }
 
 const renderError = ref<string | null>(null)
-async function render(draft: boolean) {
-  const body = request(draft)
+async function render(draft: boolean, height?: number) {
+  const body = request(draft, height)
   if (!body) return
   renderError.value = null
   renderResult.value = null
@@ -254,6 +256,13 @@ async function render(draft: boolean) {
     const { job: started } = await $fetch<{ job: ReelJob }>('/api/publish/render', { method: 'POST', body })
     const out = await job.watch(started)
     renderResult.value = out as { dir: string, video: string }
+    saveKit(matchId, {
+      kind: 'match',
+      title: title.value,
+      description: description.value,
+      path: renderResult.value.video,
+      thumb: { template: template.value, lines: lines.value, colour: family.value.colour, matchId, fileStem: `thumbnail-${matchId.slice(0, 8)}` },
+    })
     // Where the raw footage lands in this render, for the linked YouTube video.
     if (plan.value) await saveEditMap(client as never, matchId, 'match', youtubeEditMap(plan.value.segments, settings.value.intro ? INTRO_SECONDS : 0))
   }
@@ -262,6 +271,18 @@ async function render(draft: boolean) {
       ?? (cause instanceof Error ? cause.message : String(cause))
   }
 }
+
+// The pipeline mounts this page out of sight and renders through it, so its
+// output is exactly the one the Render button makes.
+defineExpose({
+  ready: computed(() => !!plan.value && source.precise.value),
+  progress: job.progress,
+  message: computed(() => job.job.value?.message ?? ''),
+  async run(height: number) {
+    await render(false, height)
+    if (renderError.value) throw new Error(renderError.value)
+  },
+})
 
 const tab = ref<'edit' | 'thumbnail' | 'text' | 'export'>('edit')
 const TABS = [

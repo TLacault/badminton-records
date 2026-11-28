@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Clapperboard, Film, SlidersHorizontal, Smartphone, Sparkles, Tag, Wand2 } from '@lucide/vue'
+import { ArrowLeft, Clapperboard, Film, SlidersHorizontal, Smartphone, Sparkles, Tag, Wand2, Workflow } from '@lucide/vue'
 
 /**
  * The bar over a match's admin pages, kept in the layout so it never reloads.
@@ -7,9 +7,10 @@ import { ArrowLeft, Clapperboard, Film, SlidersHorizontal, Smartphone, Sparkles,
  * Left, what has been made: the four videos of the match (the raw recording
  * and the three linked to it), each opening its page as the site shows it;
  * one not made yet is greyed out. Then Setup, for the video in view.
- * Right, what makes them: the four tools, which all work on the raw.
+ * Right, what makes them: the pipeline that runs the whole chain, then the
+ * four tools, which all work on the raw.
  */
-type Tool = 'view' | 'tag' | 'publish' | 'highlights' | 'shorts' | 'setup'
+type Tool = 'view' | 'pipeline' | 'tag' | 'publish' | 'highlights' | 'shorts' | 'setup'
 const props = defineProps<{ matchId: string, current: Tool }>()
 
 const client = useSupabaseClient()
@@ -33,6 +34,7 @@ const MADE = [
 const made = computed(() => MADE.map(m => ({ ...m, id: family.value?.videos.find(v => v.video_kind === m.kind)?.id ?? null })))
 
 const CREATE = [
+  { id: 'pipeline', label: 'Pipeline', icon: Workflow, path: '/pipeline' },
   { id: 'tag', label: 'Tag', icon: Tag, path: '/tag' },
   { id: 'publish', label: 'YouTube', icon: Clapperboard, path: '/publish' },
   { id: 'highlights', label: 'Highlights', icon: Sparkles, path: '/highlights' },

@@ -383,25 +383,55 @@ watch(() => JSON.stringify(project.value), () => {
   renderUrl.value = null
 })
 
-async function render() {
+async function render(height?: ReelProject['output']['height']) {
   renderError.value = null
   try {
     await source.upload()
+    const body = withBoards()
+    if (height) body.project = { ...body.project, output: { ...body.project.output, height } }
     const started = await $fetch<{ ready: boolean, name: string, job: ReelJob | null }>(
       '/api/reel/render',
-      { method: 'POST', body: { ...withBoards(), brand: brand.value } },
+      { method: 'POST', body: { ...body, brand: brand.value } },
     )
     if (!started.ready && started.job) await renderJob.watch(started.job)
     // Where the raw footage lands in this render: the linked highlights / edit read it.
     await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'shorts', clipEditMap(pieces.value))
     const file = projectFileName(project.value, 'mp4')
     renderUrl.value = `/api/reel/media/out/${started.name}?download=1&name=${encodeURIComponent(file)}`
+    saveKit(matchId, {
+      kind: orientation.value === 'landscape' ? 'highlights' : 'shorts',
+      title: project.value.name,
+      description: description.value,
+      url: renderUrl.value,
+      thumb: {
+        template: thumbTemplate.value,
+        lines: thumbLines.value,
+        colour: family.value?.colour ?? '#cb2543',
+        matchId,
+        fileStem: `clip-thumbnail-${matchId.slice(0, 8)}`,
+        highlights: orientation.value === 'landscape' ? 'HIGHLIGHTS' : '',
+        saveable: false,
+        vertical: orientation.value === 'portrait',
+        tag: family.value?.label.toUpperCase() ?? '',
+      },
+    })
   }
   catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
     renderError.value = (cause as { statusMessage?: string })?.statusMessage ?? message
   }
 }
+
+// The pipeline mounts the editor out of sight and renders through it.
+defineExpose({
+  ready: computed(() => !!brand.value && !drawing.value && project.value.clips.length > 0 && source.precise.value),
+  progress: renderJob.progress,
+  message: computed(() => renderJob.job.value?.message ?? ''),
+  async run(height: ReelProject['output']['height']) {
+    await render(height)
+    if (renderError.value) throw new Error(renderError.value)
+  },
+})
 
 async function onOpenProject(file: File) {
   await openFile(file)
@@ -665,7 +695,7 @@ useSeoMeta({
               @attach="source.attach"
               @fetch-source="source.fetchSource()"
               @forget="source.forget()"
-              @render="render"
+              @render="render()"
               @save="saveProject"
               @open="onOpenProject"
             />
