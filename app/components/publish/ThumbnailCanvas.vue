@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Download, Save } from '@lucide/vue'
-import { drawThumbnail, drawVerticalThumbnail, exportThumbnail, loadImage, loadThumbnailFont, loadWordmarkFont, THUMB_H, THUMB_W, VTHUMB_H, VTHUMB_W } from '~/utils/thumbnail'
+import { exportThumbnail, renderThumbnail, THUMB_H, THUMB_W, VTHUMB_H, VTHUMB_W } from '~/utils/thumbnail'
 
 /**
  * Live thumbnail: Tim's template + the two bands, redrawn on every keystroke.
@@ -30,25 +30,12 @@ const sizes = computed(() => (props.vertical ? [VTHUMB_W] : [1280, THUMB_W]))
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref<string | null>(null)
 const saved = ref<string | null>(null)
-let image: HTMLImageElement | null = null
-let portrait: Promise<[HTMLImageElement, HTMLImageElement]> | null = null
 
 async function redraw() {
   if (!canvas.value) return
   try {
-    await loadThumbnailFont('/api/publish/brand/fonts/Poppins-BoldItalic.ttf')
     await nextTick() // the canvas resizes when `vertical` flips, which clears it
-    const ctx = canvas.value.getContext('2d')!
-    if (props.vertical) {
-      await loadWordmarkFont('/api/publish/brand/fonts/BarlowCondensed-BlackItalic.ttf')
-      portrait ??= Promise.all([loadImage('/api/publish/brand/video/assets/portrait-bg.jpg'), loadImage('/api/publish/brand/video/assets/logo.png')])
-      const [bg, logo] = await portrait
-      drawVerticalThumbnail(ctx, bg, logo, props.tag, props.lines, props.colour, props.highlights)
-    }
-    else {
-      if (!image || !image.src.endsWith(`/${props.template}`)) image = await loadImage(`/api/publish/brand/thumbnail/${props.template}`)
-      drawThumbnail(ctx, image, props.lines, props.colour, props.highlights)
-    }
+    await renderThumbnail(canvas.value, props)
     error.value = null
   }
   catch (cause) {

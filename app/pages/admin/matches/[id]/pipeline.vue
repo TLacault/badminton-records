@@ -1,44 +1,240 @@
 <script setup lang="ts">
 import type { Database } from '~/types/database.types'
-import type { KitKind, UploadKit } from '~/utils/pipelineKit'
-import { BellRing, Check, CircleAlert, Clapperboard, Copy, Download, ExternalLink, Hourglass, Pause, Play, RefreshCw, RotateCcw, Smartphone, Sparkles, Tag, Upload, Workflow } from '@lucide/vue'
+import type { KitKind, RenderNote } from '~/utils/pipelineKit'
+import { BellRing, Check, CircleAlert, Clapperboard, Copy, Download, ExternalLink, Film, FolderOpen, LoaderCircle, Pause, Play, RefreshCw, RotateCcw, Smartphone, Sparkles, Tag, Upload, Workflow } from '@lucide/vue'
 import PublishTool from './publish.vue'
 
 /**
- * The whole chain for one raw match, run from this tab: download the source,
- * wait for the tagging, render the YouTube edit and the Highlights, wait for
- * their upload, wait for the Shorts, wait for its upload. Machine steps run on
- * their own; at a step that needs Tim it stops, notifies and polls until the
- * work shows up (tagged in the DB, a render kit, the video on the channel).
+ * The whole chain for one raw match, run from this tab, as four docks: the raw
+ * (download, tagging), then YouTube, Highlights and Shorts (make, upload).
+ * The three videos only wait for the raw; renders run one at a time, the
+ * waits for Tim run side by side. At a step that needs Tim it notifies and
+ * polls until the work shows up (tagged in the DB, a Shorts render, the video
+ * on the channel, which it then links to the raw).
  *
  * Renders go through the real tools, mounted out of sight, so a pipeline
- * render is the same file the tool's Render button makes. Progress is kept per
- * match in localStorage: a reload resumes at the first unfinished step.
+ * render is the file the tool's Render button makes. Each render fills an
+ * upload folder (video, thumbnail, title, description) the dock opens in the
+ * file manager. Progress is kept per match in localStorage.
  */
 definePageMeta({ middleware: 'admin', layout: 'admin', wide: true, matchTool: 'pipeline', pageTransition: false })
 
 const route = useRoute()
+const NuxtLink = resolveComponent('NuxtLink')
 const matchId = route.params.id as string
 const client = useSupabaseClient<Database>()
 
 const { data: match, refresh: refreshMatch } = await useAsyncData(`pipeline-${matchId}`, async () => {
-  const { data } = await client.from('matches').select('id, title, youtube_title, youtube_video_id, tagging_status, video_kind').eq('id', matchId).maybeSingle()
+  const { data } = await client.from('matches').select('id, title, youtube_title, youtube_video_id, youtube_thumbnail_url, tagging_status, video_kind').eq('id', matchId).maybeSingle()
   return data
 })
 
-// ── State ───────────────────────────────────────────────────────────────────
+/** The videos already linked to this raw, for the docks' pictures and links. */
+const { data: linkedVideos, refresh: refreshLinked } = await useAsyncData(`pipeline-linked-${matchId}`, async () => {
+  const { data } = await client.from('matches').select('id, video_kind, youtube_thumbnail_url').eq('source_match_id', matchId)
+  return data ?? []
+})
+const linkedOf = (kind: KitKind) => linkedVideos.value?.find(v => v.video_kind === kind) ?? null
 
-type StepId = 'download' | 'tag' | 'youtube' | 'highlights' | 'upload' | 'shorts' | 'upload-shorts'
+// ── Steps ───────────────────────────────────────────────────────────────────
+
+type StepId = 'download' | 'tag' | 'yt-render' | 'yt-upload' | 'hl-render' | 'hl-upload' | 'sh-make' | 'sh-upload'
 type Status = 'todo' | 'running' | 'waiting' | 'done' | 'error'
 interface StepState { status: Status, message?: string, since?: number }
+
+interface Step {
+  id: StepId
+  label: string
+  /** Needs Tim: notifies and waits for the work to show up. */
+  human?: boolean
+  /** Renders: one at a time. */
+  exclusive?: boolean
+  after: StepId[]
+  /** Upload steps: the video they wait for. */
+  upload?: KitKind
+  run: () => Promise<boolean | void>
+}
+
 const HEIGHTS = [2160, 1440, 1080, 720] as const
 type Height = typeof HEIGHTS[number]
 
-const STORAGE_KEY = `ust-pipeline-v1:${matchId}`
+const STORAGE_KEY = `ust-pipeline-v2:${matchId}`
 const state = ref<{ height: Height, steps: Partial<Record<StepId, StepState>> }>({ height: 2160, steps: {} })
 const step = (id: StepId): StepState => state.value.steps[id] ?? { status: 'todo' }
 function set(id: StepId, next: StepState) {
   state.value.steps = { ...state.value.steps, [id]: next }
+}
+
+// ── Runner ──────────────────────────────────────────────────────────────────
+
+const active = ref(false)
+const pauseAsked = ref(false)
+const wakers = new Set<() => void>()
+const wakeAll = () => [...wakers].forEach(w => w())
+
+/** Sleep that Pause and "Check now" cut short. */
+const nap = (ms: number) => new Promise<void>((resolve) => {
+  const done = () => {
+    clearTimeout(t)
+    wakers.delete(done)
+    resolve()
+  }
+  const t = setTimeout(done, ms)
+  wakers.add(done)
+})
+
+/** Polls until `check` holds; false when paused (past the deadline, it throws). */
+async function waitFor(check: () => boolean | Promise<boolean>, every: number, timeout?: { ms: number, message: string }) {
+  const end = timeout ? Date.now() + timeout.ms : Infinity
+  while (!pauseAsked.value) {
+    if (await check()) return true
+    if (Date.now() > end) throw new Error(timeout!.message)
+    await nap(every)
+  }
+  return false
+}
+
+const source = useReelSource(computed(() => match.value?.youtube_video_id ?? null))
+
+// The tool a render runs through, mounted hidden at the bottom of the page.
+const tool = ref<{ ready: boolean, progress: number | null, message: string, run: (h: Height) => Promise<void> } | null>(null)
+const mounted = ref<'youtube' | 'highlights' | null>(null)
+async function renderWith(which: 'youtube' | 'highlights') {
+  mounted.value = which
+  try {
+    const ready = await waitFor(() => !!tool.value?.ready, 500, {
+      ms: 120_000,
+      message: which === 'highlights' ? 'Nothing to render: no starred rally?' : 'The YouTube edit could not be built',
+    })
+    if (!ready) return false
+    await tool.value!.run(state.value.height)
+    loadKits()
+  }
+  finally {
+    mounted.value = null
+  }
+}
+
+const kits = ref<Record<KitKind, RenderNote | null>>({ match: null, highlights: null, shorts: null })
+function loadKits() {
+  kits.value = { match: readKit(matchId, 'match'), highlights: readKit(matchId, 'highlights'), shorts: readKit(matchId, 'shorts') }
+}
+
+/** One channel import serves every upload step polling at the same time. */
+let importing: Promise<unknown> | null = null
+let importedAt = 0
+function importChannel() {
+  if (!importing || Date.now() - importedAt > 20_000) {
+    importedAt = Date.now()
+    importing = $fetch<unknown>('/api/youtube/import' as string, { method: 'POST' })
+  }
+  return importing
+}
+
+/** Done once the video is on the channel (found by its title) and linked to this raw. */
+async function uploaded(kind: KitKind) {
+  await importChannel()
+  const kit = kits.value[kind]
+  if (kit) {
+    const { data } = await client.from('matches').select('id, source_match_id').eq('youtube_title', kit.title.trim()).neq('id', matchId).limit(1)
+    const row = data?.[0]
+    if (row && row.source_match_id !== matchId) await client.from('matches').update({ source_match_id: matchId }).eq('id', row.id)
+  }
+  await refreshLinked()
+  if (!linkedOf(kind)) return false
+  refreshNuxtData('admin-match-nav')
+  return true
+}
+
+const STEPS: Step[] = [
+  {
+    id: 'download',
+    label: 'Download',
+    after: [],
+    async run() {
+      await source.fetchSource(state.value.height)
+      if (source.error.value) throw new Error(source.error.value)
+    },
+  },
+  {
+    id: 'tag',
+    label: 'Tag',
+    human: true,
+    after: [],
+    run: () => waitFor(async () => {
+      await refreshMatch()
+      return match.value?.tagging_status === 'tagged'
+    }, 5000),
+  },
+  { id: 'yt-render', label: 'Render', exclusive: true, after: ['download', 'tag'], run: () => renderWith('youtube') },
+  { id: 'yt-upload', label: 'Upload', human: true, upload: 'match', after: ['yt-render'], run: () => waitFor(() => uploaded('match'), 60_000) },
+  { id: 'hl-render', label: 'Render', exclusive: true, after: ['download', 'tag'], run: () => renderWith('highlights') },
+  { id: 'hl-upload', label: 'Upload', human: true, upload: 'highlights', after: ['hl-render'], run: () => waitFor(() => uploaded('highlights'), 60_000) },
+  {
+    id: 'sh-make',
+    label: 'Pick & render',
+    human: true,
+    after: ['download', 'tag'],
+    run: () => waitFor(() => {
+      loadKits()
+      return (kits.value.shorts?.at ?? 0) > (step('sh-make').since ?? 0)
+    }, 3000),
+  },
+  { id: 'sh-upload', label: 'Upload', human: true, upload: 'shorts', after: ['sh-make'], run: () => waitFor(() => uploaded('shorts'), 60_000) },
+]
+const byId = Object.fromEntries(STEPS.map(s => [s.id, s])) as Record<StepId, Step>
+const ready = (s: Step) => s.after.every(d => step(d).status === 'done')
+
+const errorText = (cause: unknown) => (cause as { data?: { statusMessage?: string } })?.data?.statusMessage ?? (cause instanceof Error ? cause.message : String(cause))
+
+async function launch(s: Step) {
+  set(s.id, { status: s.human ? 'waiting' : 'running', since: step(s.id).since ?? Date.now() })
+  if (s.human) notify(`Your turn: ${DOCK_OF[s.id].label} · ${s.label}`)
+  try {
+    const result = await s.run()
+    set(s.id, result === false ? { ...step(s.id), status: 'todo' } : { status: 'done', since: step(s.id).since })
+  }
+  catch (cause) {
+    set(s.id, { status: 'error', message: errorText(cause) })
+    notify(`${DOCK_OF[s.id].label} · ${s.label} failed: ${errorText(cause)}`)
+  }
+}
+
+/** Starts every step whose inputs are done (one render at a time), until nothing is left to start. */
+async function start() {
+  if (active.value) return
+  if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission()
+  active.value = true
+  pauseAsked.value = false
+  const running = new Map<StepId, Promise<void>>()
+  try {
+    while (true) {
+      if (!pauseAsked.value) {
+        for (const s of STEPS) {
+          if (running.has(s.id) || step(s.id).status !== 'todo' || !ready(s)) continue
+          if (s.exclusive && [...running.keys()].some(id => byId[id].exclusive)) continue
+          running.set(s.id, launch(s).finally(() => running.delete(s.id)))
+        }
+      }
+      if (!running.size) break
+      await Promise.race(running.values())
+    }
+    if (allDone.value) notify('Pipeline done: every video is up and linked.')
+  }
+  finally {
+    active.value = false
+    pauseAsked.value = false
+  }
+}
+
+function pause() {
+  pauseAsked.value = true
+  wakeAll()
+}
+
+/** Back to to-do; the next Start runs it again. */
+function redo(id: StepId) {
+  set(id, { status: 'todo' })
 }
 
 onMounted(() => {
@@ -57,204 +253,9 @@ onMounted(() => {
 })
 watch(state, () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state.value)), { deep: true })
 
-// ── Runner ──────────────────────────────────────────────────────────────────
-
-const active = ref(false)
-const pauseAsked = ref(false)
-let wake: (() => void) | null = null
-
-/** Sleep that Pause and "Check now" cut short. */
-const nap = (ms: number) => new Promise<void>((resolve) => {
-  const t = setTimeout(done, ms)
-  function done() {
-    clearTimeout(t)
-    wake = null
-    resolve()
-  }
-  wake = done
-})
-
-/** Polls until `check` holds; false when paused (or past the deadline, which throws). */
-async function waitFor(check: () => boolean | Promise<boolean>, every: number, timeout?: { ms: number, message: string }) {
-  const end = timeout ? Date.now() + timeout.ms : Infinity
-  while (!pauseAsked.value) {
-    if (await check()) return true
-    if (Date.now() > end) throw new Error(timeout!.message)
-    await nap(every)
-  }
-  return false
-}
-
-const source = useReelSource(computed(() => match.value?.youtube_video_id ?? null))
-
-// The tool a render step is running through, mounted hidden below.
-const tool = ref<{ ready: boolean, progress: number | null, message: string, run: (h: Height) => Promise<void> } | null>(null)
-const mounted = ref<'youtube' | 'highlights' | null>(null)
-async function renderWith(which: 'youtube' | 'highlights') {
-  mounted.value = which
-  try {
-    const ready = await waitFor(() => !!tool.value?.ready, 500, {
-      ms: 120_000,
-      message: which === 'highlights' ? 'The Highlights editor has nothing to render (no starred rally?)' : 'The YouTube editor could not build the edit',
-    })
-    if (!ready) return false
-    await tool.value!.run(state.value.height)
-    loadKits()
-  }
-  finally {
-    mounted.value = null
-  }
-}
-
-const kits = ref<Record<KitKind, UploadKit | null>>({ match: null, highlights: null, shorts: null })
-const found = ref<Partial<Record<KitKind, boolean>>>({})
-function loadKits() {
-  kits.value = { match: readKit(matchId, 'match'), highlights: readKit(matchId, 'highlights'), shorts: readKit(matchId, 'shorts') }
-}
-
-/** Imports the channel, then links each kit's video to this raw once it shows up (matched by title). */
-async function linked(kinds: KitKind[]) {
-  await $fetch('/api/youtube/import', { method: 'POST' })
-  for (const kind of kinds) {
-    const kit = kits.value[kind]
-    if (!kit || found.value[kind]) continue
-    const { data } = await client.from('matches').select('id, source_match_id').eq('youtube_title', kit.title.trim()).neq('id', matchId).limit(1)
-    const row = data?.[0]
-    if (!row) continue
-    if (row.source_match_id !== matchId) await client.from('matches').update({ source_match_id: matchId }).eq('id', row.id)
-    found.value = { ...found.value, [kind]: true }
-  }
-  if (kinds.every(k => found.value[k])) refreshNuxtData('admin-match-nav')
-  return kinds.every(k => found.value[k])
-}
-
-interface Step {
-  id: StepId
-  label: string
-  icon: typeof Tag
-  /** Needs Tim: stops, notifies and waits. */
-  human?: boolean
-  /** Upload steps: the kits shown to upload. */
-  kits?: KitKind[]
-  run: () => Promise<boolean | void>
-}
-
-const STEPS: Step[] = [
-  {
-    id: 'download',
-    label: 'Download source',
-    icon: Download,
-    async run() {
-      await source.fetchSource(state.value.height)
-      if (source.error.value) throw new Error(source.error.value)
-    },
-  },
-  {
-    id: 'tag',
-    label: 'Tag the match',
-    icon: Tag,
-    human: true,
-    run: () => waitFor(async () => {
-      await refreshMatch()
-      return match.value?.tagging_status === 'tagged'
-    }, 5000),
-  },
-  { id: 'youtube', label: 'Render YouTube', icon: Clapperboard, run: () => renderWith('youtube') },
-  { id: 'highlights', label: 'Render Highlights', icon: Sparkles, run: () => renderWith('highlights') },
-  {
-    id: 'upload',
-    label: 'Upload YouTube + Highlights',
-    icon: Upload,
-    human: true,
-    kits: ['match', 'highlights'],
-    run: () => waitFor(() => linked(['match', 'highlights']), 60_000),
-  },
-  {
-    id: 'shorts',
-    label: 'Make the Shorts',
-    icon: Smartphone,
-    human: true,
-    run: () => waitFor(() => {
-      loadKits()
-      return (kits.value.shorts?.at ?? 0) > (step('shorts').since ?? 0)
-    }, 3000),
-  },
-  {
-    id: 'upload-shorts',
-    label: 'Upload Shorts',
-    icon: Upload,
-    human: true,
-    kits: ['shorts'],
-    run: () => waitFor(() => linked(['shorts']), 60_000),
-  },
-]
-
-const TURN: Partial<Record<StepId, { text: string, to: string, label: string }>> = {
-  tag: { text: 'Tag every rally, then mark the match tagged. The chain carries on by itself.', to: `/admin/matches/${matchId}/tag`, label: 'Open the tagger' },
-  shorts: { text: 'Pick the shots and render in the Shorts tool. The chain picks the render up.', to: `/admin/matches/${matchId}/shorts`, label: 'Open Shorts' },
-  upload: { text: 'Upload both with the title, description and thumbnail below (public). Checked every minute; linked when found.', to: 'https://studio.youtube.com', label: 'YouTube Studio' },
-  'upload-shorts': { text: 'Upload the Short with the text and cover below. Checked every minute; linked when found.', to: 'https://studio.youtube.com', label: 'YouTube Studio' },
-}
-
-async function start() {
-  if (active.value) return
-  if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission()
-  active.value = true
-  pauseAsked.value = false
-  try {
-    for (const s of STEPS) {
-      if (step(s.id).status === 'done') continue
-      if (pauseAsked.value) break
-      set(s.id, { status: s.human ? 'waiting' : 'running', since: step(s.id).since ?? Date.now() })
-      if (s.human) notify(`Your turn: ${s.label}`)
-      try {
-        const result = await s.run()
-        if (result === false) {
-          set(s.id, { ...step(s.id), status: 'todo' })
-          break
-        }
-        set(s.id, { status: 'done', since: step(s.id).since })
-      }
-      catch (cause) {
-        const message = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage ?? (cause instanceof Error ? cause.message : String(cause))
-        set(s.id, { status: 'error', message })
-        notify(`${s.label} failed: ${message}`)
-        break
-      }
-    }
-    if (allDone.value) notify('Pipeline done: every video is up and linked.')
-  }
-  finally {
-    active.value = false
-    pauseAsked.value = false
-  }
-}
-
-function pause() {
-  pauseAsked.value = true
-  wake?.()
-}
-
-function checkNow() {
-  wake?.()
-}
-
-/** Back to to-do; the next Start runs it again. */
-function redo(id: StepId) {
-  set(id, { status: 'todo' })
-  if (id === 'upload') found.value = { ...found.value, match: false, highlights: false }
-  if (id === 'upload-shorts') found.value = { ...found.value, shorts: false }
-}
-
-const allDone = computed(() => STEPS.every(s => step(s.id).status === 'done'))
-const started = computed(() => STEPS.some(s => step(s.id).status !== 'todo'))
-const doneCount = computed(() => STEPS.filter(s => step(s.id).status === 'done').length)
-const yourTurn = computed(() => STEPS.find(s => step(s.id).status === 'waiting'))
-
 // ── Telling Tim ─────────────────────────────────────────────────────────────
 
 function notify(body: string) {
-  if (!import.meta.client) return
   if ('Notification' in window && Notification.permission === 'granted') new Notification('Badminton Records', { body })
   try {
     const ctx = new AudioContext()
@@ -270,24 +271,78 @@ function notify(body: string) {
   catch {}
 }
 
+const allDone = computed(() => STEPS.every(s => step(s.id).status === 'done'))
+const started = computed(() => STEPS.some(s => step(s.id).status !== 'todo'))
+const doneCount = computed(() => STEPS.filter(s => step(s.id).status === 'done').length)
+const turns = computed(() => STEPS.filter(s => step(s.id).status === 'waiting').length)
+
 // Critical: the hidden tool sets its own title while it renders.
-useHead({ title: computed(() => `${yourTurn.value ? '● ' : active.value ? '▶ ' : ''}Pipeline`) }, { tagPriority: 'critical' })
+useHead({ title: computed(() => `${turns.value ? '● ' : active.value ? '▶ ' : ''}Pipeline`) }, { tagPriority: 'critical' })
 
-// ── Display ─────────────────────────────────────────────────────────────────
+// ── Docks ───────────────────────────────────────────────────────────────────
 
-function progressOf(s: Step) {
-  const st = step(s.id).status
+const DOCKS = [
+  { id: 'raw', label: 'Raw', icon: Film, steps: ['download', 'tag'] as StepId[], kind: null },
+  { id: 'match', label: 'YouTube', icon: Clapperboard, steps: ['yt-render', 'yt-upload'] as StepId[], kind: 'match' as const },
+  { id: 'highlights', label: 'Highlights', icon: Sparkles, steps: ['hl-render', 'hl-upload'] as StepId[], kind: 'highlights' as const },
+  { id: 'shorts', label: 'Shorts', icon: Smartphone, steps: ['sh-make', 'sh-upload'] as StepId[], kind: 'shorts' as const },
+]
+type Dock = typeof DOCKS[number]
+const DOCK_OF = Object.fromEntries(DOCKS.flatMap(d => d.steps.map(id => [id, d]))) as Record<StepId, Dock>
+
+const STEP_ICON: Record<StepId, typeof Tag> = {
+  'download': Download,
+  'tag': Tag,
+  'yt-render': Clapperboard,
+  'hl-render': Sparkles,
+  'sh-make': Smartphone,
+  'yt-upload': Upload,
+  'hl-upload': Upload,
+  'sh-upload': Upload,
+}
+
+/** Where a waiting step sends Tim. */
+const OPEN: Partial<Record<StepId, { to: string, label: string }>> = {
+  'tag': { to: `/admin/matches/${matchId}/tag`, label: 'Tagger' },
+  'sh-make': { to: `/admin/matches/${matchId}/shorts`, label: 'Shorts tool' },
+}
+
+function picture(d: Dock) {
+  if (!d.kind) return { src: match.value?.youtube_thumbnail_url ?? null, to: `/admin/matches/${matchId}` }
+  const v = linkedOf(d.kind)
+  return { src: v?.youtube_thumbnail_url ?? kits.value[d.kind]?.preview ?? null, to: v ? `/admin/matches/${v.id}` : null }
+}
+
+/** One word for the dock's corner. */
+function dockState(d: Dock): { text: string, tone: 'turn' | 'live' | 'done' | 'error' | 'idle' } {
+  const states = d.steps.map(step)
+  if (states.some(s => s.status === 'error')) return { text: 'Failed', tone: 'error' }
+  if (states.some(s => s.status === 'waiting')) return { text: 'Your turn', tone: 'turn' }
+  const run = d.steps.find(id => step(id).status === 'running')
+  if (run) return { text: `${Math.round(progressOf(run) * 100)}%`, tone: 'live' }
+  if (states.every(s => s.status === 'done')) return { text: d.kind ? 'On YouTube' : 'Ready', tone: 'done' }
+  if (d.kind && linkedOf(d.kind)) return { text: 'On YouTube', tone: 'done' }
+  return { text: d.steps.some(id => ready(byId[id])) ? 'Next' : 'Waits for raw', tone: 'idle' }
+}
+
+function progressOf(id: StepId) {
+  const st = step(id).status
   if (st === 'done') return 1
   if (st !== 'running') return 0
-  if (s.id === 'download') return source.progress.value ?? 0
+  if (id === 'download') return source.progress.value ?? 0
   return tool.value?.progress ?? 0
 }
-function labelOf(s: Step) {
-  const st = step(s.id)
-  if (st.status === 'error') return st.message ?? 'Failed'
-  if (st.status === 'done') return 'Done'
-  if (st.status === 'running') return s.id === 'download' ? (source.message.value || 'Downloading') : tool.value?.ready ? (tool.value.message || 'Rendering') : 'Preparing the edit'
-  return 'Waiting'
+
+function detailOf(id: StepId) {
+  const st = step(id)
+  const s = byId[id]
+  switch (st.status) {
+    case 'error': return st.message ?? 'Failed'
+    case 'done': return s.upload ? 'Linked' : id === 'download' ? 'On disk' : 'Done'
+    case 'running': return id === 'download' ? (source.message.value || 'Downloading') : tool.value?.ready ? (tool.value.message || 'Rendering') : 'Preparing'
+    case 'waiting': return s.upload ? 'Checked every minute' : id === 'tag' ? 'Mark it tagged when done' : 'Render it in the tool'
+    default: return ready(s) ? (s.human ? 'Needs you' : 'Queued') : ''
+  }
 }
 
 const copied = ref<string | null>(null)
@@ -296,24 +351,42 @@ async function copy(text: string, what: string) {
   copied.value = what
   setTimeout(() => (copied.value = null), 1500)
 }
-const KIT_LABEL: Record<KitKind, string> = { match: 'YouTube', highlights: 'Highlights', shorts: 'Shorts' }
+
+const folderError = ref<Partial<Record<KitKind, string>>>({})
+async function openFolder(kind: KitKind) {
+  folderError.value = { ...folderError.value, [kind]: undefined }
+  try {
+    await $fetch(`/api/pipeline/${matchId}/${kind}/open`, { method: 'POST' })
+  }
+  catch (cause) {
+    folderError.value = { ...folderError.value, [kind]: errorText(cause) }
+  }
+}
+
+const TONE = {
+  turn: 'bg-accent text-white',
+  live: 'bg-bg/85 text-ink',
+  done: 'bg-brand text-on-brand',
+  error: 'bg-accent text-white',
+  idle: 'bg-bg/85 text-ink-subtle',
+} as const
 </script>
 
 <template>
   <div v-if="match">
-    <AdminToolHeader :icon="Workflow" :title="match.youtube_title || match.title" :subtitle="`Pipeline · ${doneCount}/${STEPS.length} steps done`">
+    <AdminToolHeader :icon="Workflow" :title="match.youtube_title || match.title" :subtitle="`Pipeline · ${doneCount} of ${STEPS.length} steps done${turns ? ` · ${turns} need${turns > 1 ? '' : 's'} you` : ''}`">
       <template #actions>
         <label class="flex items-center gap-2">
           <span class="text-[0.6875rem] text-ink-subtle">Quality</span>
           <select v-model.number="state.height" class="field !min-h-8 !py-1 text-sm" :disabled="active">
-            <option v-for="h in HEIGHTS" :key="h" :value="h">{{ h === 2160 ? '4K (2160p)' : `${h}p` }}</option>
+            <option v-for="h in HEIGHTS" :key="h" :value="h">{{ h === 2160 ? '4K' : `${h}p` }}</option>
           </select>
         </label>
         <button v-if="!active" type="button" class="btn btn-sm btn-primary" :disabled="allDone || !match.youtube_video_id" @click="start">
           <Play :size="14" aria-hidden="true" /> {{ allDone ? 'All done' : started ? 'Resume' : 'Start' }}
         </button>
         <button v-else type="button" class="btn btn-sm btn-ghost" :disabled="pauseAsked" @click="pause">
-          <Pause :size="14" aria-hidden="true" /> {{ pauseAsked ? 'Pausing after this step…' : 'Pause' }}
+          <Pause :size="14" aria-hidden="true" /> {{ pauseAsked ? 'Pausing after the render…' : 'Pause' }}
         </button>
       </template>
     </AdminToolHeader>
@@ -322,92 +395,117 @@ const KIT_LABEL: Record<KitKind, string> = { match: 'YouTube', highlights: 'High
       This is not the raw recording. The pipeline runs on the raw video of the match.
     </p>
 
-    <ol class="mt-6 flex flex-col gap-3">
-      <li
-        v-for="(s, i) in STEPS"
-        :key="s.id"
-        class="rounded-2xl border p-4 transition-[border-color,background-color] duration-300 sm:p-5"
-        :class="step(s.id).status === 'waiting' ? 'border-accent/60 bg-accent/10' : step(s.id).status === 'error' ? 'border-accent/60' : 'border-line'"
-        :style="step(s.id).status === 'waiting' ? 'box-shadow: var(--ui-glow-soft)' : undefined"
+    <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        v-for="d in DOCKS"
+        :key="d.id"
+        class="flex flex-col overflow-hidden rounded-2xl border bg-bg-deep/40 transition-[border-color,box-shadow] duration-300"
+        :class="dockState(d).tone === 'turn' || dockState(d).tone === 'error' ? 'border-accent/70' : dockState(d).tone === 'live' ? 'border-line-strong' : 'border-line'"
+        :style="dockState(d).tone === 'turn' ? 'box-shadow: var(--ui-glow-soft)' : undefined"
+        :aria-label="d.label"
       >
-        <div class="flex items-center gap-3">
-          <span
-            class="grid size-9 shrink-0 place-items-center rounded-xl"
-            :class="step(s.id).status === 'done' ? 'bg-brand text-on-brand' : step(s.id).status === 'todo' ? 'bg-bg-deep text-ink-subtle' : 'bg-accent/20 text-accent'"
-          >
-            <Check v-if="step(s.id).status === 'done'" :size="16" aria-hidden="true" />
-            <CircleAlert v-else-if="step(s.id).status === 'error'" :size="16" aria-hidden="true" />
-            <component :is="s.icon" v-else :size="16" aria-hidden="true" />
-          </span>
-          <p class="font-display text-sm font-semibold uppercase tracking-[0.08em]">
-            <span class="mr-1.5 font-mono text-ink-subtle">{{ i + 1 }}</span>{{ s.label }}
-          </p>
-          <span v-if="step(s.id).status === 'waiting'" class="ml-1 inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 font-display text-[0.625rem] font-bold uppercase tracking-widest text-white">
-            <BellRing :size="11" aria-hidden="true" /> Your turn
-          </span>
-          <div class="ml-auto flex items-center gap-2">
-            <button v-if="step(s.id).status === 'waiting' && s.kits" type="button" class="btn btn-sm btn-ghost" @click="checkNow">
-              <RefreshCw :size="13" aria-hidden="true" /> Check now
-            </button>
-            <button v-if="!active && (step(s.id).status === 'done' || step(s.id).status === 'error')" type="button" class="btn btn-sm btn-ghost" title="Run this step again on the next Start" @click="redo(s.id)">
-              <RotateCcw :size="13" aria-hidden="true" /> Redo
-            </button>
+        <!-- Miniature: the video once it is on YouTube, else the thumbnail it will go up with. -->
+        <component
+          :is="picture(d).to ? NuxtLink : 'div'"
+          :to="picture(d).to ?? undefined"
+          class="relative block aspect-video overflow-hidden bg-bg-deep"
+          :class="dockState(d).tone === 'idle' && !picture(d).src ? 'opacity-50' : ''"
+        >
+          <img v-if="picture(d).src" :src="picture(d).src!" alt="" class="absolute inset-0 h-full w-full" :class="d.kind === 'shorts' && !linkedOf('shorts') ? 'object-contain' : 'object-cover'" loading="lazy">
+          <div v-else class="absolute inset-0 grid place-items-center text-ink-subtle/50">
+            <component :is="d.icon" :size="28" aria-hidden="true" />
           </div>
+          <span class="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-display text-[0.625rem] font-bold uppercase tracking-widest backdrop-blur" :class="TONE[dockState(d).tone]">
+            <BellRing v-if="dockState(d).tone === 'turn'" :size="11" aria-hidden="true" />
+            <LoaderCircle v-else-if="dockState(d).tone === 'live'" :size="11" class="animate-spin" aria-hidden="true" />
+            <Check v-else-if="dockState(d).tone === 'done'" :size="11" aria-hidden="true" />
+            {{ dockState(d).text }}
+          </span>
+        </component>
+
+        <div class="flex items-center gap-2 px-3.5 pt-3">
+          <component :is="d.icon" :size="15" class="text-accent" aria-hidden="true" />
+          <h2 class="font-display text-sm font-bold uppercase tracking-[0.1em]">{{ d.label }}</h2>
         </div>
 
-        <!-- Machine step: its bar. -->
-        <UiProgress v-if="!s.human" class="mt-3" :class="step(s.id).status === 'todo' ? 'opacity-40' : ''" :value="progressOf(s)" :label="labelOf(s)" />
-
-        <!-- Human step: what to do, and where. -->
-        <template v-else>
-          <p v-if="step(s.id).status === 'error'" class="mt-2 text-xs text-accent">{{ step(s.id).message }}</p>
-          <div v-else-if="step(s.id).status === 'waiting' && TURN[s.id]" class="mt-3 flex flex-wrap items-center gap-3">
-            <p class="text-sm text-ink-muted">{{ TURN[s.id]!.text }}</p>
-            <a :href="TURN[s.id]!.to" target="_blank" rel="noopener" class="btn btn-sm btn-primary ml-auto">
-              {{ TURN[s.id]!.label }} <ExternalLink :size="13" aria-hidden="true" />
-            </a>
-          </div>
-          <p v-else-if="step(s.id).status === 'done'" class="mt-2 flex items-center gap-1.5 text-xs text-ink-subtle">
-            <Check :size="12" aria-hidden="true" /> Done
-          </p>
-          <p v-else-if="step(s.id).status === 'todo'" class="mt-2 flex items-center gap-1.5 text-xs text-ink-subtle">
-            <Hourglass :size="12" aria-hidden="true" /> Needs you when the chain gets here
-          </p>
-
-          <!-- Upload kits: everything the upload needs. -->
-          <div v-if="s.kits && (step(s.id).status !== 'todo' || s.kits.some(k => kits[k]))" class="mt-4 grid gap-4 lg:grid-cols-2">
-            <div v-for="kind in s.kits" :key="kind" class="rounded-xl border border-line p-4">
-              <p class="label flex items-center gap-2">
-                {{ KIT_LABEL[kind] }}
-                <span v-if="found[kind] || step(s.id).status === 'done'" class="inline-flex items-center gap-1 text-accent"><Check :size="12" aria-hidden="true" /> On YouTube, linked</span>
-              </p>
-              <template v-if="kits[kind]">
-                <p class="mt-2 text-sm font-medium">{{ kits[kind]!.title }}</p>
-                <div class="mt-2 flex flex-wrap gap-2">
-                  <button type="button" class="btn btn-sm btn-ghost" @click="copy(kits[kind]!.title, `${kind}-title`)">
-                    <Copy :size="13" aria-hidden="true" /> {{ copied === `${kind}-title` ? 'Copied' : 'Title' }}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-ghost" @click="copy(kits[kind]!.description, `${kind}-desc`)">
-                    <Copy :size="13" aria-hidden="true" /> {{ copied === `${kind}-desc` ? 'Copied' : 'Description' }}
-                  </button>
-                  <button v-if="kits[kind]!.path" type="button" class="btn btn-sm btn-ghost" @click="copy(kits[kind]!.path!, `${kind}-path`)">
-                    <Copy :size="13" aria-hidden="true" /> {{ copied === `${kind}-path` ? 'Copied' : 'File path' }}
-                  </button>
-                  <a v-if="kits[kind]!.url" :href="kits[kind]!.url" class="btn btn-sm btn-ghost">
-                    <Download :size="13" aria-hidden="true" /> Video
-                  </a>
-                </div>
-                <p v-if="kits[kind]!.path" class="mt-2 break-all font-mono text-[0.6875rem] text-ink-subtle">{{ kits[kind]!.path }}</p>
-                <PublishThumbnailCanvas class="mt-3" v-bind="kits[kind]!.thumb as any" />
-              </template>
-              <p v-else class="mt-2 text-xs text-ink-subtle">No render yet.</p>
+        <ol class="flex flex-1 flex-col gap-1 p-2">
+          <li
+            v-for="id in d.steps"
+            :key="id"
+            class="rounded-xl px-2.5 py-2 transition-[background-color,opacity] duration-200"
+            :class="[
+              step(id).status === 'waiting' ? 'bg-accent/12' : step(id).status === 'running' ? 'bg-bg-deep' : '',
+              step(id).status === 'todo' && !ready(byId[id]) ? 'opacity-40' : '',
+            ]"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="grid size-6 shrink-0 place-items-center rounded-lg"
+                :class="{
+                  'bg-brand text-on-brand': step(id).status === 'done',
+                  'bg-accent text-white': step(id).status === 'waiting' || step(id).status === 'error',
+                  'bg-accent/20 text-accent': step(id).status === 'running',
+                  'bg-bg-deep text-ink-subtle': step(id).status === 'todo',
+                }"
+              >
+                <Check v-if="step(id).status === 'done'" :size="13" aria-hidden="true" />
+                <CircleAlert v-else-if="step(id).status === 'error'" :size="13" aria-hidden="true" />
+                <component :is="STEP_ICON[id]" v-else :size="13" aria-hidden="true" />
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium leading-tight">{{ byId[id].label }}</p>
+                <p class="truncate text-[0.6875rem] leading-tight" :class="step(id).status === 'error' ? 'text-accent' : 'text-ink-subtle'" :title="detailOf(id)">{{ detailOf(id) }}</p>
+              </div>
+              <span v-if="step(id).status === 'running'" class="font-mono text-xs tabular-nums">{{ Math.round(progressOf(id) * 100) }}%</span>
+              <button
+                v-else-if="!active && (step(id).status === 'done' || step(id).status === 'error')"
+                type="button"
+                class="grid size-7 place-items-center rounded-lg text-ink-subtle transition-colors duration-150 hover:bg-bg-deep hover:text-ink"
+                :title="`Run ${d.label} · ${byId[id].label} again on the next Start`"
+                :aria-label="`Redo ${d.label} ${byId[id].label}`"
+                @click="redo(id)"
+              >
+                <RotateCcw :size="13" aria-hidden="true" />
+              </button>
             </div>
-          </div>
-        </template>
-      </li>
-    </ol>
 
-    <!-- The tool a render step runs through, out of sight. -->
+            <!-- Machine step: a thin bar. -->
+            <div v-if="!byId[id].human && (step(id).status === 'running' || step(id).status === 'done')" class="mt-2 h-1 overflow-hidden rounded-full bg-bg-deep">
+              <div class="h-full rounded-full bg-gradient-to-r from-brand to-accent transition-[width] duration-500 ease-brand" :style="{ width: `${Math.max(2, progressOf(id) * 100)}%` }" />
+            </div>
+
+            <!-- Your turn: where to go. -->
+            <a v-if="step(id).status === 'waiting' && OPEN[id]" :href="OPEN[id]!.to" target="_blank" rel="noopener" class="btn btn-sm btn-primary mt-2 w-full">
+              Open the {{ OPEN[id]!.label }} <ExternalLink :size="13" aria-hidden="true" />
+            </a>
+
+            <!-- Upload: the folder with everything, the text to paste, Studio. -->
+            <div v-if="byId[id].upload && kits[byId[id].upload!] && step(id).status !== 'done' && ready(byId[id])" class="mt-2 flex flex-wrap gap-1.5">
+              <button type="button" class="btn btn-sm btn-ghost" title="Video, thumbnail, title and description, ready to drop into YouTube" @click="openFolder(byId[id].upload!)">
+                <FolderOpen :size="13" aria-hidden="true" /> Folder
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" :aria-label="`Copy the ${d.label} title`" title="Copy the title" @click="copy(kits[byId[id].upload!]!.title, `${id}-t`)">
+                <Check v-if="copied === `${id}-t`" :size="13" aria-hidden="true" /><Copy v-else :size="13" aria-hidden="true" /> Title
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" :aria-label="`Copy the ${d.label} description`" title="Copy the description" @click="copy(kits[byId[id].upload!]!.description, `${id}-d`)">
+                <Check v-if="copied === `${id}-d`" :size="13" aria-hidden="true" /><Copy v-else :size="13" aria-hidden="true" /> Text
+              </button>
+              <a href="https://studio.youtube.com" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" title="YouTube Studio">
+                Studio <ExternalLink :size="12" aria-hidden="true" />
+              </a>
+              <button v-if="step(id).status === 'waiting'" type="button" class="btn btn-sm btn-ghost" title="Look for it on the channel now" aria-label="Check the channel now" @click="wakeAll">
+                <RefreshCw :size="13" aria-hidden="true" />
+              </button>
+              <p v-if="folderError[byId[id].upload!] || kits[byId[id].upload!]!.folderError" class="w-full text-[0.6875rem] text-accent">
+                {{ folderError[byId[id].upload!] || kits[byId[id].upload!]!.folderError }}
+              </p>
+            </div>
+          </li>
+        </ol>
+      </section>
+    </div>
+
+    <!-- The tool a render runs through, out of sight. -->
     <div v-if="mounted" class="hidden" aria-hidden="true">
       <Suspense>
         <PublishTool v-if="mounted === 'youtube'" ref="tool" />

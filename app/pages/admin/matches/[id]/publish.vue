@@ -256,12 +256,11 @@ async function render(draft: boolean, height?: number) {
     const { job: started } = await $fetch<{ job: ReelJob }>('/api/publish/render', { method: 'POST', body })
     const out = await job.watch(started)
     renderResult.value = out as { dir: string, video: string }
-    saveKit(matchId, {
+    await saveKit(matchId, {
       kind: 'match',
       title: title.value,
       description: description.value,
-      path: renderResult.value.video,
-      thumb: { template: template.value, lines: lines.value, colour: family.value.colour, matchId, fileStem: `thumbnail-${matchId.slice(0, 8)}` },
+      thumb: { template: template.value, lines: lines.value, colour: family.value.colour },
     })
     // Where the raw footage lands in this render, for the linked YouTube video.
     if (plan.value) await saveEditMap(client as never, matchId, 'match', youtubeEditMap(plan.value.segments, settings.value.intro ? INTRO_SECONDS : 0))

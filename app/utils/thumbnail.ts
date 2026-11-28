@@ -280,3 +280,54 @@ export function drawVerticalThumbnail(
   })
   ctx.restore()
 }
+
+// ── Drawing from props (the editor's canvas and the pipeline's upload folder) ─
+
+export interface ThumbnailSpec {
+  template: string
+  lines: string[]
+  colour: string
+  highlights?: string
+  vertical?: boolean
+  tag?: string
+}
+
+let portraitAssets: Promise<[HTMLImageElement, HTMLImageElement]> | null = null
+const templates = new Map<string, Promise<HTMLImageElement>>()
+
+/** Draws a thumbnail on `canvas` (sized by the caller: THUMB_* or VTHUMB_*). */
+export async function renderThumbnail(canvas: HTMLCanvasElement, spec: ThumbnailSpec) {
+  await loadThumbnailFont('/api/publish/brand/fonts/Poppins-BoldItalic.ttf')
+  const ctx = canvas.getContext('2d')!
+  if (spec.vertical) {
+    await loadWordmarkFont('/api/publish/brand/fonts/BarlowCondensed-BlackItalic.ttf')
+    portraitAssets ??= Promise.all([loadImage('/api/publish/brand/video/assets/portrait-bg.jpg'), loadImage('/api/publish/brand/video/assets/logo.png')])
+    const [bg, logo] = await portraitAssets
+    drawVerticalThumbnail(ctx, bg, logo, spec.tag ?? '', spec.lines, spec.colour, spec.highlights ?? '')
+  }
+  else {
+    if (!templates.has(spec.template)) templates.set(spec.template, loadImage(`/api/publish/brand/thumbnail/${spec.template}`))
+    drawThumbnail(ctx, await templates.get(spec.template)!, spec.lines, spec.colour, spec.highlights ?? '')
+  }
+}
+
+/** The upload's thumbnail as a JPEG (YouTube caps it at 2 MB) and a small preview as a data URL. */
+export async function thumbnailFiles(spec: ThumbnailSpec) {
+  const full = document.createElement('canvas')
+  full.width = spec.vertical ? VTHUMB_W : THUMB_W
+  full.height = spec.vertical ? VTHUMB_H : THUMB_H
+  await renderThumbnail(full, spec)
+  const scaled = (width: number) => {
+    const out = document.createElement('canvas')
+    out.width = width
+    out.height = Math.round((width * full.height) / full.width)
+    const ctx = out.getContext('2d')!
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(full, 0, 0, out.width, out.height)
+    return out
+  }
+  const big = scaled(spec.vertical ? VTHUMB_W : 1280)
+  const jpeg = await new Promise<Blob>((resolve, reject) => big.toBlob(b => (b ? resolve(b) : reject(new Error('JPEG export failed'))), 'image/jpeg', 0.9))
+  const preview = scaled(spec.vertical ? 216 : 384).toDataURL('image/jpeg', 0.8)
+  return { jpeg, preview }
+}

@@ -398,19 +398,16 @@ async function render(height?: ReelProject['output']['height']) {
     await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'shorts', clipEditMap(pieces.value))
     const file = projectFileName(project.value, 'mp4')
     renderUrl.value = `/api/reel/media/out/${started.name}?download=1&name=${encodeURIComponent(file)}`
-    saveKit(matchId, {
+    await saveKit(matchId, {
       kind: orientation.value === 'landscape' ? 'highlights' : 'shorts',
       title: project.value.name,
       description: description.value,
-      url: renderUrl.value,
+      out: started.name,
       thumb: {
         template: thumbTemplate.value,
         lines: thumbLines.value,
         colour: family.value?.colour ?? '#cb2543',
-        matchId,
-        fileStem: `clip-thumbnail-${matchId.slice(0, 8)}`,
         highlights: orientation.value === 'landscape' ? 'HIGHLIGHTS' : '',
-        saveable: false,
         vertical: orientation.value === 'portrait',
         tag: family.value?.label.toUpperCase() ?? '',
       },
