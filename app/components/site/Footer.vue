@@ -77,6 +77,9 @@ const { locale } = useI18n()
         <NuxtLink to="/privacy" class="transition-colors duration-200 hover:text-accent">
           {{ locale === 'fr' ? 'Confidentialité' : 'Privacy' }}
         </NuxtLink>
+        <NuxtLink to="/terms" class="transition-colors duration-200 hover:text-accent">
+          {{ locale === 'fr' ? 'Conditions' : 'Terms' }}
+        </NuxtLink>
         <p class="font-display uppercase tracking-[0.2em] text-accent">
           {{ $lt(site.club.tagline) }}
         </p>

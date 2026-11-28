@@ -23,14 +23,15 @@ const contact = 'lacault.tim@gmail.com'
       <p>Aucun compte, aucun cookie publicitaire ni outil d'analyse. Seuls la langue (un cookie) et le thème (localStorage) choisis sont gardés dans votre navigateur. Les vidéos sont lues via le lecteur YouTube, soumis aux règles de Google.</p>
 
       <h2>Administration et accès YouTube</h2>
-      <p>Seul le propriétaire de la chaîne se connecte. Avec son autorisation (OAuth Google), l'application lit les vidéos de sa propre chaîne (y compris non répertoriées), y envoie les vidéos montées et met à jour leurs titres, descriptions, miniatures et visibilité. Le jeton d'accès est stocké côté serveur uniquement, jamais partagé ni vendu, et n'est utilisé pour aucune autre chaîne ni aucun autre compte.</p>
-      <p>Données conservées : identifiants, titres et miniatures des vidéos, et les données de match saisies (joueurs, scores). Les noms des joueurs proviennent de sources publiques (MyFFBaD).</p>
+      <p>Seul le propriétaire de la chaîne se connecte. Avec son autorisation (OAuth Google, en lecture et en envoi uniquement), l'application lit les vidéos de sa propre chaîne (y compris non répertoriées) et, quand il clique sur « Upload to YouTube », y envoie une vidéo montée avec le titre, la description, la visibilité, la réponse « conçue pour les enfants » et la miniature qu'il a choisis. Rien n'est envoyé sans ce clic. Le jeton d'accès est stocké côté serveur uniquement, jamais partagé ni vendu, et n'est utilisé pour aucune autre chaîne ni aucun autre compte.</p>
+      <p>Données conservées : identifiants, titres, durées et miniatures des vidéos, et les données de match saisies (joueurs, scores). Les noms des joueurs proviennent de sources publiques (MyFFBaD). Les données lues sur YouTube sont relues chaque jour et ne sont jamais gardées plus de 30 jours sans être rafraîchies. Les vidéos montées restent sur l'ordinateur du propriétaire jusqu'à leur envoi, puis sont supprimées.</p>
 
       <h2>Services tiers</h2>
       <p>En utilisant ce site, vous acceptez les <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">Conditions d'utilisation de YouTube</a>. Les données traitées via YouTube relèvent des <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Règles de confidentialité de Google</a>. Hébergement : Vercel et Supabase.</p>
 
       <h2>Révocation et suppression</h2>
-      <p>L'accès donné à l'application peut être retiré à tout moment sur <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener">la page des autorisations Google</a>. Pour faire retirer une vidéo ou vos données (par exemple votre nom de joueur) : <a :href="`mailto:${contact}`">{{ contact }}</a>.</p>
+      <p>L'accès donné à l'application peut être retiré à tout moment sur <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener">la page des autorisations Google</a> ; les données obtenues via YouTube sont alors supprimées sous 30 jours. Pour faire retirer une vidéo ou vos données (par exemple votre nom de joueur), écrivez à <a :href="`mailto:${contact}`">{{ contact }}</a> : c'est fait sous 7 jours. Même adresse pour toute question sur vos données.</p>
+      <p>Voir aussi les <NuxtLink to="/terms">conditions d'utilisation</NuxtLink>.</p>
     </template>
 
     <template v-else>
@@ -44,14 +45,15 @@ const contact = 'lacault.tim@gmail.com'
       <p>No accounts, no advertising cookies, no analytics. Only your language (one cookie) and theme (localStorage) choice stay in your browser. Videos play through the YouTube player, which follows Google's rules.</p>
 
       <h2>Admin and YouTube access</h2>
-      <p>Only the channel owner signs in. With their permission (Google OAuth), the app reads videos on their own channel (including unlisted ones), uploads edited videos to it, and updates their titles, descriptions, thumbnails and visibility. The access token is stored server-side only, never shared or sold, and never used for any other channel or account.</p>
-      <p>Data kept: video ids, titles and thumbnails, and the match data entered (players, scores). Player names come from public sources (MyFFBaD).</p>
+      <p>Only the channel owner signs in. With their permission (Google OAuth, read and upload only), the app reads videos on their own channel (including unlisted ones) and, when they click "Upload to YouTube", uploads an edited video with the title, description, visibility, made-for-kids answer and thumbnail they chose. Nothing is uploaded without that click. The access token is stored server-side only, never shared or sold, and never used for any other channel or account.</p>
+      <p>Data kept: video ids, titles, durations and thumbnails, and the match data entered (players, scores). Player names come from public sources (MyFFBaD). Data read from YouTube is re-read every day and never kept unrefreshed for more than 30 days. Edited videos stay on the owner's computer until they are uploaded, then are deleted.</p>
 
       <h2>Third-party services</h2>
       <p>By using this site you agree to the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>. Data handled through YouTube falls under the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>. Hosting: Vercel and Supabase.</p>
 
       <h2>Revoking access and deletion</h2>
-      <p>Access granted to the app can be revoked at any time on <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener">Google's permissions page</a>. To have a video or your data (such as your player name) removed: <a :href="`mailto:${contact}`">{{ contact }}</a>.</p>
+      <p>Access granted to the app can be revoked at any time on <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener">Google's permissions page</a>; data obtained through YouTube is then deleted within 30 days. To have a video or your data (such as your player name) removed, write to <a :href="`mailto:${contact}`">{{ contact }}</a>: it is done within 7 days. Same address for any question or complaint about your data.</p>
+      <p>See also the <NuxtLink to="/terms">terms of use</NuxtLink>.</p>
     </template>
   </article>
 </template>

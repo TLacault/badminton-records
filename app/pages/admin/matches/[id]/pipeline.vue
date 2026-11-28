@@ -31,7 +31,7 @@ const { data: match, refresh: refreshMatch } = await useAsyncData(`pipeline-${ma
 
 /** The videos already linked to this raw, for the docks' pictures and links. */
 const { data: linkedVideos, refresh: refreshLinked } = await useAsyncData(`pipeline-linked-${matchId}`, async () => {
-  const { data } = await client.from('matches').select('id, video_kind, youtube_title, youtube_thumbnail_url').eq('source_match_id', matchId)
+  const { data } = await client.from('matches').select('id, video_kind, youtube_video_id, youtube_title, youtube_thumbnail_url').eq('source_match_id', matchId)
   return data ?? []
 })
 const linkedOf = (kind: KitKind) => linkedVideos.value?.find(v => v.video_kind === kind) ?? null
@@ -147,11 +147,15 @@ function importChannel() {
 
 /** Done once the video is on the channel (found by its title) and linked to this raw. */
 async function uploaded(kind: KitKind) {
-  await importChannel()
+  // Uploaded from here: the video id is known, and it comes in even while YouTube keeps it private.
+  const note = await readNote(kind)
+  if (note.videoId) await $fetch<unknown>('/api/youtube/import' as string, { method: 'POST', body: { include: [note.videoId] } })
+  else await importChannel()
   const kit = kits.value[kind]
-  if (kit) {
-    // This render's video, by its title: another video of the same kind linked earlier does not count.
-    const { data } = await client.from('matches').select('id, source_match_id').eq('youtube_title', kit.title.trim()).neq('id', matchId).limit(1)
+  if (kit || note.videoId) {
+    // This render's video, by its id or its title: another video of the same kind linked earlier does not count.
+    const query = client.from('matches').select('id, source_match_id').neq('id', matchId).limit(1)
+    const { data } = await (note.videoId ? query.eq('youtube_video_id', note.videoId) : query.eq('youtube_title', kit!.title.trim()))
     const row = data?.[0]
     if (!row) return false
     if (row.source_match_id !== matchId) await client.from('matches').update({ source_match_id: matchId }).eq('id', row.id)
@@ -182,7 +186,12 @@ async function cleanUp(kind: KitKind) {
  * render made in a tool while the chain is paused moves the dock on.
  */
 const renderedSince = (kind: KitKind, id: StepId) => !pendingRender(matchId, kind) && !!kits.value[kind] && kits.value[kind]!.at > (step(id).since ?? 0)
-const onChannel = (kind: KitKind) => !!kits.value[kind] && linkedOf(kind)?.youtube_title?.trim() === kits.value[kind]!.title.trim()
+const onChannel = (kind: KitKind) => {
+  const v = linkedOf(kind)
+  if (!v) return false
+  if (notes.value[kind]?.videoId) return v.youtube_video_id === notes.value[kind]!.videoId
+  return !!kits.value[kind] && v.youtube_title?.trim() === kits.value[kind]!.title.trim()
+}
 const FACT: Record<StepId, () => boolean> = {
   'download': () => source.cached.value,
   'tag': () => match.value?.tagging_status === 'tagged',
@@ -451,6 +460,86 @@ async function deleteSource() {
   set('download', { status: 'todo', since: Date.now() })
 }
 
+// ── Upload to YouTube ───────────────────────────────────────────────────────
+
+/** The folder's note on the server: the upload in flight, the video id once up. */
+interface UploadNote { uploadJob: string | null, videoId: string | null }
+const notes = ref<Partial<Record<KitKind, UploadNote>>>({})
+async function readNote(kind: KitKind): Promise<UploadNote> {
+  const note = await $fetch<UploadNote>(`/api/pipeline/${matchId}/${kind}`).catch(() => ({ uploadJob: null, videoId: null }))
+  notes.value = { ...notes.value, [kind]: note }
+  return note
+}
+
+interface UploadForm { open: boolean, title: string, description: string, privacy: 'public' | 'unlisted' | 'private', madeForKids: boolean | null }
+const forms = ref<Partial<Record<KitKind, UploadForm>>>({})
+const uploads = ref<Partial<Record<KitKind, { state: 'running' | 'done' | 'error', progress: number, message: string }>>>({})
+
+/** Tim fills the form: everything YouTube gets is his to change before it goes. */
+function openForm(kind: KitKind) {
+  const kit = kits.value[kind]!
+  forms.value = { ...forms.value, [kind]: { open: true, title: kit.title.slice(0, 100), description: kit.description, privacy: 'public', madeForKids: null } }
+}
+const formValid = (f?: UploadForm) => !!f && f.title.trim().length > 0 && f.title.length <= 100 && f.description.length <= 5000 && f.madeForKids !== null && !/[<>]/.test(f.title + f.description)
+
+async function followUpload(kind: KitKind, jobId: string) {
+  uploads.value = { ...uploads.value, [kind]: { state: 'running', progress: 0, message: 'Starting the upload' } }
+  while (true) {
+    const job = await $fetch<{ state: string, progress: number | null, message: string, error: string | null, result: { thumbnail?: string | null } | null }>(`/api/reel/job/${jobId}`).catch(() => null)
+    if (!job) {
+      uploads.value = { ...uploads.value, [kind]: { state: 'error', progress: 0, message: 'The server restarted during the upload' } }
+      return
+    }
+    if (job.state === 'running') {
+      uploads.value = { ...uploads.value, [kind]: { state: 'running', progress: job.progress ?? 0, message: job.message } }
+      await new Promise(r => setTimeout(r, 1500))
+      continue
+    }
+    if (job.state === 'error') {
+      uploads.value = { ...uploads.value, [kind]: { state: 'error', progress: 0, message: job.error ?? 'The upload failed' } }
+      return
+    }
+    const thumb = job.result?.thumbnail
+    uploads.value = { ...uploads.value, [kind]: { state: 'done', progress: 1, message: thumb ? `Uploaded; thumbnail refused: ${thumb}` : 'Uploaded, linking it' } }
+    // Link it now rather than at the next minute's check.
+    const id = STEPS.find(s => s.upload === kind)!.id
+    if (await uploaded(kind).catch(() => false)) set(id, { status: 'done', since: step(id).since })
+    wakeAll()
+    return
+  }
+}
+
+async function startUpload(kind: KitKind) {
+  const f = forms.value[kind]
+  if (!formValid(f)) return
+  try {
+    const { job } = await $fetch<{ job: { id: string } }>(`/api/pipeline/${matchId}/${kind}/upload`, {
+      method: 'POST',
+      body: { title: f!.title, description: f!.description, privacy: f!.privacy, madeForKids: f!.madeForKids },
+    })
+    forms.value = { ...forms.value, [kind]: { ...f!, open: false } }
+    followUpload(kind, job.id)
+  }
+  catch (cause) {
+    uploads.value = { ...uploads.value, [kind]: { state: 'error', progress: 0, message: errorText(cause) } }
+  }
+}
+
+// An upload started before a reload: follow it again.
+onMounted(async () => {
+  for (const kind of ['match', 'highlights', 'shorts'] as const) {
+    if (!readKit(matchId, kind)) continue
+    const note = await readNote(kind)
+    if (note.uploadJob && !note.videoId) followUpload(kind, note.uploadJob)
+  }
+})
+
+const PRIVACY = [
+  { id: 'public', label: 'Public' },
+  { id: 'unlisted', label: 'Unlisted' },
+  { id: 'private', label: 'Private' },
+] as const
+
 const folderError = ref<Partial<Record<KitKind, string>>>({})
 async function openFolder(kind: KitKind) {
   folderError.value = { ...folderError.value, [kind]: undefined }
@@ -579,8 +668,54 @@ const TONE = {
             </a>
 
             <!-- Upload: the folder with everything, the text to paste, Studio. -->
-            <div v-if="byId[id].upload && kits[byId[id].upload!] && step(id).status !== 'done' && ready(byId[id])" class="mt-2 flex flex-wrap gap-1.5">
-              <button type="button" class="btn btn-sm btn-ghost" title="Video, thumbnail, title and description, ready to drop into YouTube" @click="openFolder(byId[id].upload!)">
+            <template v-if="byId[id].upload && kits[byId[id].upload!] && step(id).status !== 'done' && ready(byId[id])">
+              <!-- Upload to YouTube: Tim sets what goes up, then clicks. -->
+              <div v-if="uploads[byId[id].upload!]?.state === 'running' || uploads[byId[id].upload!]?.state === 'done'" class="mt-2">
+                <div class="h-1 overflow-hidden rounded-full bg-bg-deep">
+                  <div class="h-full rounded-full bg-gradient-to-r from-brand to-accent transition-[width] duration-500 ease-brand" :style="{ width: `${Math.max(2, uploads[byId[id].upload!]!.progress * 100)}%` }" />
+                </div>
+                <p class="mt-1 flex justify-between text-[0.6875rem] text-ink-subtle">
+                  <span class="truncate">{{ uploads[byId[id].upload!]!.message }}</span>
+                  <span class="font-mono tabular-nums text-ink">{{ Math.round(uploads[byId[id].upload!]!.progress * 100) }}%</span>
+                </p>
+              </div>
+              <form v-else-if="forms[byId[id].upload!]?.open" class="mt-2 flex flex-col gap-2.5 rounded-xl border border-line bg-bg p-3" @submit.prevent="startUpload(byId[id].upload!)">
+                <label class="block">
+                  <span class="flex justify-between text-[0.6875rem] text-ink-subtle">Title <span class="font-mono tabular-nums" :class="forms[byId[id].upload!]!.title.length > 100 ? 'text-accent' : ''">{{ forms[byId[id].upload!]!.title.length }}/100</span></span>
+                  <input v-model="forms[byId[id].upload!]!.title" maxlength="100" required class="field mt-1 text-sm">
+                </label>
+                <label class="block">
+                  <span class="text-[0.6875rem] text-ink-subtle">Description</span>
+                  <textarea v-model="forms[byId[id].upload!]!.description" rows="4" maxlength="5000" class="field mt-1 font-mono text-[0.6875rem]" />
+                </label>
+                <fieldset>
+                  <legend class="text-[0.6875rem] text-ink-subtle">Visibility</legend>
+                  <div class="mt-1 grid grid-cols-3 gap-1 rounded-lg border border-line bg-bg-deep p-1">
+                    <label v-for="p in PRIVACY" :key="p.id" class="cursor-pointer rounded-md py-1 text-center text-xs transition-colors duration-150 has-[:checked]:bg-brand has-[:checked]:text-on-brand has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent">
+                      <input v-model="forms[byId[id].upload!]!.privacy" type="radio" :value="p.id" class="sr-only">{{ p.label }}
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend class="text-[0.6875rem] text-ink-subtle">Made for kids? (required by YouTube)</legend>
+                  <div class="mt-1 flex flex-col gap-1 text-xs">
+                    <label class="flex items-center gap-2"><input v-model="forms[byId[id].upload!]!.madeForKids" type="radio" :value="false" required class="accent-[var(--ui-accent)]"> No, it's not made for kids</label>
+                    <label class="flex items-center gap-2"><input v-model="forms[byId[id].upload!]!.madeForKids" type="radio" :value="true" class="accent-[var(--ui-accent)]"> Yes, it's made for kids</label>
+                  </div>
+                </fieldset>
+                <div class="flex gap-1.5">
+                  <button type="submit" class="btn btn-sm btn-primary flex-1" :disabled="!formValid(forms[byId[id].upload!])">
+                    <UiYouTubeGlyph :size="14" /> Upload to YouTube
+                  </button>
+                  <button type="button" class="btn btn-sm btn-ghost" @click="forms[byId[id].upload!]!.open = false">Cancel</button>
+                </div>
+              </form>
+              <p v-if="uploads[byId[id].upload!]?.state === 'error'" class="mt-2 text-[0.6875rem] text-accent">{{ uploads[byId[id].upload!]!.message }}</p>
+            <div v-if="!forms[byId[id].upload!]?.open && uploads[byId[id].upload!]?.state !== 'running'" class="mt-2 flex flex-wrap gap-1.5">
+              <button v-if="!notes[byId[id].upload!]?.videoId" type="button" class="btn btn-sm btn-primary" title="Upload this video to your YouTube channel" @click="openForm(byId[id].upload!)">
+                <UiYouTubeGlyph :size="14" /> Upload to YouTube
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" title="The video and its thumbnail, to upload by hand" @click="openFolder(byId[id].upload!)">
                 <FolderOpen :size="13" aria-hidden="true" /> Folder
               </button>
               <button type="button" class="btn btn-sm btn-ghost" :aria-label="`Copy the ${d.label} title`" title="Copy the title" @click="copy(kits[byId[id].upload!]!.title, `${id}-t`)">
@@ -599,6 +734,7 @@ const TONE = {
                 {{ folderError[byId[id].upload!] || kits[byId[id].upload!]!.folderError }}
               </p>
             </div>
+            </template>
           </li>
         </ol>
 

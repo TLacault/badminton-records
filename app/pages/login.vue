@@ -45,7 +45,7 @@ async function submit() {
   }
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 useSeoMeta({ title: () => t('login.seoTitle'), robots: 'noindex' })
 </script>
 
@@ -136,6 +136,16 @@ useSeoMeta({ title: () => t('login.seoTitle'), robots: 'noindex' })
         />
         {{ busy ? $t('login.busy') : $t('login.signIn') }}
       </button>
+
+      <!-- YouTube API policy III.A: users agree to the privacy policy and YouTube's terms before using the client. -->
+      <p class="mt-4 text-center text-xs leading-relaxed text-ink-subtle">
+        {{ locale === 'fr' ? 'En vous connectant, vous acceptez la' : 'By signing in you agree to the' }}
+        <NuxtLink to="/privacy" class="underline underline-offset-2 hover:text-accent">{{ locale === 'fr' ? 'politique de confidentialité' : 'privacy policy' }}</NuxtLink>,
+        {{ locale === 'fr' ? 'les' : 'the' }}
+        <NuxtLink to="/terms" class="underline underline-offset-2 hover:text-accent">{{ locale === 'fr' ? "conditions d'utilisation" : 'terms of use' }}</NuxtLink>
+        {{ locale === 'fr' ? 'et les' : 'and the' }}
+        <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-accent">{{ locale === 'fr' ? "Conditions d'utilisation de YouTube" : 'YouTube Terms of Service' }}</a>.
+      </p>
     </form>
   </div>
 </template>

@@ -175,3 +175,100 @@ export async function attachDetails(videos: ChannelVideo[], auth: YouTubeAuth) {
   }
   return videos
 }
+
+// ── Upload (videos.insert, thumbnails.set) ──────────────────────────────────
+
+const UPLOAD = 'https://www.googleapis.com/upload/youtube/v3'
+const CHUNK = 32 * 1024 * 1024
+
+export interface UploadMeta {
+  title: string
+  description: string
+  privacy: 'public' | 'unlisted' | 'private'
+  madeForKids: boolean
+}
+
+async function googleError(res: Response) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text).error?.message ?? text
+  }
+  catch {
+    return text || `HTTP ${res.status}`
+  }
+}
+
+/**
+ * Resumable upload in 32 MB chunks: a 4K match is several gigabytes, and a
+ * chunk is the unit a progress bar and a retry can work with. The values are
+ * sent exactly as Tim left them (YouTube policy: no rewriting).
+ */
+export async function uploadVideo(
+  token: string,
+  file: string,
+  meta: UploadMeta,
+  report: (progress: number, message: string) => void,
+): Promise<string> {
+  const { open, stat } = await import('node:fs/promises')
+  const size = (await stat(file)).size
+  const start = await fetch(`${UPLOAD}/videos?uploadType=resumable&part=snippet,status`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Length': String(size),
+      'X-Upload-Content-Type': 'video/mp4',
+    },
+    body: JSON.stringify({
+      snippet: { title: meta.title, description: meta.description, categoryId: '17' },
+      status: { privacyStatus: meta.privacy, selfDeclaredMadeForKids: meta.madeForKids, embeddable: true },
+    }),
+  })
+  if (!start.ok) throw new Error(`YouTube refused the upload: ${await googleError(start)}`)
+  const session = start.headers.get('location')
+  if (!session) throw new Error('YouTube gave no upload session')
+
+  const handle = await open(file, 'r')
+  try {
+    let offset = 0
+    while (offset < size) {
+      const length = Math.min(CHUNK, size - offset)
+      const buffer = Buffer.alloc(length)
+      await handle.read(buffer, 0, length, offset)
+      let res: Response | null = null
+      for (let attempt = 0; attempt < 4; attempt++) {
+        res = await fetch(session, {
+          method: 'PUT',
+          headers: { 'Content-Length': String(length), 'Content-Range': `bytes ${offset}-${offset + length - 1}/${size}` },
+          body: buffer,
+        }).catch(() => null)
+        if (res && res.status < 500) break
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+      }
+      if (!res) throw new Error('Upload interrupted: no connection to YouTube')
+      if (res.status === 308) {
+        const range = res.headers.get('range')
+        offset = range ? Number(range.split('-')[1]) + 1 : offset + length
+        report(offset / size, `Uploading ${Math.round(offset / 1e6)} / ${Math.round(size / 1e6)} MB`)
+        continue
+      }
+      if (!res.ok) throw new Error(`Upload failed: ${await googleError(res)}`)
+      const video = await res.json() as { id: string }
+      return video.id
+    }
+    throw new Error('Upload ended without a video')
+  }
+  finally {
+    await handle.close()
+  }
+}
+
+/** Custom thumbnail; YouTube needs a verified channel for it. */
+export async function setThumbnail(token: string, videoId: string, jpeg: Buffer) {
+  const res = await fetch(`${UPLOAD}/thumbnails/set?videoId=${videoId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+    body: jpeg,
+  })
+  if (!res.ok) throw new Error(await googleError(res))
+}

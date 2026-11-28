@@ -180,7 +180,7 @@ export type JobState = 'running' | 'done' | 'error'
 
 export interface ReelJob {
   id: string
-  kind: 'source' | 'music' | 'render'
+  kind: 'source' | 'music' | 'render' | 'publish' | 'upload'
   state: JobState
   progress: number | null
   message: string
