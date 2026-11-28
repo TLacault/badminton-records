@@ -7,13 +7,13 @@ import { fileStem, uploadFolder } from '../../../../utils/uploadFolder'
 
 /**
  * Fills the upload folder after a render: the rendered video (hard-linked, so a
- * 4K file is not copied), the thumbnail, the title and the description.
+ * 4K file is not copied) and the thumbnail.
  * The video only ever comes from our own render dirs: the YouTube kit of this
  * match, or a clip render named by its hash.
  */
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const { matchId, kind, dir } = uploadFolder(getRouterParam(event, 'matchId'), getRouterParam(event, 'kind'))
+  const { matchId, kind, dir, note } = uploadFolder(getRouterParam(event, 'matchId'), getRouterParam(event, 'kind'))
   const form = await readMultipartFormData(event)
   const field = (name: string) => form?.find(f => f.name === name)
   const text = (name: string) => field(name)?.data.toString('utf8') ?? ''
@@ -33,8 +33,7 @@ export default defineEventHandler(async (event) => {
   for (const f of await readdir(dir)) await rm(join(dir, f), { force: true })
   const video = join(dir, `${fileStem(title)}.mp4`)
   await link(source, video).catch(() => copyFile(source, video))
-  await writeFile(join(dir, 'title.txt'), `${title}\n`)
-  await writeFile(join(dir, 'description.txt'), `${text('description')}\n`)
+  await writeFile(note, JSON.stringify({ source }))
   const thumb = field('thumbnail')
   if (thumb?.data.length && thumb.data.subarray(0, 3).toString('hex') === 'ffd8ff') await writeFile(join(dir, 'thumbnail.jpg'), thumb.data)
   return { dir, video }

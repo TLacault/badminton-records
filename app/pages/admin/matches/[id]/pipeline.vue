@@ -99,20 +99,33 @@ const source = useReelSource(computed(() => match.value?.youtube_video_id ?? nul
 // The tool a render runs through, mounted hidden at the bottom of the page.
 const tool = ref<{ ready: boolean, progress: number | null, message: string, run: (h: Height) => Promise<void> } | null>(null)
 const mounted = ref<'youtube' | 'highlights' | null>(null)
+// Renders in flight anywhere in this browser (the render ledger), by video.
+const live = { match: useLiveRender(matchId, 'match'), highlights: useLiveRender(matchId, 'highlights'), shorts: useLiveRender(matchId, 'shorts') }
+const RENDER_KIND: Partial<Record<StepId, KitKind>> = { 'yt-render': 'match', 'hl-render': 'highlights', 'sh-make': 'shorts' }
+const liveFor = (id: StepId) => (RENDER_KIND[id] ? live[RENDER_KIND[id]!].value : null)
+
 async function renderWith(which: 'youtube' | 'highlights') {
-  mounted.value = which
-  try {
-    const ready = await waitFor(() => !!tool.value?.ready, 500, {
-      ms: 120_000,
-      message: which === 'highlights' ? 'Nothing to render: no starred rally?' : 'The YouTube edit could not be built',
-    })
-    if (!ready) return false
-    await tool.value!.run(state.value.height)
-    loadKits()
+  const kind = which === 'youtube' ? 'match' : 'highlights'
+  // Already rendering (started in its tool, or before a reload): follow that one.
+  if (!pendingRender(matchId, kind)) {
+    mounted.value = which
+    try {
+      const ready = await waitFor(() => !!tool.value?.ready, 500, {
+        ms: 120_000,
+        message: which === 'highlights' ? 'Nothing to render: no starred rally?' : 'The YouTube edit could not be built',
+      })
+      if (!ready) return false
+      await tool.value!.run(state.value.height)
+    }
+    finally {
+      mounted.value = null
+    }
   }
-  finally {
-    mounted.value = null
-  }
+  // Done once the ledger has saved the edit map and filled the upload folder.
+  const settled = await waitFor(() => !pendingRender(matchId, kind) && live[kind].value?.state !== 'finishing', 1000)
+  if (!settled) return false
+  if (live[kind].value?.state === 'error') throw new Error(live[kind].value!.message)
+  loadKits()
 }
 
 const kits = ref<Record<KitKind, RenderNote | null>>({ match: null, highlights: null, shorts: null })
@@ -136,12 +149,16 @@ async function uploaded(kind: KitKind) {
   await importChannel()
   const kit = kits.value[kind]
   if (kit) {
+    // This render's video, by its title: another video of the same kind linked earlier does not count.
     const { data } = await client.from('matches').select('id, source_match_id').eq('youtube_title', kit.title.trim()).neq('id', matchId).limit(1)
     const row = data?.[0]
-    if (row && row.source_match_id !== matchId) await client.from('matches').update({ source_match_id: matchId }).eq('id', row.id)
+    if (!row) return false
+    if (row.source_match_id !== matchId) await client.from('matches').update({ source_match_id: matchId }).eq('id', row.id)
   }
   await refreshLinked()
   if (!linkedOf(kind)) return false
+  // On YouTube: the upload folder and the render behind it go, they are gigabytes.
+  await $fetch(`/api/pipeline/${matchId}/${kind}`, { method: 'DELETE' }).catch(() => {})
   refreshNuxtData('admin-match-nav')
   return true
 }
@@ -317,6 +334,8 @@ function picture(d: Dock) {
 function dockState(d: Dock): { text: string, tone: 'turn' | 'live' | 'done' | 'error' | 'idle' } {
   const states = d.steps.map(step)
   if (states.some(s => s.status === 'error')) return { text: 'Failed', tone: 'error' }
+  const rendering = d.steps.find(id => liveFor(id) && liveFor(id)!.state !== 'error')
+  if (rendering) return { text: `${Math.round(progressOf(rendering) * 100)}%`, tone: 'live' }
   if (states.some(s => s.status === 'waiting')) return { text: 'Your turn', tone: 'turn' }
   const run = d.steps.find(id => step(id).status === 'running')
   if (run) return { text: `${Math.round(progressOf(run) * 100)}%`, tone: 'live' }
@@ -327,6 +346,9 @@ function dockState(d: Dock): { text: string, tone: 'turn' | 'live' | 'done' | 'e
 
 function progressOf(id: StepId) {
   const st = step(id).status
+  // A render running now (even of a step done before) shows its own bar.
+  const l = liveFor(id)
+  if (l && l.state !== 'error') return l.progress ?? 0
   if (st === 'done') return 1
   if (st !== 'running') return 0
   if (id === 'download') return source.progress.value ?? 0
@@ -338,9 +360,9 @@ function detailOf(id: StepId) {
   const s = byId[id]
   switch (st.status) {
     case 'error': return st.message ?? 'Failed'
-    case 'done': return s.upload ? 'Linked' : id === 'download' ? 'On disk' : 'Done'
-    case 'running': return id === 'download' ? (source.message.value || 'Downloading') : tool.value?.ready ? (tool.value.message || 'Rendering') : 'Preparing'
-    case 'waiting': return s.upload ? 'Checked every minute' : id === 'tag' ? 'Mark it tagged when done' : 'Render it in the tool'
+    case 'done': return liveFor(id) && liveFor(id)!.state !== 'error' ? (liveFor(id)!.message || 'Rendering') : s.upload ? 'Linked' : id === 'download' ? 'On disk' : 'Done'
+    case 'running': return id === 'download' ? (source.message.value || 'Downloading') : liveFor(id)?.message || (tool.value?.ready ? 'Rendering' : 'Preparing')
+    case 'waiting': return s.upload ? 'Checked every minute' : id === 'tag' ? 'Mark it tagged when done' : liveFor(id)?.state === 'error' ? liveFor(id)!.message : liveFor(id) ? (liveFor(id)!.message || 'Rendering') : 'Render it in the tool'
     default: return ready(s) ? (s.human ? 'Needs you' : 'Queued') : ''
   }
 }
@@ -456,7 +478,7 @@ const TONE = {
                 <p class="text-sm font-medium leading-tight">{{ byId[id].label }}</p>
                 <p class="truncate text-[0.6875rem] leading-tight" :class="step(id).status === 'error' ? 'text-accent' : 'text-ink-subtle'" :title="detailOf(id)">{{ detailOf(id) }}</p>
               </div>
-              <span v-if="step(id).status === 'running'" class="font-mono text-xs tabular-nums">{{ Math.round(progressOf(id) * 100) }}%</span>
+              <span v-if="step(id).status === 'running' || (liveFor(id) && liveFor(id)!.state !== 'error')" class="font-mono text-xs tabular-nums">{{ Math.round(progressOf(id) * 100) }}%</span>
               <button
                 v-else-if="!active && (step(id).status === 'done' || step(id).status === 'error')"
                 type="button"
@@ -470,12 +492,12 @@ const TONE = {
             </div>
 
             <!-- Machine step: a thin bar. -->
-            <div v-if="!byId[id].human && (step(id).status === 'running' || step(id).status === 'done')" class="mt-2 h-1 overflow-hidden rounded-full bg-bg-deep">
+            <div v-if="(!byId[id].human && (step(id).status === 'running' || step(id).status === 'done')) || (liveFor(id) && liveFor(id)!.state !== 'error')" class="mt-2 h-1 overflow-hidden rounded-full bg-bg-deep">
               <div class="h-full rounded-full bg-gradient-to-r from-brand to-accent transition-[width] duration-500 ease-brand" :style="{ width: `${Math.max(2, progressOf(id) * 100)}%` }" />
             </div>
 
             <!-- Your turn: where to go. -->
-            <a v-if="step(id).status === 'waiting' && OPEN[id]" :href="OPEN[id]!.to" target="_blank" rel="noopener" class="btn btn-sm btn-primary mt-2 w-full">
+            <a v-if="step(id).status === 'waiting' && OPEN[id] && !liveFor(id)" :href="OPEN[id]!.to" target="_blank" rel="noopener" class="btn btn-sm btn-primary mt-2 w-full">
               Open the {{ OPEN[id]!.label }} <ExternalLink :size="13" aria-hidden="true" />
             </a>
 

@@ -254,22 +254,34 @@ async function render(draft: boolean, height?: number) {
   try {
     await source.upload()
     const { job: started } = await $fetch<{ job: ReelJob }>('/api/publish/render', { method: 'POST', body })
-    const out = await job.watch(started)
-    renderResult.value = out as { dir: string, video: string }
-    await saveKit(matchId, {
-      kind: 'match',
-      title: title.value,
-      description: description.value,
-      thumb: { template: template.value, lines: lines.value, colour: family.value.colour },
-    })
-    // Where the raw footage lands in this render, for the linked YouTube video.
-    if (plan.value) await saveEditMap(client as never, matchId, 'match', youtubeEditMap(plan.value.segments, settings.value.intro ? INTRO_SECONDS : 0))
+    // What follows the render (where the raw footage lands, for the linked
+    // YouTube video; the upload folder) is finished by the render ledger, even
+    // if this page is left before the render ends.
+    if (!draft) {
+      trackRender({
+        matchId,
+        kind: 'match',
+        jobId: started.id,
+        pieces: plan.value ? youtubeEditMap(plan.value.segments, settings.value.intro ? INTRO_SECONDS : 0) : [],
+        kit: { title: title.value, description: description.value, thumb: { template: template.value, lines: lines.value, colour: family.value.colour } },
+      })
+    }
+    renderResult.value = await job.watch(started) as { dir: string, video: string }
   }
   catch (cause) {
     renderError.value = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage
       ?? (cause instanceof Error ? cause.message : String(cause))
   }
 }
+
+// Back on the page while a render started earlier is still running: follow it.
+onMounted(() => {
+  const pending = pendingRender(matchId, 'match')
+  if (!pending?.jobId) return
+  job.watch({ id: pending.jobId, kind: 'render', state: 'running', progress: null, message: '', error: null, result: null })
+    .then(out => (renderResult.value = out as { dir: string, video: string }))
+    .catch(() => {})
+})
 
 // The pipeline mounts this page out of sight and renders through it, so its
 // output is exactly the one the Render button makes.

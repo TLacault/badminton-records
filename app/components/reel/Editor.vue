@@ -383,6 +383,18 @@ watch(() => JSON.stringify(project.value), () => {
   renderUrl.value = null
 })
 
+const kind = computed(() => (orientation.value === 'landscape' ? 'highlights' : 'shorts') as 'highlights' | 'shorts')
+const outUrl = (name: string) => `/api/reel/media/out/${name}?download=1&name=${encodeURIComponent(projectFileName(project.value, 'mp4'))}`
+
+// Back on the editor while a render started earlier is still running: follow it.
+onMounted(() => {
+  const pending = pendingRender(matchId, kind.value)
+  if (!pending?.jobId) return
+  renderJob.watch({ id: pending.jobId, kind: 'render', state: 'running', progress: null, message: '', error: null, result: null })
+    .then(() => (renderUrl.value = pending.kit.out ? outUrl(pending.kit.out) : null))
+    .catch(() => {})
+})
+
 async function render(height?: ReelProject['output']['height']) {
   renderError.value = null
   try {
@@ -393,25 +405,30 @@ async function render(height?: ReelProject['output']['height']) {
       '/api/reel/render',
       { method: 'POST', body: { ...body, brand: brand.value } },
     )
-    if (!started.ready && started.job) await renderJob.watch(started.job)
-    // Where the raw footage lands in this render: the linked highlights / edit read it.
-    await saveEditMap(client as never, matchId, orientation.value === 'landscape' ? 'highlights' : 'shorts', clipEditMap(pieces.value))
-    const file = projectFileName(project.value, 'mp4')
-    renderUrl.value = `/api/reel/media/out/${started.name}?download=1&name=${encodeURIComponent(file)}`
-    await saveKit(matchId, {
-      kind: orientation.value === 'landscape' ? 'highlights' : 'shorts',
-      title: project.value.name,
-      description: description.value,
-      out: started.name,
-      thumb: {
-        template: thumbTemplate.value,
-        lines: thumbLines.value,
-        colour: family.value?.colour ?? '#cb2543',
-        highlights: orientation.value === 'landscape' ? 'HIGHLIGHTS' : '',
-        vertical: orientation.value === 'portrait',
-        tag: family.value?.label.toUpperCase() ?? '',
+    // What follows the render (where the raw footage lands, read by the linked
+    // video; the upload folder) is finished by the render ledger, even if this
+    // page is left before the render ends.
+    trackRender({
+      matchId,
+      kind: kind.value,
+      jobId: started.ready ? null : started.job?.id ?? null,
+      pieces: clipEditMap(pieces.value),
+      kit: {
+        title: project.value.name,
+        description: description.value,
+        out: started.name,
+        thumb: {
+          template: thumbTemplate.value,
+          lines: thumbLines.value,
+          colour: family.value?.colour ?? '#cb2543',
+          highlights: orientation.value === 'landscape' ? 'HIGHLIGHTS' : '',
+          vertical: orientation.value === 'portrait',
+          tag: family.value?.label.toUpperCase() ?? '',
+        },
       },
     })
+    if (!started.ready && started.job) await renderJob.watch(started.job)
+    renderUrl.value = outUrl(started.name)
   }
   catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
