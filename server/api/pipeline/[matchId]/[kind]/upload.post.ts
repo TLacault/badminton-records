@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   const video = files.find((f: string) => f.endsWith('.mp4'))
   if (!video) throw createError({ statusCode: 404, statusMessage: 'Nothing to upload: render it first' })
   const auth = await youtubeAuth(event)
-  if (!('token' in auth)) throw createError({ statusCode: 501, statusMessage: 'Uploading needs YouTube OAuth (YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN)' })
+  if (!('token' in auth)) throw createError({ statusCode: 501, statusMessage: 'Uploading needs YouTube OAuth: YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN are missing from this server (pnpm dev:hosted reads .env.hosted), restart it after adding them' })
 
   const readNote = async () => JSON.parse(await readFile(note, 'utf8').catch(() => '{}'))
   const job = startJob('upload', `upload:${matchId}:${kind}`, async (report) => {
