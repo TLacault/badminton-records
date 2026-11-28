@@ -101,7 +101,7 @@ export function bestThumbnail(thumbnails?: Record<string, { url: string, width: 
 }
 
 /**
- * Resolve a channel handle (`@timlacault`, with or without the `@`) to its
+ * Resolve a channel handle (`@badrec-tim`, with or without the `@`) to its
  * "uploads" playlist, which is the only way to page a channel's full history —
  * search.list caps out and reorders.
  */

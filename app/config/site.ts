@@ -52,7 +52,7 @@ export const site = {
       en: "Play · Train · Improve",
     },
     /** TODO: your channel URL. Used by the footer and the hero's secondary CTA. */
-    youtube: "https://www.youtube.com/@timlacault",
+    youtube: "https://www.youtube.com/@badrec-tim",
   },
 
   /** Meta description and social preview text. */

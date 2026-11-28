@@ -339,7 +339,7 @@ It needs a YouTube Data API v3 key in `.env`:
 
 ```
 YOUTUBE_API_KEY=...
-YOUTUBE_CHANNEL_HANDLE=timlacault   # optional, defaults to timlacault
+YOUTUBE_CHANNEL_HANDLE=badrec-tim   # optional, defaults to badrec-tim
 ```
 
 Each match carries two independent flags: `visibility` (`private` | `public`)

@@ -69,7 +69,7 @@ export default defineNuxtConfig({
     // `public`. Named plainly rather than NUXT_-prefixed because that is how
     // it was issued and stored in .env.
     youtubeApiKey: process.env.YOUTUBE_API_KEY ?? '',
-    youtubeChannelHandle: process.env.YOUTUBE_CHANNEL_HANDLE ?? 'timlacault',
+    youtubeChannelHandle: process.env.YOUTUBE_CHANNEL_HANDLE ?? 'badrec-tim',
     // OAuth as the channel owner: lists unlisted uploads (the raw matches).
     youtubeClientId: process.env.YOUTUBE_CLIENT_ID ?? '',
     youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET ?? '',
